@@ -5,7 +5,6 @@ export const designSize = pgTable("design_sizes", {
 
     designId: integer("design_id").notNull().references(() => design.id, { onDelete: "cascade" }),
 
-
     sizeLabel: varchar("size_label", { length: 50 }).notNull(),
 
     displayOrder: integer("display_order")

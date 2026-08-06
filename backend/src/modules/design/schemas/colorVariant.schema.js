@@ -12,7 +12,6 @@ export const colorVariant = pgTable("color_variants", {
     qrPayload: varchar("qr_payload", { length: 255 }).notNull(),
     qrGeneratedAt: timestamp("qr_generated_at"),
 
-
     isActive: boolean("is_active").default(true).notNull(),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),

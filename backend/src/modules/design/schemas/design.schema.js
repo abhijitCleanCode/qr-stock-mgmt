@@ -6,8 +6,8 @@ export const design = PgTable("designs", {
     name: varchar("name", { length: 255 }).notNull(),
     code: varchar("code", { length: 255 }),
 
-    defaultCostPrice: integer("default_cost_price").notNull(),
-    defaultSellingPrice: integer("default_selling_price").notNull(),
+    defaultCostPricePerPiece: integer("default_cost_price_per_piece").notNull(),
+    defaultSellingPricePerPiece: integer("default_selling_price_per_piece").notNull(),
 
     notes: varchar("notes", { length: 255 }),
 
