@@ -1,9 +1,10 @@
 import { boolean, integer, numeric, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { colorVariant } from "./colorVariant.schema.js";
 
 export const designSize = pgTable("design_sizes", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
 
-    designId: integer("design_id").notNull().references(() => design.id, { onDelete: "cascade" }),
+    variantId: integer("variant_id").notNull().references(() => colorVariant.id, { onDelete: "cascade" }),
 
     sizeLabel: varchar("size_label", { length: 50 }).notNull(),
 

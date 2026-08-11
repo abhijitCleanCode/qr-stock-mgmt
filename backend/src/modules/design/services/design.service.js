@@ -38,7 +38,7 @@ class DesignService {
             throw new Error("Search keyword is required.");
         };
 
-         return await this._designRepository.search(keyword);
+        return await this._designRepository.search(keyword);
     }
 }
 

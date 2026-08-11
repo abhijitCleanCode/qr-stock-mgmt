@@ -1,15 +1,12 @@
 import { integer, pgEnum, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
-
-import { design } from "../../design/schemas/design.schema.js";
+import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 
 export const stockInTransaction = pgTable("stock_in_transactions", {
     id: integer("id")
         .primaryKey()
         .generatedAlwaysAsIdentity(),
 
-    designId: integer("design_id")
-        .notNull()
-        .references(() => design.id),
+    variantId: integer("variant_id").notNull().references(() => colorVariant.id, { onDelete: "cascade" }),
 
     // supplierId: integer("supplier_id")
     //     .notNull()
