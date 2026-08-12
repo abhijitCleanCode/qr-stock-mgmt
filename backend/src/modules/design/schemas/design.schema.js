@@ -1,6 +1,6 @@
-import { integer, PgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { integer, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 
-export const design = PgTable("designs", {
+export const design = pgTable("designs", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
 
     name: varchar("name", { length: 255 }).notNull(),

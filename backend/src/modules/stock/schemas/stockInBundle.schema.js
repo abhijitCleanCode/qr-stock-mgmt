@@ -1,4 +1,4 @@
-import { integer, pgTable } from "drizzle-orm/pg-core";
+import { integer, pgTable, timestamp } from "drizzle-orm/pg-core";
 import { stockInTransaction } from "./stockInTransaction.schema.js";
 
 export const stockInBundle = pgTable("stock_in_bundle", {

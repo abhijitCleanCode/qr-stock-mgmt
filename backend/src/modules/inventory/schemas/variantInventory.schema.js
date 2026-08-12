@@ -1,11 +1,11 @@
-import { integer, pgTable } from "drizzle-orm/pg-core";
+import { integer, pgTable, timestamp, unique } from "drizzle-orm/pg-core";
 
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { designSize } from "../../design/schemas/designSize.schema.js";
 
 // core table: current status of inventory, set vs unset
-export const VariantInventory = pgTable("variant_inventory", {
-    id: integerer("id").primaryKey().generatedAlwaysAsIdentity(),
+export const variantInventory = pgTable("variant_inventory", {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
 
     colorVariantId: integer("color_variant_id")
         .notNull()
@@ -27,4 +27,6 @@ export const VariantInventory = pgTable("variant_inventory", {
         .defaultNow()
         .$onUpdateFn(() => new Date())
         .notNull(),
-});
+}, (table) => ({
+    uniqueVariantSize: unique().on(table.colorVariantId, table.designSizeId),
+}));

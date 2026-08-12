@@ -1,4 +1,4 @@
-import { integer, pgTable, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { design } from "./design.schema.js";
 
 export const colorVariant = pgTable("color_variants", {

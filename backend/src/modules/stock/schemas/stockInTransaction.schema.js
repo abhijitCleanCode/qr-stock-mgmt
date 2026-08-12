@@ -1,4 +1,4 @@
-import { integer, pgEnum, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { date, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 
 export const stockInTransaction = pgTable("stock_in_transactions", {
@@ -12,12 +12,11 @@ export const stockInTransaction = pgTable("stock_in_transactions", {
     //     .notNull()
     //     .references(() => supplier.id),
 
-    totalSetsReceived: integer("total_sets_received")
-        .notNull(),
+    stockDate: date("stock_date").notNull(),
+
+    totalSetsReceived: integer("total_sets_received").notNull(),
 
     notes: text("notes"),
 
-    createdAt: timestamp("created_at")
-        .defaultNow()
-        .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
 });
