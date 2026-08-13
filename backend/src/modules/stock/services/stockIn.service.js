@@ -1,17 +1,7 @@
 import { db } from "../../../database/index.js";
 import ApiError from "../../../core/apiError.js";
 
-import colorVariantRepository from "../../design/repositories/colorVariant.repository.js";
-import designSizeRepository from "../../design/repositories/designSize.repository.js";
-
-import stockInTransactionRepository from "../repositories/stockInTransaction.repository.js";
-import stockInBundleRepository from "../repositories/stockInBundle.repository.js";
-import stockInBundlePieceRepository from "../repositories/stockInBundlePiece.repository.js";
-import stockInLoosePieceRepository from "../repositories/stockInLoosePiece.repository.js";
-import stockInEntryRepository from "../repositories/stockInEntry.repository.js";
-
 import variantInventoryRepository from "../../inventory/repositories/variantInventory.repository.js";
-import variantStatusTransactionRepository from "../../inventory/repositories/variantStatusTransaction.repository.js";
 
 import stockInValidator from "./stockInValidator.service.js";
 import stockInCalculatorService from "./stockInCalculator.service.js";
@@ -28,18 +18,8 @@ function computeStatus(activeSizes, qtyMap) {
 }
 
 class StockInService {
-    _colorVariantRepository = colorVariantRepository;
-    _designSizeRepository = designSizeRepository;
-
-    _stockInTransactionRepository = stockInTransactionRepository;
-    _stockInBundleRepository = stockInBundleRepository;
-    _stockInBundlePieceRepository = stockInBundlePieceRepository;
-    _stockInLoosePieceRepository = stockInLoosePieceRepository;
-    _stockInEntryRepository = stockInEntryRepository;
 
     _variantInventoryRepository = variantInventoryRepository;
-    _variantStatusTransactionRepository = variantStatusTransactionRepository;
-
     _stockInValidator = stockInValidator;
     _stockInCalculator = stockInCalculatorService;
     _stockInPersistence = stockInPersistence;
@@ -94,7 +74,7 @@ class StockInService {
             delta,
             updatedInventory,
             variantInput,
-        })
+        });
     }
 }
 

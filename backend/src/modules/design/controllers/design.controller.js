@@ -1,4 +1,4 @@
-import designService from "../service/design.service.js";
+import designService from "../services/design.service.js";
 
 class DesignController {
     _designService = designService;

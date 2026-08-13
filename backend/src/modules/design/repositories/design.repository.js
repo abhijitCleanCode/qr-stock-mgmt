@@ -2,10 +2,7 @@ import { design } from "../schemas/design.schema.js";
 
 class DesignRepository {
     async create(tx, data) {
-        const [result] = await tx
-            .insert(design)
-            .values(data)
-            .returning();
+        const [result] = await tx.insert(design).values(data).returning();
 
         return result;
     }
