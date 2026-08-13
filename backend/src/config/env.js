@@ -10,7 +10,10 @@ const envSchema = z.object({
     DATABASE_URL: z.string(),
     DB_POOL_SIZE: z.string().default("10").transform(Number),
 
-    // logging
+    CLOUDINARY_CLOUD_NAME: z.string(),
+    CLOUDINARY_API_KEY: z.string(),
+    CLOUDINARY_API_SECRET: z.string(),
+
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     SERVICE_NAME: z.string().default('stock-mgmt-backend'),
     SERVICE_VERSION: z.string().default('v1'),

@@ -3,7 +3,7 @@ import { colorVariant } from "../schemas/colorVariant.schema.js";
 
 class ColorVariantRepository {
     async createMany(tx, data) {
-        return tx.insert(colorVariant).values(data);
+        return tx.insert(colorVariant).values(data).returning();
     }
 
     async findActiveById(tx, id) {

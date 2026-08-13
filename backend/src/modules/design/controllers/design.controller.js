@@ -1,11 +1,14 @@
 import designService from "../services/design.service.js";
+import { ApiResponse } from "../../../core/apiResponse.js";
 
 class DesignController {
     _designService = designService;
 
     RegisterDesign = async (req, res, next) => {
+        const files = req.files ?? [];
+
         try {
-            const response = await this._designService.registerDesign(req.body);
+            const response = await this._designService.registerDesign(req.body, files);
 
             return res.status(200).json(new ApiResponse(201, response, "Design registered successfully."));
         } catch (error) {

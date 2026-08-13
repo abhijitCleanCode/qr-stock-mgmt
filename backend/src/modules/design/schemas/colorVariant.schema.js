@@ -9,6 +9,10 @@ export const colorVariant = pgTable("color_variants", {
     colorName: varchar("color_name", { length: 100 }).notNull(),
     colorHex: varchar("color_hex", { length: 7 }).notNull(),
 
+    // every color variant must have exactly one image (business rule) — NOT NULL accordingly
+    imageUrl: varchar("image_url", { length: 500 }).notNull(),
+    imagePublicId: varchar("image_public_id", { length: 255 }).notNull(),
+
     qrPayload: varchar("qr_payload", { length: 255 }).notNull(),
     qrGeneratedAt: timestamp("qr_generated_at"),
 
