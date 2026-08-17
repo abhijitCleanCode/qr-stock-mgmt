@@ -1,6 +1,6 @@
 class stockInCalculator {
     calculateStockIn(activeSizes, input) {
-        const delta = new Map( activeSizes.map((size) => [size.id, 0]) );
+        const delta = new Map(activeSizes.map((size) => [size.id, 0]));
 
         // complete set
         this._addCompleteSets(delta, activeSizes, input.totalSetsReceived ?? 0);
@@ -18,6 +18,8 @@ class stockInCalculator {
         if (quantity <= 0) return;
 
         for (const size of activeSizes) {
+            if (!size.includedInSet) continue;
+
             delta.set(size.id, delta.get(size.id) + quantity);
         }
     }

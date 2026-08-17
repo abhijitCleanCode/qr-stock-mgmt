@@ -55,7 +55,23 @@ class StockInService {
         const delta = this._stockInCalculator.calculateStockIn(validateStockIn.activeSizes, variantInput);
 
         // 3. create stock in transaction record
-        const stockInTransaction = await this._stockInPersistence.createStockInTransaction(tx, validateStockIn.variant, variantInput);
+        const  { transaction: stockInTransaction, createdBundles } = await this._stockInPersistence.createStockInTransaction(tx, validateStockIn.variant, variantInput);
+
+        // 3.5 NEW: resolve (find-or-create) the stock groups this registration belongs to
+        // const setGroup = variantInput.totalSetsReceived > 0 ? await this._stockInPersistence.resolveSetGroup(tx, validateStockIn.variant.id) : null;
+        const setGroup = await this._stockInPersistence.resolveSetGroup(tx, validateStockIn.variant.id);
+
+        const bundleGroups = await this._stockInPersistence.resolveBundleGroups(tx, validateStockIn.variant.id, variantInput.bundles ?? []);
+
+        // 3.6 NEW: create individual stock_items rows — unique IDs come from this insert
+        const stockItems = await this._stockInPersistence.createStockItems(tx, {
+            stockInTransactionId: stockInTransaction.id,
+            colorVariantId: validateStockIn.variant.id,
+            variantInput,
+            setGroup,
+            createdBundles,
+            bundleGroups,
+        });
 
         // 4. update current inventory
         const updatedInventory = await this._variantInventoryRepository.upsertIncrement(tx,
@@ -74,6 +90,8 @@ class StockInService {
             delta,
             updatedInventory,
             variantInput,
+            stockGroupId: setGroup?.id ?? null,
+            stockItems
         });
     }
 }

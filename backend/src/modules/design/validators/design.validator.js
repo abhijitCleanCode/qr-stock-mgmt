@@ -24,6 +24,7 @@ const designSizeInputSchema = z.object({
     sizeLabel: z.string().trim().min(1),
     displayOrder: nonNegativeInt.default(0),
     unsetPricePerSize: z.number().nonnegative().optional(),
+    includedInSet: z.boolean().default(true),
 });
 
 export const registerDesignSchema = z.object({

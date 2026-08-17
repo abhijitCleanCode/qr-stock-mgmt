@@ -21,11 +21,7 @@ logger.info({ maxConnections: env.DB_POOL_SIZE }, "PostgreSQL pool configured");
 
 // handle Pool Errors, crucial for stability
 pool.on('error', (err, client) => {
-    logger.error({
-            err,
-            component: "db-pool",
-        }, "Unexpected error on idle PostgresSQL client"
-    );
+    logger.error({ err, component: "db-pool", }, "Unexpected error on idle PostgresSQL client" );
 });
 
 export async function verifyConnection() {
@@ -39,13 +35,13 @@ export async function verifyConnection() {
 }
 
 // graceful shutdown helper
-export async function closePool () {
+export async function closePool() {
     try {
         logger.info("Closing PostgresSQL connection pool");
         await pool.end();
         logger.info("Database pool closed successfully!");
     } catch (err) {
-        logger.error({err, component: "db-pool"}, "Error closing PostgresSQL pool");
+        logger.error({ err, component: "db-pool" }, "Error closing PostgresSQL pool");
         throw err; // let server.js shutdown() handle exit(1)
     }
 }

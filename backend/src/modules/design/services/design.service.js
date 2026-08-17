@@ -56,7 +56,8 @@ class DesignService {
                         variantId: variant.id,
                         sizeLabel: size.sizeLabel,
                         displayOrder: size.displayOrder,
-                        unsetPricePerSize: size.unsetPricePerSize
+                        unsetPricePerSize: size.unsetPricePerSize,
+                        includedInSet: size.includedInSet,
                     }))
                 );
                 const createdSizes = sizes.length > 0

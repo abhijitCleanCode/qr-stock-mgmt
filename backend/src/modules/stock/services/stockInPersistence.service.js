@@ -3,10 +3,20 @@ import stockInBundleRepository from "../repositories/stockInBundle.repository.js
 import stockInBundlePieceRepository from "../repositories/stockInBundlePiece.repository.js";
 import stockInLoosePieceRepository from "../repositories/stockInLoosePiece.repository.js";
 import stockInEntryRepository from "../repositories/stockInEntry.repository.js";
+import stockItemRepository from "../repositories/stockItem.repository.js";
+import stockGroupRepository from "../repositories/stockGroup.repository.js";
 
 function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
 }
+
+function buildBundleCompositionSignature(composition) {
+    return [...composition]
+        .sort((a, b) => a.designSizeId - b.designSizeId)
+        .map((piece) => `${piece.designSizeId}:${piece.quantity}`)
+        .join(",");
+}
+
 class stockInPersistence {
 
     _stockInTransactionRepository = stockInTransactionRepository;
@@ -14,6 +24,8 @@ class stockInPersistence {
     _stockInBundlePieceRepository = stockInBundlePieceRepository;
     _stockInLoosePieceRepository = stockInLoosePieceRepository;
     _stockInEntryRepository = stockInEntryRepository;
+    _stockGroupRepository = stockGroupRepository;
+    _stockItemRepository = stockItemRepository;
 
     async createStockInTransaction(tx, variant, variantInput) {
         const transaction = await this._stockInTransactionRepository.create(tx, {
@@ -24,16 +36,20 @@ class stockInPersistence {
         });
 
         // save bundles
-        await this._saveBundles(tx, transaction.id, variantInput.bundles ?? []);
+        const createdBundles = await this._saveBundles(tx, transaction.id, variantInput.bundles ?? []);
 
         // save loose pieces
         await this._saveLoosePieces(tx, transaction.id, variantInput.loosePieces ?? []);
 
-        return transaction;
+        return { transaction, createdBundles };
+    }
+
+    async resolveSetGroup(tx, colorVariantId) {
+        return this._stockGroupRepository.findOrCreate(tx, { colorVariantId, type: "SET" });
     }
 
     async _saveBundles(tx, transactionId, bundles) {
-        if (bundles.length === 0) return;
+        if (bundles.length === 0) return [];
 
         // building db rows
         const bundleRows = bundles.map((bundle, index) => ({
@@ -52,6 +68,8 @@ class stockInPersistence {
             }))
         );
         await this._stockInBundlePieceRepository.createMany(tx, bundlePieceRows);
+
+        return createdBundles;
     }
 
     async _saveLoosePieces(tx, transactionId, loosePieces) {
@@ -78,6 +96,51 @@ class stockInPersistence {
 
         await this._stockInEntryRepository.createMany(tx, rows);
     };
+
+    // returns groups in the same order as `bundles`, one per bundle entry
+    async resolveBundleGroups(tx, colorVariantId, bundles) {
+        const groups = [];
+        for (const bundle of bundles) {
+            const compositionSignature = buildBundleCompositionSignature(bundle.composition);
+            groups.push(await this._stockGroupRepository.findOrCreate(tx, {
+                colorVariantId,
+                type: "BUNDLE",
+                compositionSignature,
+            }));
+        }
+        return groups;
+    }
+
+    async createStockItems(tx, { stockInTransactionId, colorVariantId, variantInput, setGroup, createdBundles, bundleGroups }) {
+        const rows = [];
+
+        if (variantInput.totalSetsReceived > 0 && setGroup) {
+            for (let i = 0; i < variantInput.totalSetsReceived; i++) {
+                rows.push({
+                    stockGroupId: setGroup.id,
+                    colorVariantId,
+                    stockInTransactionId,
+                    bundleId: null,
+                    type: "SET",
+                });
+            }
+        }
+
+        createdBundles.forEach((bundle, index) => {
+            const group = bundleGroups[index];
+            for (let i = 0; i < bundle.quantity; i++) {
+                rows.push({
+                    stockGroupId: group.id,
+                    colorVariantId,
+                    stockInTransactionId,
+                    bundleId: bundle.id,
+                    type: "BUNDLE",
+                });
+            }
+        });
+
+        return this._stockItemRepository.createMany(tx, rows);
+    }
 }
 
 export default new stockInPersistence();

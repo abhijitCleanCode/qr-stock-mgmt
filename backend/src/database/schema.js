@@ -8,5 +8,8 @@ export * from "../modules/stock/schemas/stockInBundlePiece.schema.js";
 export * from "../modules/stock/schemas/stockInLoosePiece.schema.js";
 export * from "../modules/stock/schemas/stockOutTransaction.schema.js";
 export * from "../modules/stock/schemas/stockOutEntry.schema.js";
+export * from "../modules/stock/schemas/stockGroup.schema.js";
+export * from "../modules/stock/schemas/stockItem.schema.js";
 export * from "../modules/inventory/schemas/variantInventory.schema.js";
 export * from "../modules/inventory/schemas/variantStatusTransaction.schema.js";
+

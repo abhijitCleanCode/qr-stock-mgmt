@@ -6,9 +6,11 @@ class StockInResultMapper {
         activeSizes,
         delta,
         updatedInventory,
-        input,
+        variantInput,
+        stockGroupId,
+        stockItems,
     }) {
-        const inventoryMap = new Map( updatedInventory.map((row) => [row.designSizeId, row.quantity]) );
+        const inventoryMap = new Map(updatedInventory.map((row) => [row.designSizeId, row.quantity]));
 
         return {
             designId,
@@ -30,6 +32,15 @@ class StockInResultMapper {
                 sizeLabel: size.sizeLabel,
                 quantityAdded: delta.get(size.id) ?? 0,
                 newQuantity: inventoryMap.get(size.id) ?? 0,
+            })),
+
+            stockGroupId,
+
+            stockItems: stockItems.map((item) => ({
+                id: item.id,
+                type: item.type,
+                status: item.status,
+                bundleId: item.bundleId,
             })),
         };
     }
