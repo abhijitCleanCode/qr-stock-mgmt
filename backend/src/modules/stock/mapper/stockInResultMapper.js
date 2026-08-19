@@ -23,9 +23,9 @@ class StockInResultMapper {
 
             totalSetsReceived: transaction.totalSetsReceived,
 
-            bundlesRegistered: input.bundles?.length ?? 0,
+            bundlesRegistered: variantInput.bundles?.length ?? 0,
 
-            loosePiecesRegistered: input.loosePieces?.length ?? 0,
+            loosePiecesRegistered: variantInput.loosePieces?.length ?? 0,
 
             sizeBreakdown: activeSizes.map((size) => ({
                 designSizeId: size.id,
@@ -41,6 +41,7 @@ class StockInResultMapper {
                 type: item.type,
                 status: item.status,
                 bundleId: item.bundleId,
+                designSizeId: item.designSizeId,
             })),
         };
     }

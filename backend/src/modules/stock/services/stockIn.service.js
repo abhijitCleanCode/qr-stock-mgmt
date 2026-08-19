@@ -58,10 +58,11 @@ class StockInService {
         const  { transaction: stockInTransaction, createdBundles } = await this._stockInPersistence.createStockInTransaction(tx, validateStockIn.variant, variantInput);
 
         // 3.5 NEW: resolve (find-or-create) the stock groups this registration belongs to
-        // const setGroup = variantInput.totalSetsReceived > 0 ? await this._stockInPersistence.resolveSetGroup(tx, validateStockIn.variant.id) : null;
-        const setGroup = await this._stockInPersistence.resolveSetGroup(tx, validateStockIn.variant.id);
+        const setGroup = variantInput.totalSetsReceived > 0 ? await this._stockInPersistence.resolveSetGroup(tx, validateStockIn.variant.id) : null;
+        // skip creating stock groups if there are no sets
 
         const bundleGroups = await this._stockInPersistence.resolveBundleGroups(tx, validateStockIn.variant.id, variantInput.bundles ?? []);
+        const loosePieceGroups = await this._stockInPersistence.resolveLoosePieceGroups(tx, validateStockIn.variant.id, variantInput.loosePieces ?? []);
 
         // 3.6 NEW: create individual stock_items rows — unique IDs come from this insert
         const stockItems = await this._stockInPersistence.createStockItems(tx, {
@@ -71,6 +72,7 @@ class StockInService {
             setGroup,
             createdBundles,
             bundleGroups,
+            loosePieceGroups,
         });
 
         // 4. update current inventory

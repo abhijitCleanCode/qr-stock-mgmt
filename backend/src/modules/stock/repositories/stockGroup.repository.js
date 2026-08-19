@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { stockGroup } from "../schemas/stockGroup.schema.js";
 
 class StockGroupRepository {

@@ -10,7 +10,7 @@ function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
 }
 
-function buildBundleCompositionSignature(composition) {
+export function buildBundleCompositionSignature(composition) {
     return [...composition]
         .sort((a, b) => a.designSizeId - b.designSizeId)
         .map((piece) => `${piece.designSizeId}:${piece.quantity}`)
@@ -111,7 +111,19 @@ class stockInPersistence {
         return groups;
     }
 
-    async createStockItems(tx, { stockInTransactionId, colorVariantId, variantInput, setGroup, createdBundles, bundleGroups }) {
+    async resolveLoosePieceGroups(tx, colorVariantId, loosePieces) {
+        const groups = [];
+        for (const piece of loosePieces) {
+            groups.push(await this._stockGroupRepository.findOrCreate(tx, {
+                colorVariantId,
+                type: "LOOSE_PIECE",
+                compositionSignature: String(piece.designSizeId),
+            }));
+        }
+        return groups;
+    }
+
+    async createStockItems(tx, { stockInTransactionId, colorVariantId, variantInput, setGroup, createdBundles, bundleGroups, loosePieceGroups }) {
         const rows = [];
 
         if (variantInput.totalSetsReceived > 0 && setGroup) {
@@ -135,6 +147,21 @@ class stockInPersistence {
                     stockInTransactionId,
                     bundleId: bundle.id,
                     type: "BUNDLE",
+                });
+            }
+        });
+
+        (variantInput.loosePieces ?? []).forEach((piece, index) => {
+            const group = loosePieceGroups[index];
+            for (let i = 0; i < piece.quantity; i++) {
+                rows.push({
+                    stockGroupId: group.id,
+                    colorVariantId,
+                    stockInTransactionId,
+                    bundleId: null,
+                    designSizeId: piece.designSizeId,
+                    type: "LOOSE_PIECE",
+                    status: "UNSET", // must set explicitly because default status is "AVAILABLE" and loose piece is UNSET
                 });
             }
         });
