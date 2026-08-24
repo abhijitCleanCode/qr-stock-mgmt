@@ -8,6 +8,7 @@ import colorVariantRepository from "../../design/repositories/colorVariant.repos
 import designSizeRepository from "../../design/repositories/designSize.repository.js";
 import stockGroupRepository from "../repositories/stockGroup.repository.js";
 import stockItemLineageRepository from "../repositories/stockItemLineage.repository.js";
+import stockQrService from "./stockQr.service.js";
 
 // Business vocabulary at the API boundary (SET/UNSET), mapped to the DB's AVAILABLE/UNSET inside the service
 const API_TO_DB_STATUS = { SET: "AVAILABLE", UNSET: "UNSET" };
@@ -18,6 +19,7 @@ class StockItemService {
     _designSizeRepository = designSizeRepository;
     _stockGroupRepository = stockGroupRepository;
     _stockItemLineageRepository = stockItemLineageRepository;
+    _stockQrService = stockQrService;
 
     async transitionStatus(id, targetStatus) {
         return db.transaction(async (tx) => {
@@ -87,6 +89,12 @@ class StockItemService {
                 status: "AVAILABLE",
             }]);
 
+            await this._stockQrService.generateForStockItems(tx, [created], {
+                designCode: variant.designCode,
+                designName: variant.designName,
+                colorName: variant.colorName,
+            });
+
             // consume the source pieces
             // 1. get their ids
             const sourceIds = sourceItems.map((item) => item.id);
@@ -143,6 +151,12 @@ class StockItemService {
                 type: "BUNDLE",
                 status: "AVAILABLE",
             }]);
+
+            await this._stockQrService.generateForStockItems(tx, [created], {
+                designCode: variant.designCode,
+                designName: variant.designName,
+                colorName: variant.colorName,
+            });
 
             const sourceIds = sourceItems.map((item) => item.id);
             await this._stockItemRepository.markConsumed(tx, sourceIds);

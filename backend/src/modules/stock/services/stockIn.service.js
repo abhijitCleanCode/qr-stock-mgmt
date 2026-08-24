@@ -7,6 +7,7 @@ import stockInValidator from "./stockInValidator.service.js";
 import stockInCalculatorService from "./stockInCalculator.service.js";
 import stockInPersistence from "./stockInPersistence.service.js";
 import stockInResultMapper from "../mapper/stockInResultMapper.js";
+import stockQrService from "./stockQr.service.js";
 
 function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
@@ -23,6 +24,7 @@ class StockInService {
     _stockInValidator = stockInValidator;
     _stockInCalculator = stockInCalculatorService;
     _stockInPersistence = stockInPersistence;
+    _stockQrService = stockQrService;
 
     _stockInResultMapper = stockInResultMapper;
 
@@ -55,7 +57,7 @@ class StockInService {
         const delta = this._stockInCalculator.calculateStockIn(validateStockIn.activeSizes, variantInput);
 
         // 3. create stock in transaction record
-        const  { transaction: stockInTransaction, createdBundles } = await this._stockInPersistence.createStockInTransaction(tx, validateStockIn.variant, variantInput);
+        const { transaction: stockInTransaction, createdBundles } = await this._stockInPersistence.createStockInTransaction(tx, validateStockIn.variant, variantInput);
 
         // 3.5 NEW: resolve (find-or-create) the stock groups this registration belongs to
         const setGroup = variantInput.totalSetsReceived > 0 ? await this._stockInPersistence.resolveSetGroup(tx, validateStockIn.variant.id) : null;
@@ -73,6 +75,13 @@ class StockInService {
             createdBundles,
             bundleGroups,
             loosePieceGroups,
+        });
+
+        // 3.7 NEW: generate + persist QR history for every SET/BUNDLE stock item just created
+        await this._stockQrService.generateForStockItems(tx, stockItems, {
+            designCode: validateStockIn.variant.designCode,
+            designName: validateStockIn.variant.designName,
+            colorName: validateStockIn.variant.colorName,
         });
 
         // 4. update current inventory

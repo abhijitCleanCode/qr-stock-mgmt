@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+
 import { stockItemLineage } from "../schemas/stockItemLineage.schema.js";
 
 class StockItemLineageRepository {
