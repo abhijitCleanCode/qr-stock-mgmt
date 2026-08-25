@@ -1,5 +1,5 @@
 import { FormProvider } from "react-hook-form";
-import { useStudentForm } from "../hooks/useStudentForm";
+import { useDesignForm } from "../hooks/useDesignForm";
 import { useDesignWizard } from "../hooks/useDesignWizard";
 import DesignStepper from "./DesignStepper";
 import StepRenderer from "./StepRenderer";
@@ -7,7 +7,7 @@ import DesignWizardNavigation from "./DesignWizardNavigation";
 import { DESIGN_STEPS } from "../steps/DesignSteps";
 
 const DesignWizard = () => {
-    const form = useStudentForm();
+    const form = useDesignForm();
 
     const wizard = useDesignWizard(form);
 

@@ -1,7 +1,15 @@
+import { Route, Routes } from "react-router";
+
+import CreateDesign from "./features/design/pages/CreateDesign";
+
 const App = () => {
   return (
-    <div>App</div>
-  )
-}
+    <>
+      <Routes>
+        <Route path="/design/register" element={<CreateDesign />} />
+      </Routes>
+    </>
+  );
+};
 
-export default App
+export default App;

@@ -1,7 +1,22 @@
+import DesignWizard from "../components/DesignWizard";
+
 const CreateDesign = () => {
   return (
-    <div>CreateDesign</div>
-  )
-}
+    <section>
+      {/* header section */}
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#1E1B4B] tracking-tight">
+            Register Design
+          </h1>
+        </div>
+      </div>
 
-export default CreateDesign
+      <div className="rounded-[24px] p-6 space-y-6">
+        <DesignWizard />
+      </div>
+    </section>
+  );
+};
+
+export default CreateDesign;
