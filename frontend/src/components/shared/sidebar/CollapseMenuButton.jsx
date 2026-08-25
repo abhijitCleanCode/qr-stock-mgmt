@@ -64,34 +64,36 @@ const CollapseMenuButton = ({
                 onOpenChange={setIsCollapsed}
                 className="w-full"
             >
-                <CollapsibleTrigger asChild>
-                    <Button
-                        variant={isSubmenuActive ? "secondary" : "ghost"}
-                        className="w-full justify-start h-10 mb-1"
-                    >
-                        <div className="w-full flex items-center justify-between">
+                <CollapsibleTrigger
+                    render={
+                        <Button
+                            variant={isSubmenuActive ? "secondary" : "ghost"}
+                            className="w-full justify-start h-10 mb-1"
+                        />
+                    }
+                >
+                    <div className="w-full flex items-center justify-between">
 
-                            {/* LEFT SIDE */}
-                            <div className="flex items-center">
-                                <span className="mr-4">
-                                    <Icon size={18} />
-                                </span>
+                        {/* LEFT SIDE */}
+                        <div className="flex items-center">
+                            <span className="mr-4">
+                                <Icon size={18} />
+                            </span>
 
-                                <p className="max-w-[150px] truncate">
-                                    {label}
-                                </p>
-                            </div>
-
-                            {/* RIGHT SIDE */}
-                            <ChevronDown
-                                size={18}
-                                className={cn(
-                                    "transition-transform duration-200",
-                                    isCollapsed && "rotate-180"
-                                )}
-                            />
+                            <p className="max-w-[150px] truncate">
+                                {label}
+                            </p>
                         </div>
-                    </Button>
+
+                        {/* RIGHT SIDE */}
+                        <ChevronDown
+                            size={18}
+                            className={cn(
+                                "transition-transform duration-200",
+                                isCollapsed && "rotate-180"
+                            )}
+                        />
+                    </div>
                 </CollapsibleTrigger>
 
                 {/* SUBMENUS */}
@@ -109,17 +111,15 @@ const CollapseMenuButton = ({
                                 key={index}
                                 variant={isActive ? "secondary" : "ghost"}
                                 className="w-full justify-start h-10 mb-1"
-                                asChild
+                                render={<Link to={submenu.href} />}
                             >
-                                <Link to={submenu.href}>
-                                    <span className="mr-4 ml-2">
-                                        <Dot size={18} />
-                                    </span>
+                                <span className="mr-4 ml-2">
+                                    <Dot size={18} />
+                                </span>
 
-                                    <p className="truncate">
-                                        {submenu.label}
-                                    </p>
-                                </Link>
+                                <p className="truncate">
+                                    {submenu.label}
+                                </p>
                             </Button>
                         );
                     })}
@@ -138,19 +138,19 @@ const CollapseMenuButton = ({
 
                 <Tooltip>
 
-                    <TooltipTrigger asChild>
-
-                        <DropdownMenuTrigger asChild>
-
-                            <Button
-                                variant={isSubmenuActive ? "secondary" : "ghost"}
-                                className="w-full justify-start h-10"
-                            >
-                                <Icon size={18} />
-                            </Button>
-
-                        </DropdownMenuTrigger>
-
+                    <TooltipTrigger
+                        render={
+                            <DropdownMenuTrigger
+                                render={
+                                    <Button
+                                        variant={isSubmenuActive ? "secondary" : "ghost"}
+                                        className="w-full justify-start h-10"
+                                    />
+                                }
+                            />
+                        }
+                    >
+                        <Icon size={18} />
                     </TooltipTrigger>
 
                     <TooltipContent side="right">
@@ -177,17 +177,12 @@ const CollapseMenuButton = ({
                             : submenu.active;
 
                     return (
-                        <DropdownMenuItem key={index} asChild>
-
-                            <Link
-                                to={submenu.href}
-                                className={cn(
-                                    isActive && "bg-secondary"
-                                )}
-                            >
-                                {submenu.label}
-                            </Link>
-
+                        <DropdownMenuItem
+                            key={index}
+                            className={cn(isActive && "bg-secondary")}
+                            render={<Link to={submenu.href} />}
+                        >
+                            {submenu.label}
                         </DropdownMenuItem>
                     );
                 })}

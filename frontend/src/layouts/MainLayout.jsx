@@ -16,8 +16,7 @@ const MainLayout = () => {
       )}>
         <Navbar />
 
-        <div className="flex-1 mt-12 px-5 min-h-screen">
-          {/* Added top margin to account for the fixed Navbar */}
+        <div className="flex-1 px-5 pt-4">
           <Outlet />
         </div>
       </main>

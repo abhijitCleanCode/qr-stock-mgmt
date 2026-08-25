@@ -14,7 +14,7 @@ const Sidebar = () => {
                 isOpen={isOpen}
                 setIsOpen={() => { dispatch(toggleSidebar()) }}
             />
-            <div className="relative h-full flex flex-col px-3 py-4 overflow-y-auto shadow-md">
+            <div className="relative h-full flex flex-col px-3 py-4 shadow-md">
                 <Menu isOpen={!isOpen} />
             </div>
         </aside>
