@@ -1,0 +1,28 @@
+import Sidebar from "@/components/shared/sidebar/Sidebar";
+import Navbar from "@/components/shared/navbar/Navbar";
+import { Outlet } from "react-router";
+import { cn } from "@/lib/utils";
+import { useAppSelector } from "@/app/hooks";
+
+const MainLayout = () => {
+  const isOpen = useAppSelector((state) => state.sidebar.isOpen);
+
+  return (
+    <>
+      <Sidebar />
+      <main className={cn(
+        "min-h-[calc(100vh-56px)] transition-[margin-left] ease-in-out duration-300 premium-bg",
+        !isOpen ? "lg:ml-72" : "lg:ml-[90px]"
+      )}>
+        <Navbar />
+
+        <div className="flex-1 mt-12 px-5 min-h-screen">
+          {/* Added top margin to account for the fixed Navbar */}
+          <Outlet />
+        </div>
+      </main>
+    </>
+  )
+}
+
+export default MainLayout

@@ -1,12 +1,15 @@
 import { Route, Routes } from "react-router";
 
 import CreateDesign from "./features/design/pages/CreateDesign";
+import MainLayout from "./layouts/MainLayout";
 
 const App = () => {
   return (
     <>
       <Routes>
-        <Route path="/design/register" element={<CreateDesign />} />
+        <Route element={<MainLayout />}>
+          <Route path="/design/register" element={<CreateDesign />} />
+        </Route>
       </Routes>
     </>
   );
