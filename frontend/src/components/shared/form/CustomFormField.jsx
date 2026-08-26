@@ -33,12 +33,13 @@ const RenderFormFields = ({ field, props }) => {
 };
 
 const CustomFormField = (props) => {
-    const { control, fieldType, name, label } = props;
+    const { control, fieldType, name, label, rules } = props;
 
     return (
         <Controller
             control={control}
             name={name}
+            rules={rules}
             render={({ field, fieldState }) => (
                 <div className="flex flex-col gap-1">
                     {/*{fieldType !== FormFieldType.CHECKBOX && label && ( <label className="text-sm font-regular leading-6 text-[#365486] mb-2">{label}</label>)}*/}

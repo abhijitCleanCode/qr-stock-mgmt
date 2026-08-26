@@ -17,7 +17,7 @@ export const StepperIndicator = forwardRef(({
                 "relative flex size-6 shrink-0 items-center justify-center rounded-full",
                 "bg-muted text-xs font-medium text-muted-foreground",
 
-                (state === "active" || state === "complete") && "bg-indigo-500 text-white",
+                (state === "active" || state === "complete") && "bg-[#00694C] text-white",
 
                 className
             )}

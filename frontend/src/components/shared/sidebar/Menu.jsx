@@ -55,6 +55,7 @@ const Menu = ({ isOpen }) => {
                                 variant={ (active === undefined && pathname.startsWith(href)) || active ? "secondary" : "ghost" }
                                 className="w-full justify-start h-10 mb-1"
                                 render={<Link to={href} />}
+                                nativeButton={false}
                               />
                             }
                           >

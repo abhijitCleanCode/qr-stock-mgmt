@@ -16,7 +16,7 @@ const MainLayout = () => {
       )}>
         <Navbar />
 
-        <div className="flex-1 px-5 pt-4">
+        <div className="flex-1 px-6 pt-8 pb-8 sm:px-8 lg:px-10">
           <Outlet />
         </div>
       </main>

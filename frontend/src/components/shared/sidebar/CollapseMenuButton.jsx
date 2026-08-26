@@ -112,6 +112,7 @@ const CollapseMenuButton = ({
                                 variant={isActive ? "secondary" : "ghost"}
                                 className="w-full justify-start h-10 mb-1"
                                 render={<Link to={submenu.href} />}
+                                nativeButton={false}
                             >
                                 <span className="mr-4 ml-2">
                                     <Dot size={18} />
