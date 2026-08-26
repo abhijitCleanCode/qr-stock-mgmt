@@ -27,7 +27,7 @@ function validateEnv(schema) {
     if (!result.success) {
         console.error("❌ Invalid environment variables:");
 
-        result.error.errors.forEach((err) => {
+        result.error.issues.forEach((err) => {
             const path = err.path.join('.');
             console.error(`  ${path}: ${err.message}`);
         });

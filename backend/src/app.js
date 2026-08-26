@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 import { traceMiddleware } from "./app/middlewares/trace.middleware.js";
 import requestTiming from "./app/middlewares/requestTiming.middleware.js";

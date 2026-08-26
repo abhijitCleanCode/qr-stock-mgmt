@@ -1,6 +1,9 @@
 import { FormProvider } from "react-hook-form";
+import { toast } from "react-toastify";
+
 import { useDesignForm } from "../hooks/useDesignForm";
 import { useDesignWizard } from "../hooks/useDesignWizard";
+import { useDesignRegisterApi } from "../hooks/useDesignRegisterApi";
 import DesignStepper from "./DesignStepper";
 import StepRenderer from "./StepRenderer";
 import DesignWizardNavigation from "./DesignWizardNavigation";
@@ -11,8 +14,32 @@ const DesignWizard = () => {
 
     const wizard = useDesignWizard(form);
 
-    const onSubmit = (data) => {
-        console.log("design wizard submit :: ", data);
+    const { mutateAsync, isPending } = useDesignRegisterApi();
+
+    const onSubmit = async (data) => {
+        const { colorVariants = [], sizes = [], ...designData } = data;
+
+        const designSizes = sizes.map((sizeLabel, index) => ({
+            sizeLabel,
+            displayOrder: index,
+            includedInSet: true,
+        }));
+
+        try {
+            await mutateAsync({
+                ...designData,
+                colorVariants: colorVariants.map(({ colorName, colorHex }) => ({ colorName, colorHex })),
+                designSizes,
+                images: colorVariants.map((variant) => variant.imageFile),
+            });
+
+            toast.success("Design registered successfully.");
+
+            form.reset();
+            wizard.setActiveStep(0);
+        } catch (error) {
+            toast.error(error?.message ?? "Couldn't register design. Please try again.");
+        }
     };
 
     return (
@@ -25,7 +52,7 @@ const DesignWizard = () => {
                 <DesignWizardNavigation
                     activeStep={wizard.activeStep}
                     totalSteps={DESIGN_STEPS.length}
-                    isSubmitting={false}
+                    isSubmitting={isPending}
                     onNext={wizard.next}
                     onPrev={wizard.prev}
                 />
