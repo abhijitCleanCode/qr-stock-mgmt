@@ -12,7 +12,7 @@ export const DESIGN_STEPS = [
     {
         id: "set-composition",
         title: "Set Composition",
-        fields: [],
+        fields: ["sizes"],
         component: SetComposition,
     },
     {

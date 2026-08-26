@@ -1,6 +1,7 @@
 import { Controller } from "react-hook-form";
 
 import InputField from "./fields/InputField";
+import TextAreaField from "./fields/TextAreaField";
 import { FormFieldType } from "@/config/FormFieldType";
 
 // ---- Render Fields ---- //
@@ -12,8 +13,8 @@ const RenderFormFields = ({ field, props }) => {
         case FormFieldType.INPUT:
             return <InputField key={field.name} {...props} field={field} />
 
-        // case FormFieldType.TEXTAREA:
-        //     return <TextAreaField key={field.name} {...props} />
+        case FormFieldType.TEXTAREA:
+            return <TextAreaField key={field.name} {...props} field={field} />
 
         // case FormFieldType.MULTIVALUEINPUT:
         //     return <FormMultiValueInput key={field.name} {...props} />

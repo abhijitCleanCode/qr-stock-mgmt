@@ -3,11 +3,11 @@ import { PenTool } from "lucide-react";
 export const getMenuList = ({ pathname }) => {
     return [
         {
-            groupLabel: "Design",
+            groupLabel: "Master Data",
             menus: [
                 {
-                    href: "/design/register",
-                    label: "Register Design",
+                    href: "/design",
+                    label: "Design Master",
                     icon: PenTool,
                     active: pathname.startsWith("/design"),
                     submenus: [],
