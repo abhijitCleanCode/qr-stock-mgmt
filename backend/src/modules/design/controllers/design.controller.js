@@ -16,6 +16,16 @@ class DesignController {
         }
     };
 
+    getAllDesigns = async (req, res, next) => {
+        try {
+            const response = await this._designService.getAllDesigns(req.validatedQuery);
+
+            return res.status(200).json(new ApiResponse(200, response.data, "Designs fetched successfully.", response.meta));
+        } catch (error) {
+            next(error);
+        }
+    };
+
     searchDesign = async (req, res, next) => {
         const { keyword } = req.query;
 

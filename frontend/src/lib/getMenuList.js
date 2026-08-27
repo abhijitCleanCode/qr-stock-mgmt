@@ -1,4 +1,4 @@
-import { PenTool } from "lucide-react";
+import { Palette, ArrowDownLeft } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
     return [
@@ -6,10 +6,22 @@ export const getMenuList = ({ pathname }) => {
             groupLabel: "Master Data",
             menus: [
                 {
-                    href: "/design",
+                    href: "/designs",
                     label: "Design Master",
-                    icon: PenTool,
-                    active: pathname.startsWith("/design"),
+                    icon: Palette,
+                    active: pathname.startsWith("/designs"),
+                    submenus: [],
+                },
+            ],
+        },
+        {
+            groupLabel: "Inventory",
+            menus: [
+                {
+                    href: "/stock-in",
+                    label: "Stock In",
+                    icon: ArrowDownLeft,
+                    active: pathname.startsWith("/stock-in"),
                     submenus: [],
                 },
             ],

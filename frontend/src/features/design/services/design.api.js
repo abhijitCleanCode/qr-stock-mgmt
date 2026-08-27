@@ -27,3 +27,17 @@ export const registerDesignApi = async ({ colorVariants, designSizes, images, ..
 
     return data;
 };
+
+export const getAllDesignsApi = async ({ page = 1, limit = 20 } = {}) => {
+    const params = new URLSearchParams({ page, limit });
+
+    const response = await fetch(`${baseURL}/designs?${params.toString()}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to fetch designs.");
+    }
+
+    return data;
+};

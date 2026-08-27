@@ -27,6 +27,11 @@ const designSizeInputSchema = z.object({
     includedInSet: z.boolean().default(true),
 });
 
+export const listDesignsQuerySchema = z.object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+});
+
 export const registerDesignSchema = z.object({
     name: z.string().trim().min(1),
     code: z.string().trim().optional(),

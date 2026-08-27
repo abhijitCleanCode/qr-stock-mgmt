@@ -72,6 +72,50 @@ class DesignService {
         }
     }
 
+    async getAllDesigns({ page, limit }) {
+        const offset = (page - 1) * limit;
+
+        const [designs, total] = await Promise.all([
+            this._designRepository.findAll({ limit, offset }),
+            this._designRepository.count(),
+        ]);
+
+        const variants = await this._colorVariantRepository.findByDesignIds(designs.map((design) => design.id));
+        const variantsByDesignId = variants.reduce((acc, variant) => {
+            (acc[variant.designId] ??= []).push(variant);
+            return acc;
+        }, {});
+
+        // every variant of a design shares the same size set — one representative variant per design is enough
+        const representativeVariantIds = designs
+            .map((design) => variantsByDesignId[design.id]?.[0]?.id)
+            .filter(Boolean);
+
+        const sizes = await this._designSizeRepository.findByVariantIds(representativeVariantIds);
+        const sizesByVariantId = sizes.reduce((acc, size) => {
+            (acc[size.variantId] ??= []).push(size);
+            return acc;
+        }, {});
+
+        return {
+            data: designs.map((design) => {
+                const representativeVariantId = variantsByDesignId[design.id]?.[0]?.id;
+
+                return {
+                    ...design,
+                    colorVariants: variantsByDesignId[design.id] ?? [],
+                    setComposition: sizesByVariantId[representativeVariantId] ?? [],
+                };
+            }),
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
+
     async searchDesign(keyword) {
         if (!keyword?.trim()) {
             throw new ApiError(400, "Search keyword is required.");
