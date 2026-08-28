@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { getVariantKey } from "../utils/variantKey";
+import { createLocalId } from "../utils/localId";
 
 const createDefaultConfig = ({ designId, colorVariantId }) => ({
   designId,
@@ -19,12 +20,62 @@ export function useVariantStockConfigs() {
     setConfigs((prev) => (prev[key] ? prev : { ...prev, [key]: createDefaultConfig(variant) }));
   }, []);
 
-  const updateConfig = useCallback((variantKey, updater) => {
+  const setTotalSetsReceived = useCallback((variantKey, totalSetsReceived) => {
     setConfigs((prev) => ({
       ...prev,
-      [variantKey]: typeof updater === "function" ? updater(prev[variantKey]) : { ...prev[variantKey], ...updater },
+      [variantKey]: { ...prev[variantKey], totalSetsReceived },
     }));
   }, []);
 
-  return { configs, ensureConfig, updateConfig };
+  const addBundle = useCallback((variantKey, { quantity, composition }) => {
+    setConfigs((prev) => ({
+      ...prev,
+      [variantKey]: {
+        ...prev[variantKey],
+        bundles: [
+          ...prev[variantKey].bundles,
+          { localId: createLocalId(), quantity, composition },
+        ],
+      },
+    }));
+  }, []);
+
+  const updateBundle = useCallback((variantKey, localId, { quantity, composition }) => {
+    setConfigs((prev) => ({
+      ...prev,
+      [variantKey]: {
+        ...prev[variantKey],
+        bundles: prev[variantKey].bundles.map((bundle) =>
+          bundle.localId === localId ? { ...bundle, quantity, composition } : bundle
+        ),
+      },
+    }));
+  }, []);
+
+  const removeBundle = useCallback((variantKey, localId) => {
+    setConfigs((prev) => ({
+      ...prev,
+      [variantKey]: {
+        ...prev[variantKey],
+        bundles: prev[variantKey].bundles.filter((bundle) => bundle.localId !== localId),
+      },
+    }));
+  }, []);
+
+  const setLoosePieces = useCallback((variantKey, loosePieces) => {
+    setConfigs((prev) => ({
+      ...prev,
+      [variantKey]: { ...prev[variantKey], loosePieces },
+    }));
+  }, []);
+
+  return {
+    configs,
+    ensureConfig,
+    setTotalSetsReceived,
+    addBundle,
+    updateBundle,
+    removeBundle,
+    setLoosePieces,
+  };
 }

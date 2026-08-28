@@ -9,7 +9,15 @@ const StockIn = () => {
   // Accordion behavior: at most one card expanded at a time, so registering a variant
   // and moving to the next one never requires scrolling past everyone else's config.
   const [expandedVariantKey, setExpandedVariantKey] = useState(null);
-  const { configs, ensureConfig } = useVariantStockConfigs();
+  const {
+    configs,
+    ensureConfig,
+    setTotalSetsReceived,
+    addBundle,
+    updateBundle,
+    removeBundle,
+    setLoosePieces,
+  } = useVariantStockConfigs();
 
   const handleSelect = (variant) => {
     const key = getVariantKey(variant);
@@ -47,6 +55,11 @@ const StockIn = () => {
                 config={config}
                 isExpanded={key === expandedVariantKey}
                 onToggle={(open) => setExpandedVariantKey(open ? key : null)}
+                onSetTotalSetsReceived={(value) => setTotalSetsReceived(key, value)}
+                onAddBundle={(bundle) => addBundle(key, bundle)}
+                onUpdateBundle={(localId, bundle) => updateBundle(key, localId, bundle)}
+                onRemoveBundle={(localId) => removeBundle(key, localId)}
+                onSetLoosePieces={(loosePieces) => setLoosePieces(key, loosePieces)}
               />
             );
           })}

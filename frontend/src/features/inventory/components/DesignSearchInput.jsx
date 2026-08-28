@@ -113,8 +113,18 @@ const DesignSearchInputSession = ({ onSelect, placeholder, disabled, id }) => {
       itemToStringLabel={getVariantLabel}
       isItemEqualToValue={isSameVariant}
     >
-      <ComboboxInput id={id} placeholder={placeholder} disabled={disabled} showTrigger={false} showClear />
-      <ComboboxContent>
+      <ComboboxInput
+        id={id}
+        placeholder={placeholder}
+        disabled={disabled}
+        showTrigger={false}
+        showClear
+        className="neu-pressed h-10 rounded-full border-none bg-transparent shadow-none **:data-[slot=input-group-control]:pl-9"
+      >
+        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
+      </ComboboxInput>
+
+      <ComboboxContent className="toolbar-neu min-w-(--anchor-width) rounded-[20px] bg-transparent shadow-none ring-0 mt-2">
         <ComboboxList>
           <ComboboxEmpty>
             {!shouldSearch && (
@@ -161,7 +171,7 @@ const DesignSearchInputSession = ({ onSelect, placeholder, disabled, id }) => {
                   <ComboboxItem
                     key={item.colorVariantId}
                     value={item}
-                    className="w-auto shrink-0 gap-1.5 rounded-full border border-border bg-muted/40 py-1 pr-6 pl-2"
+                    className="neu-button w-auto shrink-0 gap-1.5 rounded-full border-none py-1 pr-6 pl-2"
                   >
                     <span
                       className="size-2.5 shrink-0 rounded-full"

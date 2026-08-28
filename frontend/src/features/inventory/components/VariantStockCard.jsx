@@ -8,7 +8,17 @@ import VariantStockConfigPanel from "./VariantStockConfigPanel";
 // One selected variant, rendered as a self-contained accordion item: identity stays
 // visible in the header at all times, and its stock-entry sections only render while
 // expanded — keeps every other variant's card collapsed and out of the way on mobile.
-const VariantStockCard = ({ variant, config, isExpanded, onToggle }) => {
+const VariantStockCard = ({
+  variant,
+  config,
+  isExpanded,
+  onToggle,
+  onSetTotalSetsReceived,
+  onAddBundle,
+  onUpdateBundle,
+  onRemoveBundle,
+  onSetLoosePieces,
+}) => {
   return (
     <Collapsible
       open={isExpanded}
@@ -36,7 +46,15 @@ const VariantStockCard = ({ variant, config, isExpanded, onToggle }) => {
       </CollapsibleTrigger>
 
       <CollapsibleContent>
-        <VariantStockConfigPanel variant={variant} config={config} />
+        <VariantStockConfigPanel
+          variant={variant}
+          config={config}
+          onSetTotalSetsReceived={onSetTotalSetsReceived}
+          onAddBundle={onAddBundle}
+          onUpdateBundle={onUpdateBundle}
+          onRemoveBundle={onRemoveBundle}
+          onSetLoosePieces={onSetLoosePieces}
+        />
       </CollapsibleContent>
     </Collapsible>
   );
