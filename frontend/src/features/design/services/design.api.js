@@ -41,3 +41,29 @@ export const getAllDesignsApi = async ({ page = 1, limit = 20 } = {}) => {
 
     return data;
 };
+
+export const searchDesignsApi = async (keyword) => {
+    const params = new URLSearchParams({ keyword });
+
+    const response = await fetch(`${baseURL}/designs/search?${params.toString()}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to search designs.");
+    }
+
+    return data;
+};
+
+export const getActiveColorVariantSizesApi = async (colorVariantId) => {
+    const response = await fetch(`${baseURL}/designs/color-variants/${colorVariantId}/sizes`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to fetch active sizes.");
+    }
+
+    return data;
+};

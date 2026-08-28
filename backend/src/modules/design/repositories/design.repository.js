@@ -1,4 +1,4 @@
-import { count, desc } from "drizzle-orm";
+import { count, desc, ilike, or } from "drizzle-orm";
 
 import { db } from "../../../database/index.js";
 import { design } from "../schemas/design.schema.js";
@@ -27,7 +27,12 @@ class DesignRepository {
 
     async search(keyword) {
         return await db
-            .select({ id: design.id, code: design.code, name: design.name })
+            .select({
+                id: design.id,
+                code: design.code,
+                name: design.name,
+                defaultSellingPricePerPiece: design.defaultSellingPricePerPiece,
+            })
             .from(design)
             .where(or(ilike(design.code, `%${keyword}%`), ilike(design.name, `%${keyword}%`)))
             .limit(20);

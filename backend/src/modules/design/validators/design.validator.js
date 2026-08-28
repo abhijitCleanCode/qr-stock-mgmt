@@ -32,6 +32,14 @@ export const listDesignsQuerySchema = z.object({
     limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+export const searchDesignsQuerySchema = z.object({
+    keyword: z.string().trim().min(2, "Search keyword must be at least 2 characters"),
+});
+
+export const colorVariantSizesParamsSchema = z.object({
+    colorVariantId: z.coerce.number().int().positive(),
+});
+
 export const registerDesignSchema = z.object({
     name: z.string().trim().min(1),
     code: z.string().trim().optional(),

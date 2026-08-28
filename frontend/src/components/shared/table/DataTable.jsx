@@ -16,9 +16,9 @@ const DataTable = ({ columns, data, emptyState }) => {
     })
 
     return (
-        <div className="h-full overflow-auto rounded-3xl border border-white/40 bg-white/20 backdrop-blur-xl">
+        <div className="h-full overflow-auto rounded-3xl border border-white/40 bg-white/20 backdrop-blur-xl [scrollbar-width:thin] [scrollbar-color:rgba(30,27,75,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#1E1B4B]/25 [&::-webkit-scrollbar-thumb:hover]:bg-[#1E1B4B]/40">
             <Table className="border-separate border-spacing-y-2">
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-white/80 backdrop-blur-xl">
                     {table.getHeaderGroups().map((headerGroup) => (
                         <TableRow key={headerGroup.id} className="border-0 hover:bg-transparent">
                             {headerGroup.headers.map((header) => (

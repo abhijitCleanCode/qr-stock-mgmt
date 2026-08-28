@@ -17,6 +17,7 @@ class ColorVariantRepository {
             designId: colorVariant.designId,
             colorName: colorVariant.colorName,
             colorHex: colorVariant.colorHex,
+            imageUrl: colorVariant.imageUrl,
         }).from(colorVariant)
             .where(and(inArray(colorVariant.designId, designIds), eq(colorVariant.isActive, true)));
     }

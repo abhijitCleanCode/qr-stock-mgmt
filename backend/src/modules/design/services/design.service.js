@@ -81,10 +81,7 @@ class DesignService {
         ]);
 
         const variants = await this._colorVariantRepository.findByDesignIds(designs.map((design) => design.id));
-        const variantsByDesignId = variants.reduce((acc, variant) => {
-            (acc[variant.designId] ??= []).push(variant);
-            return acc;
-        }, {});
+        const variantsByDesignId = this._groupVariantsByDesignId(variants);
 
         // every variant of a design shares the same size set — one representative variant per design is enough
         const representativeVariantIds = designs
@@ -118,10 +115,34 @@ class DesignService {
 
     async searchDesign(keyword) {
         if (!keyword?.trim()) {
-            throw new ApiError(400, "Search keyword is required.");
+            throw new ApiError("Search keyword is required.", 400);
         };
 
-        return this._designRepository.search(keyword.trim());
+        const designs = await this._designRepository.search(keyword.trim());
+
+        const variants = await this._colorVariantRepository.findByDesignIds(designs.map((design) => design.id));
+        const variantsByDesignId = this._groupVariantsByDesignId(variants);
+
+        return designs.map((design) => ({
+            ...design,
+            colorVariants: variantsByDesignId[design.id] ?? [],
+        }));
+    }
+
+    async getActiveVariantSizes(colorVariantId) {
+        const variant = await this._colorVariantRepository.findActiveById(db, colorVariantId);
+        if (!variant) {
+            throw new ApiError(`Color variant ${colorVariantId} not found or inactive.`, 404, "VARIANT_NOT_FOUND");
+        }
+
+        return this._designSizeRepository.findActiveByVariantId(db, colorVariantId);
+    }
+
+    _groupVariantsByDesignId(variants) {
+        return variants.reduce((acc, variant) => {
+            (acc[variant.designId] ??= []).push(variant);
+            return acc;
+        }, {});
     }
 }
 

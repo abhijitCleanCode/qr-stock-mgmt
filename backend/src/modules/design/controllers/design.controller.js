@@ -27,10 +27,24 @@ class DesignController {
     };
 
     searchDesign = async (req, res, next) => {
-        const { keyword } = req.query;
+        const { keyword } = req.validatedQuery;
 
         try {
-            await this._designService.searchDesign(keyword?.trim());
+            const response = await this._designService.searchDesign(keyword);
+
+            return res.status(200).json(new ApiResponse(200, response, "Designs fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    getActiveVariantSizes = async (req, res, next) => {
+        const { colorVariantId } = req.params;
+
+        try {
+            const response = await this._designService.getActiveVariantSizes(colorVariantId);
+
+            return res.status(200).json(new ApiResponse(200, response, "Active sizes fetched successfully."));
         } catch (error) {
             next(error);
         }
