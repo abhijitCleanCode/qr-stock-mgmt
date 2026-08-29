@@ -1,3 +1,4 @@
+import { QrCode } from "lucide-react";
 import { Palette, ArrowDownLeft } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
@@ -24,6 +25,13 @@ export const getMenuList = ({ pathname }) => {
                     active: pathname.startsWith("/stock-in"),
                     submenus: [],
                 },
+                {
+                    href: "/qr-center",
+                    label: "QR Center",
+                    icon: QrCode,
+                    active: pathname.startsWith("/qr-center"),
+                    submenus: [],
+                }
             ],
         },
     ];

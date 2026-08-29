@@ -6,6 +6,7 @@ import MainLayout from "./layouts/MainLayout";
 import Designs from "./features/design/pages/Designs";
 import CreateDesign from "./features/design/pages/CreateDesign";
 import StockIn from "./features/inventory/pages/StockIn";
+import QrCenter from "./features/inventory/pages/QrCenter";
 
 const App = () => {
   return (
@@ -15,6 +16,7 @@ const App = () => {
           <Route path="/designs" element={<Designs />} />
           <Route path="/add-designs" element={<CreateDesign />} />
           <Route path="/stock-in" element={<StockIn />} />
+          <Route path="/qr-center" element={<QrCenter />} />
         </Route>
       </Routes>
 

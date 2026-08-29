@@ -1,7 +1,12 @@
 import { useState } from "react";
+import { toast } from "react-toastify";
+
+import { Button } from "@/components/ui/button";
 import DesignSearchInput from "../components/DesignSearchInput";
 import VariantStockCard from "../components/VariantStockCard";
 import { useVariantStockConfigs } from "../hooks/useVariantStockConfigs";
+import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
+import { buildStockInPayload } from "../utils/buildStockInPayload";
 import { getVariantKey } from "../utils/variantKey";
 
 const StockIn = () => {
@@ -17,7 +22,10 @@ const StockIn = () => {
     updateBundle,
     removeBundle,
     setLoosePieces,
+    reset: resetConfigs,
   } = useVariantStockConfigs();
+
+  const { mutateAsync: registerStockIn, isPending } = useStockInRegisterApi();
 
   const handleSelect = (variant) => {
     const key = getVariantKey(variant);
@@ -28,6 +36,25 @@ const StockIn = () => {
     ensureConfig(variant);
     // Newly picked variant opens for entry immediately — no separate "make active" step.
     setExpandedVariantKey(key);
+  };
+
+  const handleRegisterStockIn = async () => {
+    const payload = buildStockInPayload(selectedVariants, configs);
+
+    if (payload.designs.length === 0) {
+      toast.error("Enter stock for at least one variant before registering.");
+      return;
+    }
+
+    try {
+      await registerStockIn(payload);
+      toast.success("Stock registered successfully.");
+      setSelectedVariants([]);
+      setExpandedVariantKey(null);
+      resetConfigs();
+    } catch (error) {
+      toast.error(error?.message ?? "Couldn't register stock. Please try again.");
+    }
   };
 
   return (
@@ -64,6 +91,17 @@ const StockIn = () => {
             );
           })}
         </div>
+      )}
+
+      {selectedVariants.length > 0 && (
+        <Button
+          type="button"
+          className="h-11 w-full bg-[#00694C] sm:w-auto sm:self-end"
+          onClick={handleRegisterStockIn}
+          disabled={isPending}
+        >
+          {isPending ? "Registering..." : "Register Stock In"}
+        </Button>
       )}
     </div>
   );

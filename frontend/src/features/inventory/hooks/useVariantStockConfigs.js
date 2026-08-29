@@ -69,6 +69,8 @@ export function useVariantStockConfigs() {
     }));
   }, []);
 
+  const reset = useCallback(() => setConfigs({}), []);
+
   return {
     configs,
     ensureConfig,
@@ -77,5 +79,6 @@ export function useVariantStockConfigs() {
     updateBundle,
     removeBundle,
     setLoosePieces,
+    reset,
   };
 }
