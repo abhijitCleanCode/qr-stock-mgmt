@@ -6,11 +6,13 @@ import { buildRouter } from './routeBuilder.js';
 import { designRoutes } from '../../modules/design/routes/design.route.js';
 import { stockInRoutes } from '../../modules/stock/routes/stockIn.route.js';
 import { stockItemRoutes } from '../../modules/stock/routes/stockItem.route.js';
+import { currentStockRoutes } from '../../modules/inventory/routes/currentStock.route.js';
 
 const router = Router();
 
 router.use('/designs', buildRouter(designRoutes));
 router.use('/stock-in', buildRouter(stockInRoutes));
 router.use('/stock-items', buildRouter(stockItemRoutes));
+router.use('/current-stock', buildRouter(currentStockRoutes));
 
 export default router;

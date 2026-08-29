@@ -27,7 +27,7 @@ class stockInCalculator {
     _addBundles(delta, bundles) {
         for (const bundle of bundles) {
             for (const piece of bundle.composition) {
-                const quantity = piece.quantity + bundle.quantity;
+                const quantity = piece.quantity * bundle.quantity;
 
                 delta.set(piece.designSizeId, delta.get(piece.designSizeId) + quantity);
             }
