@@ -17,6 +17,22 @@ export function buildBundleCompositionSignature(composition) {
         .join(",");
 }
 
+// Inverse of buildBundleCompositionSignature — "12:1,13:2" -> [{designSizeId:12,quantity:1}, ...].
+// Only ever produced by buildBundleCompositionSignature above, for BUNDLE-type stock groups
+// (never SET, which has no composition signature, and never LOOSE_PIECE, whose signature is a
+// bare designSizeId with no colon).
+export function parseBundleCompositionSignature(signature) {
+    if (!signature) return [];
+
+    return signature.split(",").reduce((pieces, entry) => {
+        const [designSizeId, quantity] = entry.split(":").map(Number);
+        if (Number.isInteger(designSizeId) && Number.isInteger(quantity)) {
+            pieces.push({ designSizeId, quantity });
+        }
+        return pieces;
+    }, []);
+}
+
 class stockInPersistence {
 
     _stockInTransactionRepository = stockInTransactionRepository;

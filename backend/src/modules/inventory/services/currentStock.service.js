@@ -1,8 +1,20 @@
+import { db } from "../../../database/index.js";
+import ApiError from "../../../core/apiError.js";
+
 import colorVariantRepository from "../../design/repositories/colorVariant.repository.js";
+import designSizeRepository from "../../design/repositories/designSize.repository.js";
+import stockItemRepository from "../../stock/repositories/stockItem.repository.js";
+import stockGroupRepository from "../../stock/repositories/stockGroup.repository.js";
+import { parseBundleCompositionSignature } from "../../stock/services/stockInPersistence.service.js";
 import variantInventoryRepository from "../repositories/variantInventory.repository.js";
+
+const EMPTY_TOTALS = { setPieces: 0, bundlePieces: 0, loosePieces: 0, totalPieces: 0 };
 
 class CurrentStockService {
     _colorVariantRepository = colorVariantRepository;
+    _designSizeRepository = designSizeRepository;
+    _stockItemRepository = stockItemRepository;
+    _stockGroupRepository = stockGroupRepository;
     _variantInventoryRepository = variantInventoryRepository;
 
     // Summary-only: totalPieces per Design + Color Variant, straight from variant_inventory
@@ -45,6 +57,87 @@ class CurrentStockService {
                 total,
                 totalPages: Math.ceil(total / limit),
             },
+        };
+    }
+
+    // Detail breakdown for one Design + Color Variant: physical pieces per size, split by
+    // set/bundle/loose. Deliberately derived from stock_items + stock_groups — NOT from
+    // variant_inventory, which only holds the blended total (see currentStockSummary above).
+    async getCurrentStockDetail(colorVariantId) {
+        const variant = await this._colorVariantRepository.findActiveById(db, colorVariantId);
+        if (!variant) {
+            throw new ApiError(`Color variant ${colorVariantId} not found or inactive.`, 404, "VARIANT_NOT_FOUND");
+        }
+
+        const sizes = await this._designSizeRepository.findActiveByVariantId(db, colorVariantId);
+
+        const [loosePiecesBySize, setCount, bundleCountsByGroup] = await Promise.all([
+            this._stockItemRepository.countLoosePiecesBySize(db, colorVariantId),
+            this._stockItemRepository.countAvailableSets(db, colorVariantId),
+            this._stockItemRepository.countBundlesByStockGroup(db, colorVariantId),
+        ]);
+
+        const loosePiecesByDesignSizeId = new Map(
+            loosePiecesBySize.map((row) => [row.designSizeId, row.pieceCount])
+        );
+
+        // Resolve each bundle stock group's composition once, then explode bundleCount × pieceCount
+        // per size — this is what avoids treating a "1 bundle" row as "1 piece per size" (§7).
+        const bundleGroupIds = bundleCountsByGroup.map((row) => row.stockGroupId);
+        const bundleGroups = await this._stockGroupRepository.findByIds(db, bundleGroupIds);
+        const compositionByGroupId = new Map(
+            bundleGroups.map((group) => [group.id, parseBundleCompositionSignature(group.compositionSignature)])
+        );
+
+        const bundlePiecesByDesignSizeId = new Map();
+        for (const { stockGroupId, bundleCount } of bundleCountsByGroup) {
+            const composition = compositionByGroupId.get(stockGroupId) ?? [];
+
+            for (const piece of composition) {
+                const existing = bundlePiecesByDesignSizeId.get(piece.designSizeId) ?? 0;
+                bundlePiecesByDesignSizeId.set(piece.designSizeId, existing + piece.quantity * bundleCount);
+            }
+        }
+
+        const sizeRows = sizes.map((size) => {
+            // A SET has no designSizeId of its own — it contributes 1 piece to every size that's
+            // currently part of "a complete set" for this variant (same rule as
+            // stockInCalculator._addCompleteSets / stockItem.service.assembleSet's setSizes).
+            const setPieces = size.includedInSet ? setCount : 0;
+            const bundlePieces = bundlePiecesByDesignSizeId.get(size.id) ?? 0;
+            const loosePieces = loosePiecesByDesignSizeId.get(size.id) ?? 0;
+
+            return {
+                designSizeId: size.id,
+                size: size.sizeLabel,
+                setPieces,
+                bundlePieces,
+                loosePieces,
+                totalPieces: setPieces + bundlePieces + loosePieces,
+            };
+        });
+
+        const totals = sizeRows.reduce((acc, row) => ({
+            setPieces: acc.setPieces + row.setPieces,
+            bundlePieces: acc.bundlePieces + row.bundlePieces,
+            loosePieces: acc.loosePieces + row.loosePieces,
+            totalPieces: acc.totalPieces + row.totalPieces,
+        }), { ...EMPTY_TOTALS });
+
+        return {
+            design: {
+                id: variant.designId,
+                code: variant.designCode,
+                name: variant.designName,
+            },
+            variant: {
+                id: variant.id,
+                colorName: variant.colorName,
+                colorHex: variant.colorHex,
+                imageUrl: variant.imageUrl,
+            },
+            sizes: sizeRows,
+            totals,
         };
     }
 }

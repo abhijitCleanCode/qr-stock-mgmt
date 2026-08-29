@@ -7,12 +7,13 @@ import {
 } from "@tanstack/react-table/legacy";
 import DataTableEmpty from "./DataTableEmpty";
 
-const DataTable = ({ columns, data, emptyState }) => {
+const DataTable = ({ columns, data, emptyState, pageSize = 10 }) => {
     const table = useLegacyTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        initialState: { pagination: { pageSize } },
     })
 
     return (

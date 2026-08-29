@@ -1,7 +1,13 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { stockGroup } from "../schemas/stockGroup.schema.js";
 
 class StockGroupRepository {
+    async findByIds(tx, ids) {
+        if (ids.length === 0) return [];
+
+        return tx.select().from(stockGroup).where(inArray(stockGroup.id, ids));
+    }
+
     async findOrCreate(tx, { colorVariantId, type, compositionSignature = null }) {
         const [inserted] = await tx.insert(stockGroup).values({ colorVariantId, type, compositionSignature }).onConflictDoNothing().returning();
 
