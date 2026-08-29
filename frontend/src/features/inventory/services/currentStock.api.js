@@ -14,3 +14,15 @@ export const getCurrentStockApi = async ({ page = 1, limit = 20, keyword } = {})
 
     return data;
 };
+
+export const getCurrentStockDetailApi = async (colorVariantId) => {
+    const response = await fetch(`${baseURL}/current-stock/${colorVariantId}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to fetch stock details.");
+    }
+
+    return data;
+};

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import CurrentStockRowActions from "../components/CurrentStockRowActions";
 
 const STATUS_LABELS = {
   IN_STOCK: "In Stock",
@@ -62,5 +63,10 @@ export const columns = [
         </Badge>
       );
     },
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => <CurrentStockRowActions colorVariantId={row.original.colorVariantId} />,
   },
 ];

@@ -99,6 +99,30 @@ class CurrentStockService {
             }
         }
 
+        // Per-composition breakdown for the "Bundle Compositions" view — same bundleCount/
+        // composition data already resolved above for the per-size explosion, just kept intact
+        // here instead of only being folded into bundlePiecesByDesignSizeId.
+        const sizeLabelById = new Map(sizes.map((size) => [size.id, size.sizeLabel]));
+        const compositions = bundleCountsByGroup.map(({ stockGroupId, bundleCount }) => {
+            const composition = compositionByGroupId.get(stockGroupId) ?? [];
+            const piecesPerBundle = composition.reduce((sum, piece) => sum + piece.quantity, 0);
+
+            return {
+                stockGroupId,
+                bundleCount,
+                composition: composition.map((piece) => ({
+                    designSizeId: piece.designSizeId,
+                    // Falls back to the raw id if this composition references a size that's since
+                    // been deactivated — sizes[] only lists currently active sizes (see §14 of the
+                    // detail API design), so it can't always resolve a label.
+                    size: sizeLabelById.get(piece.designSizeId) ?? String(piece.designSizeId),
+                    quantity: piece.quantity,
+                })),
+                piecesPerBundle,
+                totalPieces: piecesPerBundle * bundleCount,
+            };
+        }).sort((a, b) => a.stockGroupId - b.stockGroupId);
+
         const sizeRows = sizes.map((size) => {
             // A SET has no designSizeId of its own — it contributes 1 piece to every size that's
             // currently part of "a complete set" for this variant (same rule as
@@ -137,6 +161,7 @@ class CurrentStockService {
                 imageUrl: variant.imageUrl,
             },
             sizes: sizeRows,
+            compositions,
             totals,
         };
     }
