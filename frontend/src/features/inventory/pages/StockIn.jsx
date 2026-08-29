@@ -31,7 +31,7 @@ const StockIn = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col font-sans space-y-6">
+    <div className="flex flex-col font-sans space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-[#1E1B4B] tracking-tight">Stock In</h1>
       </div>

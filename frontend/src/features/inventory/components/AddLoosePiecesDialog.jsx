@@ -60,7 +60,7 @@ const AddLoosePiecesDialog = ({ sizes, initialLoosePieces, isEditing, onSubmit, 
           >
             Cancel
           </Button>
-          <Button type="submit" className="h-11 flex-1" disabled={!isValid}>
+          <Button type="submit" className="h-11 flex-1 bg-[#00694C]" disabled={!isValid}>
             {isEditing ? "Save Changes" : "Add Loose Pieces"}
           </Button>
         </div>

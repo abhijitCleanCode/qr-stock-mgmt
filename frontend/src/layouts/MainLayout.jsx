@@ -11,12 +11,12 @@ const MainLayout = () => {
     <>
       <Sidebar />
       <main className={cn(
-        "min-h-[calc(100vh-56px)] transition-[margin-left] ease-in-out duration-300 premium-bg",
+        "flex h-screen flex-col transition-[margin-left] ease-in-out duration-300 premium-bg",
         !isOpen ? "lg:ml-72" : "lg:ml-[90px]"
       )}>
         <Navbar />
 
-        <div className="flex-1 px-2 pt-6 pb-6 sm:px-2 lg:px-10">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-6 pb-6 sm:px-2 lg:px-10">
           <Outlet />
         </div>
       </main>

@@ -24,7 +24,7 @@ const VariantStockCard = ({
       open={isExpanded}
       onOpenChange={onToggle}
       className={cn(
-        "overflow-hidden rounded-xl border bg-card shadow-sm transition-colors",
+        "overflow-hidden rounded-2xl border glass-card transition-colors",
         isExpanded ? "border-primary/50" : "border-border"
       )}
     >

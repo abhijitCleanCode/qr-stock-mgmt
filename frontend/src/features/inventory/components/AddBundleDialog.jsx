@@ -72,7 +72,7 @@ const AddBundleDialog = ({ sizes, initialBundle, isEditing, onSubmit, onClose })
           >
             Cancel
           </Button>
-          <Button type="submit" className="h-11 flex-1" disabled={!isValid}>
+          <Button type="submit" className="h-11 flex-1 bg-[#00694C]" disabled={!isValid}>
             {isEditing ? "Save Changes" : "Add Bundle"}
           </Button>
         </div>
