@@ -1,4 +1,5 @@
 import DataTable from "@/components/shared/table/DataTable";
+import TablePageLayout from "@/components/shared/layout/TablePageLayout";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Search } from "lucide-react";
 import { Link } from "react-router";
@@ -10,7 +11,7 @@ const Designs = () => {
   const designs = response?.data ?? [];
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col font-sans">
+    <TablePageLayout>
       {/* Header section */}
       <div className="mb-6 flex shrink-0 flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -58,7 +59,7 @@ const Designs = () => {
           )}
         </div>
       </div>
-    </div>
+    </TablePageLayout>
   );
 };
 

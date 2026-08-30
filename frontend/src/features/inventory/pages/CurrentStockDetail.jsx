@@ -24,11 +24,10 @@ const CurrentStockDetail = () => {
 
   return (
     <div className="flex flex-col font-sans space-y-6">
-      <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-1.5">
         <Button variant="ghost" size="sm" className="w-fit text-muted-foreground">
           <Link to="/current-stock" className="inline-flex items-center gap-1.5">
             <ArrowLeftIcon className="size-4" />
-            Current Stock
           </Link>
         </Button>
 
@@ -56,7 +55,7 @@ const CurrentStockDetail = () => {
       {!isPending && !isError && detail && (
         <>
           {/* Design + variant identity — compact, not a hero card */}
-          <div className="flex items-center gap-3 rounded-2xl border border-border p-3">
+          <div className="flex items-center gap-3 rounded-2xl p-3">
             <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-muted">
               {detail.variant.imageUrl && (
                 <img

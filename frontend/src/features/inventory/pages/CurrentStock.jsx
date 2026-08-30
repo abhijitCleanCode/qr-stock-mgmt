@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2, Search } from "lucide-react";
 
 import DataTable from "@/components/shared/table/DataTable";
+import TablePageLayout from "@/components/shared/layout/TablePageLayout";
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useCurrentStockApi } from "../hooks/useCurrentStockApi";
@@ -31,7 +32,7 @@ const CurrentStock = () => {
   };
 
   return (
-    <div className="flex flex-col font-sans space-y-6">
+    <TablePageLayout className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-[#1E1B4B] tracking-tight">Current Stock</h1>
       </div>
@@ -99,7 +100,7 @@ const CurrentStock = () => {
           </div>
         )}
       </div>
-    </div>
+    </TablePageLayout>
   );
 };
 

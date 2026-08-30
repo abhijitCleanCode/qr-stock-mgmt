@@ -7,13 +7,22 @@ import {
 } from "@tanstack/react-table/legacy";
 import DataTableEmpty from "./DataTableEmpty";
 
-const DataTable = ({ columns, data, emptyState, pageSize = 10 }) => {
+// rowSelection/onRowSelectionChange/getRowId are optional and only take effect when a
+// caller supplies them (e.g. QrCenter's bulk-select column) — omitting them keeps every
+// existing DataTable usage (CurrentStock, CurrentStockDetail) exactly as it was.
+const DataTable = ({ columns, data, emptyState, pageSize = 10, rowSelection, onRowSelectionChange, getRowId }) => {
     const table = useLegacyTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
         initialState: { pagination: { pageSize } },
+        ...(rowSelection !== undefined && {
+            enableRowSelection: true,
+            state: { rowSelection },
+            onRowSelectionChange,
+            getRowId,
+        }),
     })
 
     return (
