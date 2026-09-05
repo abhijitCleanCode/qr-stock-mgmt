@@ -9,6 +9,7 @@ import StockIn from "./features/inventory/pages/StockIn";
 import QrCenter from "./features/inventory/pages/QrCenter";
 import CurrentStock from "./features/inventory/pages/CurrentStock";
 import CurrentStockDetail from "./features/inventory/pages/CurrentStockDetail";
+import StockHistory from "./features/inventory/pages/StockHistory";
 
 const App = () => {
   return (
@@ -21,6 +22,7 @@ const App = () => {
           <Route path="/qr-center" element={<QrCenter />} />
           <Route path="/current-stock" element={<CurrentStock />} />
           <Route path="/current-stock/:colorVariantId" element={<CurrentStockDetail />} />
+          <Route path="/stock-history" element={<StockHistory />} />
         </Route>
       </Routes>
 

@@ -15,6 +15,13 @@
       "when": 1787742202113,
       "tag": "0001_open_nightshade",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788081304303,
+      "tag": "0002_add_stock_history",
+      "breakpoints": true
     }
   ]
 }

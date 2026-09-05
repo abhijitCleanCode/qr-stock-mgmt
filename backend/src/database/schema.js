@@ -18,3 +18,5 @@ export * from "../modules/inventory/schemas/variantInventory.schema.js";
 export * from "../modules/inventory/schemas/variantStatusTransaction.schema.js";
 
 export * from "../modules/stock/schemas/stockItemQr.schema.js";
+
+export * from "../modules/stock/schemas/stockHistory.schema.js";

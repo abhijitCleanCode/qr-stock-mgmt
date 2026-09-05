@@ -8,9 +8,40 @@ import stockInCalculatorService from "./stockInCalculator.service.js";
 import stockInPersistence from "./stockInPersistence.service.js";
 import stockInResultMapper from "../mapper/stockInResultMapper.js";
 import stockQrService from "./stockQr.service.js";
+import stockHistoryService from "./stockHistory.service.js";
 
 function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
+}
+
+// Snapshot of what this Stock In actually added, for the STOCK_IN history event's metadata —
+// built from the same `delta`/`createdBundles`/`variantInput` already computed for persistence,
+// never re-derived from stock_items/variant_inventory afterwards.
+function buildStockInHistoryMetadata({ delta, variantInput, createdBundles }) {
+    const sizeBreakdown = [...delta.entries()]
+        .filter(([, quantity]) => quantity > 0)
+        .map(([designSizeId, quantityAdded]) => ({ designSizeId, quantityAdded }));
+
+    // createdBundles preserves the same order as variantInput.bundles (see
+    // stockInPersistence.service.js's _saveBundles), so composition can be zipped back in by
+    // index — createdBundles itself only carries the persisted bundleNumber/quantity columns.
+    const bundles = (variantInput.bundles ?? []).map((bundle, index) => ({
+        bundleNumber: createdBundles[index].bundleNumber,
+        quantity: createdBundles[index].quantity,
+        composition: bundle.composition.map((piece) => ({ designSizeId: piece.designSizeId, quantity: piece.quantity })),
+    }));
+
+    const loosePieces = (variantInput.loosePieces ?? []).map((piece) => ({
+        designSizeId: piece.designSizeId,
+        quantity: piece.quantity,
+    }));
+
+    return {
+        sizeBreakdown,
+        totalSetsReceived: variantInput.totalSetsReceived ?? 0,
+        bundles,
+        loosePieces,
+    };
 }
 
 // SET: every active size for the variant currently has inventory > 0 (sellable as a complete matched set).
@@ -25,6 +56,7 @@ class StockInService {
     _stockInCalculator = stockInCalculatorService;
     _stockInPersistence = stockInPersistence;
     _stockQrService = stockQrService;
+    _stockHistoryService = stockHistoryService;
 
     _stockInResultMapper = stockInResultMapper;
 
@@ -91,6 +123,18 @@ class StockInService {
 
         // 5. store normalized inventory ledger
         await this._stockInPersistence.createEntries(tx, stockInTransaction.id, validateStockIn.variant.id, delta);
+
+        // 5.5 NEW: record the STOCK_IN history event — same tx, so it commits/rolls back with
+        // everything above. No resultStockItemId/stockGroupId: a single Stock In can create many
+        // stock items across multiple groups (sets + several bundle groups + loose groups), so
+        // there is no single one that would be a non-arbitrary choice here.
+        const totalQuantityAdded = [...delta.values()].reduce((sum, quantity) => sum + quantity, 0);
+        await this._stockHistoryService.record(tx, "STOCK_IN", {
+            colorVariantId: validateStockIn.variant.id,
+            stockInTransactionId: stockInTransaction.id,
+            quantity: totalQuantityAdded,
+            metadata: buildStockInHistoryMetadata({ delta, variantInput, createdBundles }),
+        });
 
         // 6. build response
         return this._stockInResultMapper.map({

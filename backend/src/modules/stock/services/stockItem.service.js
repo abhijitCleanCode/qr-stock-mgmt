@@ -9,6 +9,7 @@ import designSizeRepository from "../../design/repositories/designSize.repositor
 import stockGroupRepository from "../repositories/stockGroup.repository.js";
 import stockItemLineageRepository from "../repositories/stockItemLineage.repository.js";
 import stockQrService from "./stockQr.service.js";
+import stockHistoryService from "./stockHistory.service.js";
 
 // Business vocabulary at the API boundary (SET/UNSET), mapped to the DB's AVAILABLE/UNSET inside the service
 const API_TO_DB_STATUS = { SET: "AVAILABLE", UNSET: "UNSET" };
@@ -20,6 +21,7 @@ class StockItemService {
     _stockGroupRepository = stockGroupRepository;
     _stockItemLineageRepository = stockItemLineageRepository;
     _stockQrService = stockQrService;
+    _stockHistoryService = stockHistoryService;
 
     async transitionStatus(id, targetStatus) {
         return db.transaction(async (tx) => {
@@ -108,6 +110,21 @@ class StockItemService {
             }));
             await this._stockItemLineageRepository.createMany(tx, rows);
 
+            // record SET_ASSEMBLED history — same tx; consumption is the source side of this
+            // one transformation event, never a separate STOCK_CONSUMED event (see stockHistory
+            // event model: consuming loose pieces is a consequence of assembly, not data loss).
+            await this._stockHistoryService.record(tx, "SET_ASSEMBLED", {
+                colorVariantId,
+                stockGroupId: setGroup.id,
+                resultStockItemId: created.id,
+                quantity: 1,
+                metadata: {
+                    sourceStockItemIds: sourceIds,
+                    resultStockItemId: created.id,
+                    sourceComposition: sourceItems.map((item) => ({ designSizeId: item.designSizeId, quantity: 1 })),
+                },
+            });
+
             return { created, consumed: sourceIds };
         })
     }
@@ -164,6 +181,20 @@ class StockItemService {
                 resultStockItemId: created.id,
                 sourceStockItemId,
             })));
+
+            // record BUNDLE_ASSEMBLED history — same tx; composition is the exact input the
+            // caller requested, not re-derived from the consumed source items.
+            await this._stockHistoryService.record(tx, "BUNDLE_ASSEMBLED", {
+                colorVariantId,
+                stockGroupId: bundleGroup.id,
+                resultStockItemId: created.id,
+                quantity: 1,
+                metadata: {
+                    sourceStockItemIds: sourceIds,
+                    resultStockItemId: created.id,
+                    composition,
+                },
+            });
 
             return { created, consumed: sourceIds };
         })

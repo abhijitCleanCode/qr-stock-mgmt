@@ -1,6 +1,4 @@
-import { Box } from "lucide-react";
-import { QrCode } from "lucide-react";
-import { Palette, ArrowDownLeft } from "lucide-react";
+import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
     return [
@@ -40,6 +38,20 @@ export const getMenuList = ({ pathname }) => {
                     active: pathname.startsWith("/qr-center"),
                     submenus: [],
                 },
+                {
+                    href: "/stock-history",
+                    label: "Stock History",
+                    icon: RotateCcwClock,
+                    active: pathname.startsWith("/stock-history"),
+                    submenus: [],
+                },
+                {
+                    href: "/stock-out",
+                    label: "Stock Out",
+                    icon: ArrowDownLeft,
+                    active: pathname.startsWith("/stock-out"),
+                    submenus: [],
+                }
             ],
         },
     ];
