@@ -15,17 +15,13 @@ export const getQrCenterListApi = async ({ page = 1, limit = 20, keyword } = {})
     return data;
 };
 
-export const generateQrCodesApi = async (stockItemIds) => {
-    const response = await fetch(`${baseURL}/qr-center/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stockItemIds }),
-    });
+export const getQrCenterRegistrationDetailApi = async (stockInTransactionId) => {
+    const response = await fetch(`${baseURL}/qr-center/${stockInTransactionId}`);
 
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data?.error?.message ?? "Failed to generate QR codes.");
+        throw new Error(data?.error?.message ?? "Failed to fetch stock registration QRs.");
     }
 
     return data;

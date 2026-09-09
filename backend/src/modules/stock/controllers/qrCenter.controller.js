@@ -6,9 +6,21 @@ class QrCenterController {
 
     list = async (req, res, next) => {
         try {
-            const response = await this._qrCenterService.listEligibleStock(req.validatedQuery);
+            const response = await this._qrCenterService.listRegistrations(req.validatedQuery);
 
-            return res.status(200).json(new ApiResponse(200, response.data, "QR-eligible stock fetched successfully.", response.meta));
+            return res.status(200).json(new ApiResponse(200, response.data, "Stock registrations fetched successfully.", response.meta));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getDetail = async (req, res, next) => {
+        const { stockInTransactionId } = req.params;
+
+        try {
+            const response = await this._qrCenterService.getRegistrationDetail(stockInTransactionId);
+
+            return res.status(200).json(new ApiResponse(200, response, "Stock registration QRs fetched successfully."));
         } catch (error) {
             next(error);
         }

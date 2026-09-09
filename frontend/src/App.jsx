@@ -8,6 +8,7 @@ import CreateDesign from "./features/design/pages/CreateDesign";
 import StockIn from "./features/inventory/pages/StockIn";
 import StockOut from "./features/inventory/pages/StockOut";
 import QrCenter from "./features/inventory/pages/QrCenter";
+import QrGrid from "./features/inventory/pages/QrGrid";
 import CurrentStock from "./features/inventory/pages/CurrentStock";
 import CurrentStockDetail from "./features/inventory/pages/CurrentStockDetail";
 import StockHistory from "./features/inventory/pages/StockHistory";
@@ -22,6 +23,7 @@ const App = () => {
           <Route path="/stock-in" element={<StockIn />} />
           <Route path="/stock-out" element={<StockOut />} />
           <Route path="/qr-center" element={<QrCenter />} />
+          <Route path="/qr-center/:stockInTransactionId" element={<QrGrid />} />
           <Route path="/current-stock" element={<CurrentStock />} />
           <Route path="/current-stock/:colorVariantId" element={<CurrentStockDetail />} />
           <Route path="/stock-history" element={<StockHistory />} />
