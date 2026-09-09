@@ -1,49 +1,44 @@
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import QrStatusBadge from "../components/qr-center/QrStatusBadge";
 import QrCenterRowActions from "../components/qr-center/QrCenterRowActions";
 
-const TYPE_LABELS = {
-  SET: "Set",
-  BUNDLE: "Bundle",
+const dateFormatter = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+// e.g. "8 Sets", "3 Sets · 2 Bundles" — omits a type entirely when this registration produced
+// none of it, rather than always showing both at "0".
+const formatTypeCounts = ({ SET, BUNDLE }) => {
+  const parts = [];
+  if (SET > 0) parts.push(`${SET} Set${SET === 1 ? "" : "s"}`);
+  if (BUNDLE > 0) parts.push(`${BUNDLE} Bundle${BUNDLE === 1 ? "" : "s"}`);
+  return parts.join(" · ") || "—";
 };
 
-// Factory (not a static array) because the Actions column's "print this one" action needs
-// to reach the print state that QrCenter.jsx owns.
-export const createQrCenterColumns = ({ onPrintOne }) => [
+// One row = one Stock Registration (stock-in transaction), not one QR — see qrCenter.service.js.
+export const qrCenterColumns = [
   {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
-        onCheckedChange={(checked) => table.toggleAllPageRowsSelected(checked)}
-        aria-label="Select all on this page"
-      />
-    ),
+    id: "registration",
+    header: "Stock Registration",
     cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(checked) => row.toggleSelected(checked)}
-        aria-label={`Select stock #${row.original.stockItemId}`}
-      />
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold text-foreground">Stock In #{row.original.stockInTransactionId}</span>
+        <span className="text-xs text-muted-foreground">{dateFormatter.format(new Date(row.original.stockDate))}</span>
+      </div>
     ),
-    enableSorting: false,
   },
   {
     id: "design",
     header: "Design",
     cell: ({ row }) => {
-      const { designCode, designName, imageUrl } = row.original;
+      const { design, variant } = row.original;
 
       return (
         <div className="flex min-w-0 items-center gap-3">
           <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
-            {imageUrl && <img src={imageUrl} alt={designName} className="h-full w-full object-cover" />}
+            {variant.imageUrl && <img src={variant.imageUrl} alt={design.name} className="h-full w-full object-cover" />}
           </div>
           <span className="truncate text-sm font-medium text-foreground">
-            {designCode ? `${designCode} · ` : ""}
-            {designName}
+            {design.code ? `${design.code} · ` : ""}
+            {design.name}
           </span>
         </div>
       );
@@ -53,7 +48,7 @@ export const createQrCenterColumns = ({ onPrintOne }) => [
     id: "variant",
     header: "Variant",
     cell: ({ row }) => {
-      const { colorName, colorHex } = row.original;
+      const { colorName, colorHex } = row.original.variant;
 
       return (
         <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
@@ -69,16 +64,21 @@ export const createQrCenterColumns = ({ onPrintOne }) => [
   {
     id: "type",
     header: "Type",
-    cell: ({ row }) => <Badge variant="outline">{TYPE_LABELS[row.original.type] ?? row.original.type}</Badge>,
+    cell: ({ row }) => <Badge variant="outline">{formatTypeCounts(row.original.typeCounts)}</Badge>,
+  },
+  {
+    id: "qrCount",
+    header: "QRs",
+    cell: ({ row }) => <span className="text-sm tabular-nums text-foreground">{row.original.qrCount}</span>,
   },
   {
     id: "qrStatus",
     header: "QR Status",
-    cell: ({ row }) => <QrStatusBadge hasQr={Boolean(row.original.qr)} />,
+    cell: ({ row }) => <QrStatusBadge status={row.original.qrStatus} />,
   },
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => <QrCenterRowActions item={row.original} onPrintOne={onPrintOne} />,
+    cell: ({ row }) => <QrCenterRowActions stockInTransactionId={row.original.stockInTransactionId} />,
   },
 ];

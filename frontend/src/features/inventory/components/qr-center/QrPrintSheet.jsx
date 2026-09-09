@@ -1,9 +1,11 @@
 import QrCodeImage from "./QrCodeImage";
 import { buildQrValue } from "../../utils/qrLabel";
 
-const QrLabelPrint = ({ item }) => (
-  <div className="flex flex-col items-center gap-2 rounded-lg border border-black/20 p-4 text-center break-inside-avoid">
-    <QrCodeImage value={buildQrValue(item.qr.payload)} size={140} />
+// Shared between the on-screen QR Grid page and the print sheet below — same physical label,
+// same visual, so a screen preview never drifts from what actually prints.
+export const QrLabelCard = ({ item, size = 140, className = "" }) => (
+  <div className={`flex flex-col items-center gap-2 rounded-lg border border-black/20 p-4 text-center break-inside-avoid ${className}`}>
+    <QrCodeImage value={buildQrValue(item.qr.payload)} size={size} />
     <div className="flex flex-col">
       <span className="text-sm font-semibold">{item.designCode}</span>
       <span className="text-xs">
@@ -29,7 +31,7 @@ const QrPrintSheet = ({ items }) => (
     `}</style>
     <div className="grid grid-cols-2 gap-6 p-4">
       {items.map((item) => (
-        <QrLabelPrint key={item.stockItemId} item={item} />
+        <QrLabelCard key={item.stockItemId} item={item} />
       ))}
     </div>
   </div>

@@ -1,8 +1,107 @@
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+
 import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
+import { stockItem } from "../schemas/stockItems.schema.js";
+import { stockItemQr } from "../schemas/stockItemQr.schema.js";
+import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
+import { design } from "../../design/schemas/design.schema.js";
+
+// A stock item only ever gets a physical QR label as a SET or BUNDLE — same rule as
+// stockQr.service.js's QR_ELIGIBLE_TYPES — so a registration's QR-bearing items are
+// scoped to those two types here too.
+const QR_ELIGIBLE_TYPES = ["SET", "BUNDLE"];
+
+function registrationSearchCondition(keyword) {
+    if (!keyword) return undefined;
+
+    return or(ilike(design.code, `%${keyword}%`), ilike(design.name, `%${keyword}%`), ilike(colorVariant.colorName, `%${keyword}%`));
+}
 
 class StockInTransactionRepository {
     async create(tx, data) {
         const [result] = await tx.insert(stockInTransaction).values(data).returning();
+
+        return result;
+    }
+
+    // QR Center listing: one row per Stock Registration (stock_in_transaction) that produced
+    // at least one QR-eligible stock item — a registration with only loose pieces never had a
+    // QR to generate, so it's excluded via the HAVING clause below rather than shown empty.
+    // Counts are DISTINCT because stock_item_qr can carry more than one history row per stock
+    // item (see stockItemQr.schema.js) — a plain COUNT(qr.id) would double-count those.
+    async findRegistrationsWithQr(tx, { limit, offset, keyword }) {
+        const eligibleItemCount = sql`count(distinct ${stockItem.id})`.mapWith(Number);
+        const setCount = sql`count(distinct ${stockItem.id}) filter (where ${stockItem.type} = 'SET')`.mapWith(Number);
+        const bundleCount = sql`count(distinct ${stockItem.id}) filter (where ${stockItem.type} = 'BUNDLE')`.mapWith(Number);
+        const qrGeneratedCount = sql`count(distinct ${stockItemQr.stockItemId})`.mapWith(Number);
+
+        return tx.select({
+            stockInTransactionId: stockInTransaction.id,
+            stockDate: stockInTransaction.stockDate,
+            createdAt: stockInTransaction.createdAt,
+            colorVariantId: colorVariant.id,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            imageUrl: colorVariant.imageUrl,
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+            eligibleItemCount,
+            setCount,
+            bundleCount,
+            qrGeneratedCount,
+        }).from(stockInTransaction)
+            .innerJoin(colorVariant, eq(stockInTransaction.variantId, colorVariant.id))
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .innerJoin(stockItem, and(eq(stockItem.stockInTransactionId, stockInTransaction.id), inArray(stockItem.type, QR_ELIGIBLE_TYPES)))
+            .leftJoin(stockItemQr, eq(stockItemQr.stockItemId, stockItem.id))
+            .where(registrationSearchCondition(keyword))
+            .groupBy(stockInTransaction.id, colorVariant.id, design.id)
+            .having(sql`count(distinct ${stockItem.id}) > 0`)
+            .orderBy(desc(stockInTransaction.createdAt))
+            .limit(limit)
+            .offset(offset);
+    }
+
+    // Same eligibility/grouping rule as findRegistrationsWithQr, collapsed to a row count for
+    // pagination — a plain count() can't follow a GROUP BY/HAVING directly, so the grouped
+    // query is used as a subquery here.
+    async countRegistrationsWithQr(tx, { keyword }) {
+        const grouped = tx.select({ id: stockInTransaction.id })
+            .from(stockInTransaction)
+            .innerJoin(colorVariant, eq(stockInTransaction.variantId, colorVariant.id))
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .innerJoin(stockItem, and(eq(stockItem.stockInTransactionId, stockInTransaction.id), inArray(stockItem.type, QR_ELIGIBLE_TYPES)))
+            .where(registrationSearchCondition(keyword))
+            .groupBy(stockInTransaction.id)
+            .as("registrations_with_qr");
+
+        const [result] = await tx.select({ value: sql`count(*)`.mapWith(Number) }).from(grouped);
+
+        return result.value;
+    }
+
+    // Stock Registration identity + design/variant context for the QR Grid page header —
+    // deliberately not the raw stock_in_transaction row so the grid page never has to also
+    // fetch the design/variant separately.
+    async findByIdWithContext(tx, id) {
+        const [result] = await tx.select({
+            stockInTransactionId: stockInTransaction.id,
+            stockDate: stockInTransaction.stockDate,
+            createdAt: stockInTransaction.createdAt,
+            notes: stockInTransaction.notes,
+            colorVariantId: colorVariant.id,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            imageUrl: colorVariant.imageUrl,
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+        }).from(stockInTransaction)
+            .innerJoin(colorVariant, eq(stockInTransaction.variantId, colorVariant.id))
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .where(eq(stockInTransaction.id, id))
+            .limit(1);
 
         return result;
     }
