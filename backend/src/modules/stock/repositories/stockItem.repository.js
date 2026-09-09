@@ -70,6 +70,33 @@ class StockItemRepository {
             .for("update", { skipLocked: true }); // for update - Jo rows select ki hain, unko current transaction ke liye lock kar do.
     }
 
+    // Ek color variant ke available SET stock items find karo aur lock kar do — Stock Out ke
+    // liye, jab poore matched sets bikte hain (assembleSet ki tarah, but sourcing SETs khud,
+    // not their loose-piece ingredients).
+    async findAndLockAvailableSets(tx, colorVariantId, limit) {
+        return tx.select().from(stockItem)
+            .where(and(
+                eq(stockItem.colorVariantId, colorVariantId),
+                eq(stockItem.type, "SET"),
+                ne(stockItem.status, "CONSUMED"),
+            ))
+            .limit(limit)
+            .for("update", { skipLocked: true });
+    }
+
+    // Ek specific bundle stock group (ek fixed composition) ke available BUNDLE stock items
+    // find karo aur lock kar do — Stock Out selling an existing assembled bundle as a whole unit.
+    async findAndLockAvailableByStockGroup(tx, stockGroupId, limit) {
+        return tx.select().from(stockItem)
+            .where(and(
+                eq(stockItem.stockGroupId, stockGroupId),
+                eq(stockItem.type, "BUNDLE"),
+                ne(stockItem.status, "CONSUMED"),
+            ))
+            .limit(limit)
+            .for("update", { skipLocked: true });
+    }
+
     async markConsumed(tx, ids) {
         if (ids.length === 0) return [];
 

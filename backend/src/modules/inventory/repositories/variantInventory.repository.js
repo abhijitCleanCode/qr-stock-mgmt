@@ -13,6 +13,17 @@ class VariantInventoryRepository {
             }));
     }
 
+    // `delta` here holds positive quantities *sold* per designSizeId — negated into rows so
+    // upsertIncrement's "add on top of existing" semantics subtract instead.
+    buildDecrementRows(colorVariantId, delta) {
+        return [...delta.entries()].filter(([, quantity]) => quantity > 0)
+            .map(([designSizeId, quantity]) => ({
+                colorVariantId,
+                designSizeId,
+                quantity: -quantity,
+            }));
+    }
+
     async findByColorVariantId(tx, colorVariantId) {
         return tx.select().from(variantInventory).where(eq(variantInventory.colorVariantId, colorVariantId));
     }

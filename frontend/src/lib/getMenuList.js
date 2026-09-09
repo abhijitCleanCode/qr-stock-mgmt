@@ -1,4 +1,4 @@
-import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box } from "lucide-react";
+import { Palette, ArrowDownLeft, ArrowUpRight, RotateCcwClock, QrCode, Box } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
     return [
@@ -48,7 +48,7 @@ export const getMenuList = ({ pathname }) => {
                 {
                     href: "/stock-out",
                     label: "Stock Out",
-                    icon: ArrowDownLeft,
+                    icon: ArrowUpRight,
                     active: pathname.startsWith("/stock-out"),
                     submenus: [],
                 }

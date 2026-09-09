@@ -162,6 +162,11 @@ class CurrentStockService {
             },
             sizes: sizeRows,
             compositions,
+            // Raw count of currently available SET stock items — same setCount already exploded
+            // into every included-in-set size's setPieces above, exposed once here so a caller
+            // (Stock Out's "sets to sell" input) doesn't have to re-derive it from sizeRows,
+            // which would be ambiguous/zero when the variant has no set-included sizes at all.
+            availableSets: setCount,
             totals,
         };
     }
