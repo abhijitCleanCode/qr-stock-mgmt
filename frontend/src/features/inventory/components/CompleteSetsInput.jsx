@@ -1,6 +1,9 @@
 import { Input } from "@/components/ui/input";
 
-const CompleteSetsInput = ({ value, onChange }) => {
+// Shared by Stock In ("Sets received") and Stock Out ("Sets Out") — same plain, uncapped
+// number entry either way; Stock Out relies on the backend's insufficient-stock rejection
+// rather than a client-side max, same as every other field on that form.
+const CompleteSetsInput = ({ value, onChange, label = "Sets received", id = "total-sets-received" }) => {
   const handleChange = (event) => {
     const rawValue = event.target.value;
     if (rawValue === "") {
@@ -13,11 +16,11 @@ const CompleteSetsInput = ({ value, onChange }) => {
 
   return (
     <div className="flex items-center justify-between gap-3">
-      <label htmlFor="total-sets-received" className="text-sm font-medium text-foreground">
-        Sets received
+      <label htmlFor={id} className="text-sm font-medium text-foreground">
+        {label}
       </label>
       <Input
-        id="total-sets-received"
+        id={id}
         type="number"
         inputMode="numeric"
         min={0}

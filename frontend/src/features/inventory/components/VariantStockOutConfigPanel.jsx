@@ -1,87 +1,72 @@
 import { Loader2Icon } from "lucide-react";
 
+import { useColorVariantSizesApi } from "../hooks/useColorVariantSizesApi";
 import { useCurrentStockDetailApi } from "../hooks/useCurrentStockDetailApi";
-import QuantityStepper from "./QuantityStepper";
+import BundlesSoldSummary from "./BundlesSoldSummary";
+import CompleteSetsInput from "./CompleteSetsInput";
+import LoosePiecesSummary from "./LoosePiecesSummary";
 
-const formatInr = (amount) => `₹${Number(amount ?? 0).toLocaleString("en-IN")}`;
-
-// One sellable line: a label ("Sets (8 avl)" / "Size S (4 avl)"), a bounded −/+ stepper, and
-// the live-computed price for that line (quantity × unitPrice) — same row shape the reference
-// design uses for every sellable unit.
-const StockOutLine = ({ id, label, value, max, unitPrice, onChange }) => (
-  <div className="flex items-center justify-between gap-3">
-    <span className="text-sm text-foreground">{label}</span>
-    <div className="flex items-center gap-4">
-      <QuantityStepper id={id} value={value} onChange={onChange} min={0} max={max} />
-      <span className="w-20 shrink-0 text-right text-sm font-semibold text-foreground">
-        {formatInr(value * unitPrice)}
-      </span>
-    </div>
-  </div>
-);
-
-// Bundles are dropped from Stock Out for now — only complete SETs and LOOSE_PIECEs are sold
-// here, both bounded by what's actually in stock right now (via the Current Stock Detail API),
-// never a freely-composed quantity.
+// Same shell as Stock In's VariantStockConfigPanel — "Sizes: ...", a sets field, "+ Add
+// Bundle", "+ Add Loose Pieces" — just "Sets received" becomes "Sets Out". Bundles are the one
+// necessary difference: Stock In composes a brand-new bundle recipe on receipt, but Stock Out
+// can only sell a composition that's already assembled and in stock, so its dialog picks from
+// existing compositions (via Current Stock Detail) instead of freely defining one.
 const VariantStockOutConfigPanel = ({
   variant,
   config,
   onSetTotalSetsSold,
-  onSetLoosePieceQuantity,
+  onAddBundle,
+  onUpdateBundle,
+  onRemoveBundle,
+  onSetLoosePieces,
 }) => {
   const { colorVariantId } = variant;
 
-  const { data: response, isFetching, isError } = useCurrentStockDetailApi(colorVariantId);
-  const detail = response?.data;
+  const { data: sizesResponse, isFetching, isError } = useColorVariantSizesApi({ colorVariantId });
+  const sizes = sizesResponse?.data ?? [];
 
-  const availableSets = detail?.availableSets ?? 0;
-  const sizesWithLoosePieces = (detail?.sizes ?? []).filter((size) => size.loosePieces > 0);
+  const { data: stockResponse } = useCurrentStockDetailApi(colorVariantId);
+  const compositions = stockResponse?.data?.compositions ?? [];
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border p-3 sm:p-4">
-      {isFetching && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Loader2Icon className="size-3.5 animate-spin" />
-          Loading available stock...
-        </p>
-      )}
+    <div className="flex flex-col gap-4 border-t border-border p-3 sm:p-4">
+      <p className="text-xs text-muted-foreground">
+        {isFetching && (
+          <span className="inline-flex items-center gap-1.5">
+            <Loader2Icon className="size-3.5 animate-spin" />
+            Loading active sizes...
+          </span>
+        )}
+        {!isFetching && isError && "Failed to load active sizes for this variant."}
+        {!isFetching && !isError && (
+          sizes.length > 0
+            ? `Sizes: ${sizes.map((size) => size.sizeLabel).join(", ")}`
+            : "No active sizes configured for this variant."
+        )}
+      </p>
 
-      {!isFetching && isError && (
-        <p className="text-xs text-destructive">Failed to load available stock for this variant.</p>
-      )}
+      <CompleteSetsInput
+        id="total-sets-out"
+        label="Sets Out"
+        value={config.totalSetsSold}
+        onChange={onSetTotalSetsSold}
+      />
 
-      {!isFetching && !isError && (
-        <>
-          {availableSets > 0 && (
-            <StockOutLine
-              id="total-sets-sold"
-              label={`Sets (${availableSets} avl)`}
-              value={config.totalSetsSold}
-              max={availableSets}
-              unitPrice={config.unitPrice}
-              onChange={onSetTotalSetsSold}
-            />
-          )}
+      <BundlesSoldSummary
+        bundles={config.bundles}
+        compositions={compositions}
+        disabled={compositions.length === 0}
+        onAdd={onAddBundle}
+        onUpdate={onUpdateBundle}
+        onRemove={onRemoveBundle}
+      />
 
-          {sizesWithLoosePieces.map((size) => (
-            <StockOutLine
-              key={size.designSizeId}
-              id={`loose-${size.designSizeId}`}
-              label={`Size ${size.size} (${size.loosePieces} avl)`}
-              value={config.loosePieces[size.designSizeId] ?? 0}
-              max={size.loosePieces}
-              unitPrice={config.unitPrice}
-              onChange={(quantity) => onSetLoosePieceQuantity(size.designSizeId, quantity)}
-            />
-          ))}
-
-          {availableSets === 0 && sizesWithLoosePieces.length === 0 && (
-            <p className="rounded-lg border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-              No stock currently available to sell for this variant.
-            </p>
-          )}
-        </>
-      )}
+      <LoosePiecesSummary
+        loosePieces={config.loosePieces}
+        sizes={sizes}
+        disabled={sizes.length === 0}
+        onChange={onSetLoosePieces}
+      />
     </div>
   );
 };

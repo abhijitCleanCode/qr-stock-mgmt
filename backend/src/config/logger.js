@@ -2,8 +2,10 @@
 
 /*
 design principles:
-prod writes to stdout asynchronously via sonic-boom (main thread, non-blocking fs writes).
-dev writes via pino.transport(), which runs pino-pretty in its own worker thread.
+always writes raw NDJSON to stdout asynchronously via sonic-boom (main thread, non-blocking fs writes).
+dev prettifies by piping that stdout through the pino-pretty CLI (see package.json's "dev" script) —
+pino.transport()'s worker thread hangs indefinitely under `node --watch` in this ESM project, so
+in-process pretty-printing is avoided entirely.
 the log level is driven by LOG_LEVEL env var
 */
 
@@ -77,21 +79,11 @@ function errSerializer (err) {
     })
 }
 
-// transport (dev only) | spawns a worker thread, keeping the main thread clear
-const transport = NODE_ENV === 'development' ? {
-    target: 'pino-pretty',
-    options: {
-        colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-        singleLine: false,
-    }
-} : undefined; // raw stdout in prod
-
-// destination stream — either the pino-pretty worker (dev) or sonic-boom (prod).
-// both can emit 'error' (e.g. transport target fails to load, EPIPE/ENOSPC on stdout),
-// which is otherwise an unhandled stream error and crashes the process.
-const destination = transport ? pino.transport(transport) : pino.destination({ sync: false });
+// destination stream — always raw NDJSON via sonic-boom, prettified externally in dev
+// (see package.json's "dev" script piping through the pino-pretty CLI).
+// can emit 'error' (e.g. EPIPE/ENOSPC on stdout), which is otherwise an unhandled
+// stream error and crashes the process.
+const destination = pino.destination({ sync: false });
 destination.on('error', (err) => {
     console.error('logger destination stream error:', err);
 });

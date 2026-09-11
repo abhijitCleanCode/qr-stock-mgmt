@@ -10,6 +10,7 @@ import { stockItemRoutes } from '../../modules/stock/routes/stockItem.route.js';
 import { qrCenterRoutes } from '../../modules/stock/routes/qrCenter.route.js';
 import { stockHistoryRoutes } from '../../modules/stock/routes/stockHistory.route.js';
 import { currentStockRoutes } from '../../modules/inventory/routes/currentStock.route.js';
+import { orderFormRoutes } from '../../modules/order/routes/orderForm.route.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/stock-items', buildRouter(stockItemRoutes));
 router.use('/qr-center', buildRouter(qrCenterRoutes));
 router.use('/stock-history', buildRouter(stockHistoryRoutes));
 router.use('/current-stock', buildRouter(currentStockRoutes));
+router.use('/order-forms', buildRouter(orderFormRoutes));
 
 export default router;

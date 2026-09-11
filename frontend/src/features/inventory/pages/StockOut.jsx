@@ -11,12 +11,16 @@ import { getVariantKey } from "../utils/variantKey";
 
 const StockOut = () => {
   const [selectedVariants, setSelectedVariants] = useState([]);
+  // Accordion behavior: at most one card expanded at a time — same as Stock In.
+  const [expandedVariantKey, setExpandedVariantKey] = useState(null);
   const {
     configs,
     ensureConfig,
-    removeConfig,
     setTotalSetsSold,
-    setLoosePieceQuantity,
+    addBundle,
+    updateBundle,
+    removeBundle,
+    setLoosePieces,
     reset: resetConfigs,
   } = useVariantStockOutConfigs();
 
@@ -29,11 +33,7 @@ const StockOut = () => {
       prev.some((item) => getVariantKey(item) === key) ? prev : [...prev, variant]
     );
     ensureConfig(variant);
-  };
-
-  const handleRemove = (key) => {
-    setSelectedVariants((prev) => prev.filter((item) => getVariantKey(item) !== key));
-    removeConfig(key);
+    setExpandedVariantKey(key);
   };
 
   const handleRegisterStockOut = async () => {
@@ -48,6 +48,7 @@ const StockOut = () => {
       await registerStockOut(payload);
       toast.success("Stock out registered successfully.");
       setSelectedVariants([]);
+      setExpandedVariantKey(null);
       resetConfigs();
     } catch (error) {
       toast.error(error?.message ?? "Couldn't register stock out. Please try again.");
@@ -77,9 +78,13 @@ const StockOut = () => {
                 key={key}
                 variant={variant}
                 config={config}
-                onRemove={() => handleRemove(key)}
+                isExpanded={key === expandedVariantKey}
+                onToggle={(open) => setExpandedVariantKey(open ? key : null)}
                 onSetTotalSetsSold={(value) => setTotalSetsSold(key, value)}
-                onSetLoosePieceQuantity={(designSizeId, quantity) => setLoosePieceQuantity(key, designSizeId, quantity)}
+                onAddBundle={(bundle) => addBundle(key, bundle)}
+                onUpdateBundle={(localId, bundle) => updateBundle(key, localId, bundle)}
+                onRemoveBundle={(localId) => removeBundle(key, localId)}
+                onSetLoosePieces={(loosePieces) => setLoosePieces(key, loosePieces)}
               />
             );
           })}

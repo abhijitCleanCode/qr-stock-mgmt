@@ -6,13 +6,12 @@ const toPositiveEntries = (record) =>
     .filter((item) => item.quantity > 0);
 
 const hasStock = (config) =>
-  config.totalSetsSold > 0 || toPositiveEntries(config.loosePieces).length > 0;
+  config.totalSetsSold > 0 || config.bundles.length > 0 || toPositiveEntries(config.loosePieces).length > 0;
 
 // Flattens the per-variant config map (keyed by UI-only variantKey) into the
 // designs -> variants shape the Register Stock Out API expects. A selected variant nobody
 // entered any sale quantity for is skipped rather than sent empty — same convention as
-// buildStockInPayload. Bundles are dropped for now (Stock Out only sells Sets/Loose Pieces) —
-// still sent as an empty array since the API accepts it.
+// buildStockInPayload.
 export function buildStockOutPayload(selectedVariants, configs) {
   const designs = new Map();
 
@@ -24,7 +23,10 @@ export function buildStockOutPayload(selectedVariants, configs) {
       colorVariantId: config.colorVariantId,
       unitPrice: Number(config.unitPrice) || 0,
       totalSetsSold: config.totalSetsSold,
-      bundles: [],
+      bundles: config.bundles.map((bundle) => ({
+        stockGroupId: bundle.stockGroupId,
+        quantity: bundle.quantity,
+      })),
       loosePieces: toPositiveEntries(config.loosePieces).map(({ id, quantity }) => ({
         designSizeId: id,
         quantity,
