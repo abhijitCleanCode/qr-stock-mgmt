@@ -4,22 +4,26 @@ export const EVENT_TYPE_LABELS = {
     STOCK_IN: "Stock In",
     SET_ASSEMBLED: "Set Assembled",
     BUNDLE_ASSEMBLED: "Bundle Assembled",
+    STOCK_OUT: "Stock Out",
 };
 
 export const getEventTypeLabel = (eventType) => EVENT_TYPE_LABELS[eventType] ?? eventType;
 
-// Subtle, not a color-coded system — STOCK_IN (an addition) reads slightly more emphasized
-// than the two transformation events, which share a neutral outline treatment.
+// Subtle, not a color-coded system — STOCK_IN (an addition) and STOCK_OUT (a removal) read
+// slightly more emphasized than the two transformation events, which share a neutral outline
+// treatment.
 export const EVENT_TYPE_BADGE_VARIANT = {
     STOCK_IN: "secondary",
     SET_ASSEMBLED: "outline",
     BUNDLE_ASSEMBLED: "outline",
+    STOCK_OUT: "destructive",
 };
 
 export const getEventTypeBadgeVariant = (eventType) => EVENT_TYPE_BADGE_VARIANT[eventType] ?? "outline";
 
-// STOCK_IN's quantity is physical pieces; the two assembly events always create exactly one
-// resulting unit — the label reflects that unit, never re-derives or reinterprets the number.
+// STOCK_IN/STOCK_OUT's quantity is physical pieces; the two assembly events always create
+// exactly one resulting unit — the label reflects that unit, never re-derives or reinterprets
+// the number.
 export const getQuantityLabel = ({ eventType, quantity }) => {
     if (eventType === "SET_ASSEMBLED") return `${quantity} Set${quantity === 1 ? "" : "s"}`;
     if (eventType === "BUNDLE_ASSEMBLED") return `${quantity} Bundle${quantity === 1 ? "" : "s"}`;

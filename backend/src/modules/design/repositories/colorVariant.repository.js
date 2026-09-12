@@ -62,6 +62,19 @@ class ColorVariantRepository {
             .where(and(inArray(colorVariant.designId, designIds), eq(colorVariant.isActive, true)));
     }
 
+    // id/imageUrl/imagePublicId only — used to source the Order Form gallery's auto-added
+    // "design photo" for each selected variant (see orderFormPhotoSync.service.js).
+    async findByIds(runner, ids) {
+        if (ids.length === 0) return [];
+
+        return runner.select({
+            id: colorVariant.id,
+            imageUrl: colorVariant.imageUrl,
+            imagePublicId: colorVariant.imagePublicId,
+        }).from(colorVariant)
+            .where(inArray(colorVariant.id, ids));
+    }
+
     async findActiveById(tx, id) {
         const [result] = await tx.select({
             ...getTableColumns(colorVariant),

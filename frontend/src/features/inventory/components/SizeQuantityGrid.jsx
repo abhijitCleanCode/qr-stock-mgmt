@@ -2,7 +2,10 @@ import { Input } from "@/components/ui/input";
 
 // Per-size quantity entry, shared by the bundle-composition and loose-pieces dialogs.
 // Only ever shows the active sizes passed in — never assumes a fixed size set.
-const SizeQuantityGrid = ({ sizes, values, onChange }) => {
+// `readOnly` renders the same boxes disabled instead of editable — Stock Out's bundle dialog
+// uses this to display an existing composition's fixed recipe (you can't invent one on sale,
+// only pick how many of an already-assembled bundle to sell).
+const SizeQuantityGrid = ({ sizes, values, onChange, readOnly = false }) => {
   const handleChange = (sizeId, rawValue) => {
     if (rawValue === "") {
       onChange(sizeId, 0);
@@ -25,7 +28,8 @@ const SizeQuantityGrid = ({ sizes, values, onChange }) => {
             inputMode="numeric"
             min={0}
             value={values[size.id] ?? 0}
-            onChange={(event) => handleChange(size.id, event.target.value)}
+            onChange={readOnly ? undefined : (event) => handleChange(size.id, event.target.value)}
+            disabled={readOnly}
             className="h-11 w-full text-center text-base"
           />
         </div>

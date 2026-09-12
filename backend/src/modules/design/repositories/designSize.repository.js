@@ -16,6 +16,22 @@ class DesignSize {
             .orderBy(asc(designSize.displayOrder));
     }
 
+    // All active sizes (not just includedInSet ones) for many variants at once — used by Order
+    // Forms to build a per-size quantity breakdown for both SET and LOOSE_PIECE line items.
+    async findActiveByVariantIds(runner, variantIds) {
+        if (variantIds.length === 0) return [];
+
+        return runner.select({
+            id: designSize.id,
+            variantId: designSize.variantId,
+            sizeLabel: designSize.sizeLabel,
+            includedInSet: designSize.includedInSet,
+            displayOrder: designSize.displayOrder,
+        }).from(designSize)
+            .where(and(inArray(designSize.variantId, variantIds), eq(designSize.isActive, true)))
+            .orderBy(asc(designSize.displayOrder));
+    }
+
     async findByVariantIds(variantIds) {
         if (variantIds.length === 0) return [];
 

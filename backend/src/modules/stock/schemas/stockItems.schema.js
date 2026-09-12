@@ -7,7 +7,7 @@ import { stockInBundle } from "./stockInBundle.schema.js";
 import { designSize } from "../../design/schemas/designSize.schema.js";
 
 // CONSUMED - Ye physical stock item kisi naye stock item ko create karne ke liye consume ho chuka hai. We are not deleting the stock item for maintaining lineage
-const stockItemStatusEnum = pgEnum("stock_item_status", ["AVAILABLE", "UNSET", "CONSUMED"]);
+export const stockItemStatusEnum = pgEnum("stock_item_status", ["AVAILABLE", "UNSET", "CONSUMED"]);
 
 export const stockItem = pgTable("stock_items", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),

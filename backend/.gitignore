@@ -141,4 +141,4 @@ dist
 .idea
 
 security/private.key
-*.key
+*.key.DS_Store
