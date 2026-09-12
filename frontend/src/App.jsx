@@ -6,12 +6,16 @@ import MainLayout from "./layouts/MainLayout";
 import Designs from "./features/design/pages/Designs";
 import CreateDesign from "./features/design/pages/CreateDesign";
 import StockIn from "./features/inventory/pages/StockIn";
+import StockOut from "./features/inventory/pages/StockOut";
 import QrCenter from "./features/inventory/pages/QrCenter";
 import QrGrid from "./features/inventory/pages/QrGrid";
 import CurrentStock from "./features/inventory/pages/CurrentStock";
 import CurrentStockDetail from "./features/inventory/pages/CurrentStockDetail";
 import StockHistory from "./features/inventory/pages/StockHistory";
 import StockTransformation from "./features/inventory/pages/StockTransformation";
+import OrderForms from "./features/orderForms/pages/OrderForms";
+import CreateOrderForm from "./features/orderForms/pages/CreateOrderForm";
+import SharedOrderForm from "./features/orderForms/pages/SharedOrderForm";
 
 const App = () => {
   return (
@@ -21,6 +25,7 @@ const App = () => {
           <Route path="/designs" element={<Designs />} />
           <Route path="/add-designs" element={<CreateDesign />} />
           <Route path="/stock-in" element={<StockIn />} />
+          <Route path="/stock-out" element={<StockOut />} />
           <Route path="/qr-center" element={<QrCenter />} />
           <Route path="/qr-center/transformation/:transformationId" element={<QrGrid />} />
           <Route path="/qr-center/:stockInTransactionId" element={<QrGrid />} />
@@ -28,7 +33,12 @@ const App = () => {
           <Route path="/current-stock/:colorVariantId" element={<CurrentStockDetail />} />
           <Route path="/stock-history" element={<StockHistory />} />
           <Route path="/stock-transformation" element={<StockTransformation />} />
+          <Route path="/order-forms" element={<OrderForms />} />
+          <Route path="/order-forms/new" element={<CreateOrderForm />} />
+          <Route path="/order-forms/:id/edit" element={<CreateOrderForm />} />
         </Route>
+
+        <Route path="/order-forms/share/:orderFormNumber" element={<SharedOrderForm />} />
       </Routes>
 
       <ToastContainer

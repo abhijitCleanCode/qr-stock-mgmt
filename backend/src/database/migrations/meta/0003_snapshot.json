@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "id": "3d85301c-f757-4278-8c13-de355945f211",
+=======
+  "id": "43e400c8-bd1f-4de3-8402-b56fe5a6693c",
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
   "prevId": "5c129dcf-1e19-4455-9356-0174fc39a315",
   "version": "7",
   "dialect": "postgresql",
@@ -308,12 +312,15 @@
           "primaryKey": false,
           "notNull": true
         },
+<<<<<<< HEAD
         "challan_no": {
           "name": "challan_no",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         "total_sets_received": {
           "name": "total_sets_received",
           "type": "integer",
@@ -1617,6 +1624,15 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
+=======
+        "stock_out_transaction_id": {
+          "name": "stock_out_transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         "quantity": {
           "name": "quantity",
           "type": "integer",
@@ -1763,6 +1779,22 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+<<<<<<< HEAD
+=======
+        },
+        "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk": {
+          "name": "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk",
+          "tableFrom": "stock_history",
+          "tableTo": "stock_out_transactions",
+          "columnsFrom": [
+            "stock_out_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         }
       },
       "compositePrimaryKeys": {},
@@ -1814,7 +1846,12 @@
       "values": [
         "STOCK_IN",
         "SET_ASSEMBLED",
+<<<<<<< HEAD
         "BUNDLE_ASSEMBLED"
+=======
+        "BUNDLE_ASSEMBLED",
+        "STOCK_OUT"
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
       ]
     }
   },

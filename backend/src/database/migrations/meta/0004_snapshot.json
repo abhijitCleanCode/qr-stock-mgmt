@@ -1,6 +1,11 @@
 {
+<<<<<<< HEAD
   "id": "b91e8f3a-3554-43ff-9531-b6568a871743",
   "prevId": "3d85301c-f757-4278-8c13-de355945f211",
+=======
+  "id": "2083517c-97dc-4a29-afc0-dca604693c6f",
+  "prevId": "43e400c8-bd1f-4de3-8402-b56fe5a6693c",
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -37,6 +42,7 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "item_name": {
           "name": "item_name",
           "type": "varchar(255)",
@@ -49,11 +55,17 @@
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         "default_cost_price_per_piece": {
           "name": "default_cost_price_per_piece",
           "type": "integer",
           "primaryKey": false,
+<<<<<<< HEAD
           "notNull": false
+=======
+          "notNull": true
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         },
         "default_selling_price_per_piece": {
           "name": "default_selling_price_per_piece",
@@ -320,12 +332,15 @@
           "primaryKey": false,
           "notNull": true
         },
+<<<<<<< HEAD
         "challan_no": {
           "name": "challan_no",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         "total_sets_received": {
           "name": "total_sets_received",
           "type": "integer",
@@ -1629,6 +1644,15 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
+=======
+        "stock_out_transaction_id": {
+          "name": "stock_out_transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         "quantity": {
           "name": "quantity",
           "type": "integer",
@@ -1775,6 +1799,211 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+<<<<<<< HEAD
+=======
+        },
+        "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk": {
+          "name": "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk",
+          "tableFrom": "stock_history",
+          "tableTo": "stock_out_transactions",
+          "columnsFrom": [
+            "stock_out_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.order_forms": {
+      "name": "order_forms",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "order_forms_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "retailer_name": {
+          "name": "retailer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_person": {
+          "name": "contact_person",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "order_date": {
+          "name": "order_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "order_form_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.order_form_items": {
+      "name": "order_form_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "order_form_items_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "order_form_id": {
+          "name": "order_form_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "color_variant_id": {
+          "name": "color_variant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "order_form_item_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loose_pieces_breakdown": {
+          "name": "loose_pieces_breakdown",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estimated_value": {
+          "name": "estimated_value",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "order_form_items_order_form_id_order_forms_id_fk": {
+          "name": "order_form_items_order_form_id_order_forms_id_fk",
+          "tableFrom": "order_form_items",
+          "tableTo": "order_forms",
+          "columnsFrom": [
+            "order_form_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "order_form_items_color_variant_id_color_variants_id_fk": {
+          "name": "order_form_items_color_variant_id_color_variants_id_fk",
+          "tableFrom": "order_form_items",
+          "tableTo": "color_variants",
+          "columnsFrom": [
+            "color_variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         }
       },
       "compositePrimaryKeys": {},
@@ -1826,7 +2055,30 @@
       "values": [
         "STOCK_IN",
         "SET_ASSEMBLED",
+<<<<<<< HEAD
         "BUNDLE_ASSEMBLED"
+=======
+        "BUNDLE_ASSEMBLED",
+        "STOCK_OUT"
+      ]
+    },
+    "public.order_form_status": {
+      "name": "order_form_status",
+      "schema": "public",
+      "values": [
+        "DRAFT",
+        "SHARED",
+        "CONVERTED",
+        "CANCELLED"
+      ]
+    },
+    "public.order_form_item_type": {
+      "name": "order_form_item_type",
+      "schema": "public",
+      "values": [
+        "SET",
+        "LOOSE_PIECE"
+>>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
       ]
     }
   },

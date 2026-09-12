@@ -4,14 +4,16 @@ import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { stockGroup } from "./stockGroup.schema.js";
 import { stockItem } from "./stockItems.schema.js";
 import { stockInTransaction } from "./stockInTransaction.schema.js";
+import { stockOutTransaction } from "./stockOutTransaction.schema.js";
 
 // Only event types the application can actually produce today. Extend this list in a future
-// migration when a new mutation path (e.g. Stock Out) is implemented — never add a value here
-// speculatively ahead of the code that would produce it.
+// migration when a new mutation path is implemented — never add a value here speculatively
+// ahead of the code that would produce it.
 export const stockHistoryEventTypeEnum = pgEnum("stock_history_event_type", [
     "STOCK_IN",
     "SET_ASSEMBLED",
     "BUNDLE_ASSEMBLED",
+    "STOCK_OUT",
 ]);
 
 // Append-only log of stock movement events — what happened, and when, not current state.
@@ -33,11 +35,15 @@ export const stockHistory = pgTable("stock_history", {
     stockGroupId: integer("stock_group_id").references(() => stockGroup.id, { onDelete: "set null" }),
     resultStockItemId: integer("result_stock_item_id").references(() => stockItem.id, { onDelete: "set null" }),
     stockInTransactionId: integer("stock_in_transaction_id").references(() => stockInTransaction.id, { onDelete: "set null" }),
+    stockOutTransactionId: integer("stock_out_transaction_id").references(() => stockOutTransaction.id, { onDelete: "set null" }),
 
     // STOCK_IN: total physical pieces added for the variant in this transaction.
     // SET_ASSEMBLED / BUNDLE_ASSEMBLED: number of resulting units created by this transformation
     // (1 for a single assembly, N for a bulk one) — source pieces consumed belong in metadata,
     // not here.
+    // STOCK_OUT: total physical pieces sold for the variant in this transaction.
+    // SET_ASSEMBLED / BUNDLE_ASSEMBLED: always 1 (one resulting unit) — source pieces consumed
+    // belong in metadata, not here.
     quantity: integer("quantity").notNull(),
 
     // Event-specific immutable snapshot (size/bundle/loose breakdown for STOCK_IN; source stock

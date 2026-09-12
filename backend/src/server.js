@@ -1,4 +1,5 @@
 import "dotenv/config.js";
+import dns from "dns";
 import http from "http";
 
 import app from "./app.js";
@@ -7,10 +8,13 @@ import logger from "./config/logger.js";
 import {closePool, verifyConnection} from "./database/connection.js";
 // import {connectRedis} from "./infra/redis/redis.js";
 
-const server = http.createServer(app);
+// Node's default DNS lookup order can alternate between IPv4/IPv6 per call (Happy Eyeballs),
+// which surfaces as intermittent ENOTFOUND for the same hostname on networks with flaky or
+// absent IPv6 routing — exactly the pattern seen against the Neon pooler hostname. Pinning to
+// IPv4 first makes resolution consistent instead of racing a route that may not work.
+dns.setDefaultResultOrder("ipv4first");
 
-// fail fast if DB is unreachable
-await verifyConnection();
+const server = http.createServer(app);
 
 async function startServer() {
     try {

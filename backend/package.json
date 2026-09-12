@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch-path=src --watch src/server.js | pino-pretty -c -t SYS:standard -i pid,hostname"
   },
   "keywords": [],
   "author": "",

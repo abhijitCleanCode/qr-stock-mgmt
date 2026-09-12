@@ -1,5 +1,4 @@
-import { RefreshCw } from "lucide-react";
-import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box } from "lucide-react";
+import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box, RefreshCw, ArrowUpRight, FileText } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
     return [
@@ -49,7 +48,7 @@ export const getMenuList = ({ pathname }) => {
                 {
                     href: "/stock-out",
                     label: "Stock Out",
-                    icon: ArrowDownLeft,
+                    icon: ArrowUpRight,
                     active: pathname.startsWith("/stock-out"),
                     submenus: [],
                 },
@@ -60,6 +59,18 @@ export const getMenuList = ({ pathname }) => {
                     active: pathname.startsWith("/stock-transformation"),
                     submenus: [],
                 }
+            ],
+        },
+        {
+            groupLabel: "Sales",
+            menus: [
+                {
+                    href: "/order-forms",
+                    label: "Order Forms",
+                    icon: FileText,
+                    active: pathname.startsWith("/order-forms"),
+                    submenus: [],
+                },
             ],
         },
     ];

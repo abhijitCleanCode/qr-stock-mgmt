@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 // Large-touch-target [-] value [+] control, used for bundle-quantity entry on mobile.
+// `max` is optional (defaults to unbounded) — Stock In's freely-composed bundles never cap it,
+// but Stock Out's "how many of this existing composition to sell" does.
 const QuantityStepper = ({ value, onChange, min = 0, max = Infinity, id }) => {
   const clamp = (next) => Math.min(max, Math.max(min, Number.isFinite(next) ? next : min));
 

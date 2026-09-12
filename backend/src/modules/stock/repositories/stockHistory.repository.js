@@ -1,7 +1,8 @@
-import { and, count, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 
 import { stockHistory } from "../schemas/stockHistory.schema.js";
 import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
+import { stockOutTransaction } from "../schemas/stockOutTransaction.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
 
@@ -52,7 +53,13 @@ const listColumns = {
     designCode: design.code,
     designName: design.name,
     stockInTransactionId: stockHistory.stockInTransactionId,
-    stockDate: stockInTransaction.stockDate,
+    stockOutTransactionId: stockHistory.stockOutTransactionId,
+    // STOCK_IN rows carry a date via stock_in_transactions.stock_date; STOCK_OUT rows via
+    // stock_out_transactions.transaction_date — coalesced into one field since a given row is
+    // only ever one or the other.
+    stockDate: sql`coalesce(${stockInTransaction.stockDate}::text, ${stockOutTransaction.transactionDate}::text)`,
+    // Challan No. is a Stock In-only concept (a supplier delivery reference) — stock_out_transactions
+    // has no equivalent field, so this is simply null for STOCK_OUT/transformation rows.
     challanNo: stockInTransaction.challanNo,
 };
 
@@ -102,6 +109,7 @@ class StockHistoryRepository {
             .innerJoin(colorVariant, eq(stockHistory.colorVariantId, colorVariant.id))
             .innerJoin(design, eq(colorVariant.designId, design.id))
             .leftJoin(stockInTransaction, eq(stockHistory.stockInTransactionId, stockInTransaction.id))
+            .leftJoin(stockOutTransaction, eq(stockHistory.stockOutTransactionId, stockOutTransaction.id))
             .where(buildFilters({ eventType, colorVariantId, dateFrom, dateTo, keyword }))
             .orderBy(desc(stockHistory.createdAt), desc(stockHistory.id))
             .limit(limit)

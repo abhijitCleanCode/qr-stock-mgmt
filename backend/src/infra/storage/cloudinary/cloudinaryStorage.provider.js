@@ -8,6 +8,10 @@ class CloudinaryStorageProvider {
                 resource_type: "image",
                 folder: "design/images",
             },
+            ORDER_FORM_PHOTO: {
+                resource_type: "image",
+                folder: "order-forms/photos",
+            },
         }
 
         return configMap[type];
@@ -38,6 +42,18 @@ class CloudinaryStorageProvider {
 
     async destroy(publicId) {
         return cloudinary.uploader.destroy(publicId);
+    }
+
+    // Builds a signed URL to a zip archive Cloudinary generates on the fly from the given
+    // public_ids — no zip library needed, and nothing is stored server-side beyond the URL.
+    createZipDownloadUrl(publicIds, targetPublicId) {
+        return cloudinary.utils.download_zip_url({
+            public_ids: publicIds,
+            resource_type: "image",
+            target_public_id: targetPublicId,
+            use_original_filename: true,
+            flatten_folder: true,
+        });
     }
 }
 
