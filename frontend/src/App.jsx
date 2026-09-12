@@ -11,6 +11,7 @@ import QrGrid from "./features/inventory/pages/QrGrid";
 import CurrentStock from "./features/inventory/pages/CurrentStock";
 import CurrentStockDetail from "./features/inventory/pages/CurrentStockDetail";
 import StockHistory from "./features/inventory/pages/StockHistory";
+import StockTransformation from "./features/inventory/pages/StockTransformation";
 
 const App = () => {
   return (
@@ -21,10 +22,12 @@ const App = () => {
           <Route path="/add-designs" element={<CreateDesign />} />
           <Route path="/stock-in" element={<StockIn />} />
           <Route path="/qr-center" element={<QrCenter />} />
+          <Route path="/qr-center/transformation/:transformationId" element={<QrGrid />} />
           <Route path="/qr-center/:stockInTransactionId" element={<QrGrid />} />
           <Route path="/current-stock" element={<CurrentStock />} />
           <Route path="/current-stock/:colorVariantId" element={<CurrentStockDetail />} />
           <Route path="/stock-history" element={<StockHistory />} />
+          <Route path="/stock-transformation" element={<StockTransformation />} />
         </Route>
       </Routes>
 

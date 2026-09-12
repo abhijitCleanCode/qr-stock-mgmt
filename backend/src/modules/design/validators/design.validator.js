@@ -43,7 +43,8 @@ export const colorVariantSizesParamsSchema = z.object({
 export const registerDesignSchema = z.object({
     name: z.string().trim().min(1),
     code: z.string().trim().optional(),
-    defaultCostPricePerPiece: z.coerce.number().int().nonnegative(),
+    itemName: z.string().trim().min(1, "Item Name is required."),
+    quality: z.string().trim().min(1, "Quality is required."),
     defaultSellingPricePerPiece: z.coerce.number().int().nonnegative(),
     notes: z.string().trim().optional(),
 

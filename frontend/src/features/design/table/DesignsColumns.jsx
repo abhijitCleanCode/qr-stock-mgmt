@@ -32,6 +32,10 @@ export const columns = [
       </div>
     ),
   },
+  { accessorKey: "itemName", header: "Item Name" },
+  { accessorKey: "quality", header: "Quality" },
+  // Historical field — no longer collected on Register Design, but existing designs still
+  // carry real cost price data, so it stays visible here rather than being hidden.
   { accessorKey: "defaultCostPricePerPiece", header: "Cost Price" },
   { accessorKey: "defaultSellingPricePerPiece", header: "Selling Price" },
 ];

@@ -47,6 +47,7 @@ class stockInPersistence {
         const transaction = await this._stockInTransactionRepository.create(tx, {
             variantId: variant.id,
             stockDate: variantInput.stockDate ?? todayAsIsoDate(),
+            challanNo: variantInput.challanNo,
             totalSetsReceived: variantInput.totalSetsReceived ?? 0,
             notes: variantInput.notes ?? null,
         });

@@ -10,6 +10,10 @@ export const getRegistrationDetailParamsSchema = z.object({
     stockInTransactionId: z.coerce.number().int().positive(),
 });
 
+export const getTransformationDetailParamsSchema = z.object({
+    transformationId: z.coerce.number().int().positive(),
+});
+
 export const generateQrSchema = z.object({
     stockItemIds: z.array(z.number().int().positive()).min(1).max(200).transform((ids) => [...new Set(ids)]),
 });

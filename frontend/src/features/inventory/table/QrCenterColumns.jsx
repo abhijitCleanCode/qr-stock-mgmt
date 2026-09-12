@@ -13,15 +13,19 @@ const formatTypeCounts = ({ SET, BUNDLE }) => {
   return parts.join(" · ") || "—";
 };
 
-// One row = one Stock Registration (stock-in transaction), not one QR — see qrCenter.service.js.
+// One row = one stock EVENT (a Stock In transaction or a transformation), not one QR — see
+// qrCenter.service.js.
+const registrationLabel = (row) =>
+  row.registrationType === "TRANSFORMATION" ? `Transformation #${row.registrationId}` : `Stock In #${row.registrationId}`;
+
 export const qrCenterColumns = [
   {
     id: "registration",
     header: "Stock Registration",
     cell: ({ row }) => (
       <div className="flex flex-col">
-        <span className="text-sm font-semibold text-foreground">Stock In #{row.original.stockInTransactionId}</span>
-        <span className="text-xs text-muted-foreground">{dateFormatter.format(new Date(row.original.stockDate))}</span>
+        <span className="text-sm font-semibold text-foreground">{registrationLabel(row.original)}</span>
+        <span className="text-xs text-muted-foreground">{dateFormatter.format(new Date(row.original.displayDate))}</span>
       </div>
     ),
   },
@@ -79,6 +83,8 @@ export const qrCenterColumns = [
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => <QrCenterRowActions stockInTransactionId={row.original.stockInTransactionId} />,
+    cell: ({ row }) => (
+      <QrCenterRowActions registrationType={row.original.registrationType} registrationId={row.original.registrationId} />
+    ),
   },
 ];

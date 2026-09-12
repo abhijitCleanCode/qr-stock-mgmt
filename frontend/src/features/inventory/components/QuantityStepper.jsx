@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 // Large-touch-target [-] value [+] control, used for bundle-quantity entry on mobile.
-const QuantityStepper = ({ value, onChange, min = 0, id }) => {
-  const clamp = (next) => Math.max(min, Number.isFinite(next) ? next : min);
+const QuantityStepper = ({ value, onChange, min = 0, max = Infinity, id }) => {
+  const clamp = (next) => Math.min(max, Math.max(min, Number.isFinite(next) ? next : min));
 
   const handleInputChange = (event) => {
     const rawValue = event.target.value;
@@ -35,6 +35,7 @@ const QuantityStepper = ({ value, onChange, min = 0, id }) => {
         type="number"
         inputMode="numeric"
         min={min}
+        max={Number.isFinite(max) ? max : undefined}
         value={value}
         onChange={handleInputChange}
         className="h-11 w-16 text-center text-base"
@@ -45,6 +46,7 @@ const QuantityStepper = ({ value, onChange, min = 0, id }) => {
         size="icon"
         className="h-11 w-11 shrink-0"
         onClick={() => onChange(clamp(value + 1))}
+        disabled={value >= max}
         aria-label="Increase"
       >
         <PlusIcon />

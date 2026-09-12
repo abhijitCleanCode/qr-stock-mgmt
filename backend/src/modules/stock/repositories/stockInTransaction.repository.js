@@ -88,6 +88,7 @@ class StockInTransactionRepository {
         const [result] = await tx.select({
             stockInTransactionId: stockInTransaction.id,
             stockDate: stockInTransaction.stockDate,
+            challanNo: stockInTransaction.challanNo,
             createdAt: stockInTransaction.createdAt,
             notes: stockInTransaction.notes,
             colorVariantId: colorVariant.id,

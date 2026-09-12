@@ -15,8 +15,15 @@ export const getQrCenterListApi = async ({ page = 1, limit = 20, keyword } = {})
     return data;
 };
 
-export const getQrCenterRegistrationDetailApi = async (stockInTransactionId) => {
-    const response = await fetch(`${baseURL}/qr-center/${stockInTransactionId}`);
+// One registration detail endpoint per registration type — a Stock In transaction and a
+// transformation event use different route shapes on the backend (see qrCenter.route.js),
+// but both return the same { registration, qrs } shape (see qrCenter.service.js).
+export const getQrCenterRegistrationDetailApi = async ({ registrationType, registrationId }) => {
+    const path = registrationType === "TRANSFORMATION"
+        ? `/qr-center/transformation/${registrationId}`
+        : `/qr-center/${registrationId}`;
+
+    const response = await fetch(`${baseURL}${path}`);
 
     const data = await response.json();
 

@@ -22,6 +22,7 @@ function toHistoryView(row) {
 
         stockInTransactionId: row.stockInTransactionId,
         stockDate: row.stockDate ?? null,
+        challanNo: row.challanNo ?? null,
     };
 }
 

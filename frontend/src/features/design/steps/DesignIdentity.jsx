@@ -18,8 +18,14 @@ const DesignIdentity = ({ control }) => {
       />
       <CustomFormField
         control={control}
-        name="defaultCostPricePerPiece"
-        label="Cost price / piece"
+        name="itemName"
+        label="Item Name"
+        fieldType={FormFieldType.INPUT}
+      />
+      <CustomFormField
+        control={control}
+        name="quality"
+        label="Quality"
         fieldType={FormFieldType.INPUT}
       />
       <CustomFormField
@@ -28,12 +34,14 @@ const DesignIdentity = ({ control }) => {
         label="Selling price / piece"
         fieldType={FormFieldType.INPUT}
       />
-      <CustomFormField
-        control={control}
-        name="notes"
-        label="Notes"
-        fieldType={FormFieldType.TEXTAREA}
-      />
+      <div className="md:col-span-2">
+        <CustomFormField
+          control={control}
+          name="notes"
+          label="Notes"
+          fieldType={FormFieldType.TEXTAREA}
+        />
+      </div>
     </div>
   );
 };
