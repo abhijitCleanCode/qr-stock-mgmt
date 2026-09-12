@@ -4,7 +4,7 @@ import { Loader2Icon } from "lucide-react";
 import ActionModal from "@/components/shared/ActionModal";
 import { Badge } from "@/components/ui/badge";
 import { useColorVariantSizesApi } from "../../hooks/useColorVariantSizesApi";
-import { formatHistoryDateTime, getEventTypeLabel } from "../../utils/stockHistoryLabels";
+import { formatDateOnly, formatHistoryDateTime, getEventTypeLabel } from "../../utils/stockHistoryLabels";
 
 const Section = ({ title, children }) => (
   <div className="flex flex-col gap-2">
@@ -34,6 +34,23 @@ const StockInDetail = ({ item, resolveSizeLabel }) => {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-foreground">{item.quantity} pieces added</p>
+
+      {(item.stockDate || item.challanNo) && (
+        <div className="flex flex-wrap gap-4 rounded-lg border border-border bg-muted/30 p-3">
+          {item.stockDate && (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Delivery Date</span>
+              <span className="text-sm font-medium text-foreground">{formatDateOnly(item.stockDate)}</span>
+            </div>
+          )}
+          {item.challanNo && (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-muted-foreground">Challan No.</span>
+              <span className="text-sm font-medium text-foreground">{item.challanNo}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {totalSetsReceived > 0 && (
         <Section title="Sets Received">
@@ -80,7 +97,10 @@ const AssembledDetail = ({ item, resolveSizeLabel, unitLabel }) => {
   const metadata = item.metadata ?? {};
   const composition = metadata.sourceComposition ?? metadata.composition ?? [];
   const sourceStockItemIds = metadata.sourceStockItemIds ?? [];
-  const resultStockItemId = metadata.resultStockItemId ?? null;
+  // Bulk transformations store every created unit in resultStockItemIds; a single-unit event
+  // (assembleBundle, or an assembleSet call from before bulk support) only ever had the
+  // singular resultStockItemId — fall back to that so older rows still render.
+  const resultStockItemIds = metadata.resultStockItemIds ?? (metadata.resultStockItemId ? [metadata.resultStockItemId] : []);
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,11 +127,15 @@ const AssembledDetail = ({ item, resolveSizeLabel, unitLabel }) => {
         </Section>
       )}
 
-      {resultStockItemId && (
+      {resultStockItemIds.length > 0 && (
         <Section title="Result">
-          <p className="text-sm font-medium text-foreground">
-            {unitLabel} #{resultStockItemId}
-          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {resultStockItemIds.map((id) => (
+              <Badge key={id} variant="outline">
+                {unitLabel} #{id}
+              </Badge>
+            ))}
+          </div>
         </Section>
       )}
     </div>

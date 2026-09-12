@@ -22,24 +22,42 @@ class StockItemController {
     }
 
     assembleSet = async (req, res, next) => {
-        const { colorVariantId } = req.body;
+        const { colorVariantId, quantity } = req.body;
 
         try {
-            const result = await this._stockItemService.assembleSet(colorVariantId);
+            const result = await this._stockItemService.assembleSet(colorVariantId, quantity);
 
-            return res.status(201).json(new ApiResponse(201, result, "Loose pieces assembled into a new SET."));
+            const message = quantity === 1
+                ? "Loose pieces assembled into a new SET."
+                : `Loose pieces assembled into ${quantity} new SETs.`;
+            return res.status(201).json(new ApiResponse(201, result, message));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getLooseAvailability = async (req, res, next) => {
+        const { colorVariantId } = req.params;
+
+        try {
+            const result = await this._stockItemService.getLooseAvailability(colorVariantId);
+
+            return res.status(200).json(new ApiResponse(200, result, "Loose piece availability fetched successfully."));
         } catch (error) {
             next(error);
         }
     };
 
     assembleBundle = async (req, res, next) => {
-        const { colorVariantId, composition } = req.body;
+        const { colorVariantId, stockGroupId, quantity } = req.body;
 
         try {
-            const result = await this._stockItemService.assembleBundle(colorVariantId, composition);
+            const result = await this._stockItemService.assembleBundle(colorVariantId, stockGroupId, quantity);
 
-            return res.status(201).json(new ApiResponse(201, result, "Loose pieces assembled into a new BUNDLE."));
+            const message = quantity === 1
+                ? "Loose pieces assembled into a new BUNDLE."
+                : `Loose pieces assembled into ${quantity} new BUNDLEs.`;
+            return res.status(201).json(new ApiResponse(201, result, message));
         } catch (error) {
             next(error);
         }

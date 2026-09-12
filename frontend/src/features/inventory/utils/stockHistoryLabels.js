@@ -21,6 +21,9 @@ export const EVENT_TYPE_BADGE_VARIANT = {
 
 export const getEventTypeBadgeVariant = (eventType) => EVENT_TYPE_BADGE_VARIANT[eventType] ?? "outline";
 
+// STOCK_IN's quantity is physical pieces; the two assembly events count resulting units
+// (1 for a single assembly, N for a bulk transformation) — the label reflects that unit,
+// never re-derives or reinterprets the number.
 // STOCK_IN/STOCK_OUT's quantity is physical pieces; the two assembly events always create
 // exactly one resulting unit — the label reflects that unit, never re-derives or reinterprets
 // the number.
@@ -43,4 +46,17 @@ export const formatHistoryDateParts = (isoTimestamp) => {
 export const formatHistoryDateTime = (isoTimestamp) => {
     const { date, time } = formatHistoryDateParts(isoTimestamp);
     return `${date} · ${time}`;
+};
+
+// Formats a date-ONLY value (e.g. Delivery Date, stored as "YYYY-MM-DD") without ever routing
+// it through `new Date("YYYY-MM-DD")` — that parses as UTC midnight, and formatting it back in
+// a local timezone ahead of UTC can display the next calendar day. Parsing the parts directly
+// and building a local Date from them keeps the displayed day exactly what was stored.
+export const formatDateOnly = (dateOnly) => {
+    if (!dateOnly) return null;
+
+    const [year, month, day] = dateOnly.split("-").map(Number);
+    if (!year || !month || !day) return dateOnly;
+
+    return dateFormatter.format(new Date(year, month - 1, day));
 };

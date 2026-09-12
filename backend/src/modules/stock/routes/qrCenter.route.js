@@ -1,6 +1,11 @@
 import qrCenterController from "../controllers/qrCenter.controller.js";
 import { validateRequest } from "../../../core/validateRequest.js";
-import { generateQrSchema, getRegistrationDetailParamsSchema, listQrCenterQuerySchema } from "../validators/qrCenter.validator.js";
+import {
+    generateQrSchema,
+    getRegistrationDetailParamsSchema,
+    getTransformationDetailParamsSchema,
+    listQrCenterQuerySchema,
+} from "../validators/qrCenter.validator.js";
 
 export const qrCenterRoutes = [
     {
@@ -12,6 +17,11 @@ export const qrCenterRoutes = [
         path: "/generate",
         controller: { post: qrCenterController.generate },
         validators: { post: validateRequest(generateQrSchema) },
+    },
+    {
+        path: "/transformation/:transformationId",
+        controller: { get: qrCenterController.getTransformationDetail },
+        validators: { get: validateRequest(getTransformationDetailParamsSchema, "params") },
     },
     {
         path: "/:stockInTransactionId",

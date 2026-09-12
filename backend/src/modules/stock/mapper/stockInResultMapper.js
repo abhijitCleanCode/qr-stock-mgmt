@@ -21,6 +21,8 @@ class StockInResultMapper {
 
             stockDate: transaction.stockDate,
 
+            challanNo: transaction.challanNo,
+
             totalSetsReceived: transaction.totalSetsReceived,
 
             bundlesRegistered: variantInput.bundles?.length ?? 0,

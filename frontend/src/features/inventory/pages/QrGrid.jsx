@@ -9,8 +9,18 @@ import { useModal } from "@/components/shared/ModalProvider";
 import { useQrCenterRegistrationDetailApi } from "../hooks/useQrCenterRegistrationDetailApi";
 import QrPrintSheet, { QrLabelCard } from "../components/qr-center/QrPrintSheet";
 import QrPreviewDialog from "../components/qr-center/QrPreviewDialog";
+import { formatDateOnly } from "../utils/stockHistoryLabels";
 
 const dateFormatter = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+// registration.stockDate is a date-only "YYYY-MM-DD" (Delivery Date) — formatted via
+// formatDateOnly so it never shifts a day from a UTC reparse. createdAt is a full timestamp
+// fallback (transformations have no stockDate) and formats normally.
+function formatRegistrationDate(registration) {
+  return registration.stockDate
+    ? formatDateOnly(registration.stockDate)
+    : dateFormatter.format(new Date(registration.createdAt));
+}
 
 const MetricTile = ({ label, value, emphasize }) => (
   <div className="neu-button flex flex-col gap-1 rounded-xl px-4 py-3">
@@ -37,11 +47,14 @@ function toLabelItems(registration, qrs) {
 }
 
 const QrGrid = () => {
-  const { stockInTransactionId } = useParams();
+  const { stockInTransactionId, transformationId } = useParams();
+  const registrationType = transformationId ? "TRANSFORMATION" : "STOCK_IN";
+  const registrationId = transformationId ?? stockInTransactionId;
+
   const { openModal } = useModal();
   const [printItems, setPrintItems] = useState([]);
 
-  const { data: response, isPending, isError, error, refetch } = useQrCenterRegistrationDetailApi(stockInTransactionId);
+  const { data: response, isPending, isError, error, refetch } = useQrCenterRegistrationDetailApi({ registrationType, registrationId });
   const registration = response?.data?.registration;
   const qrs = response?.data?.qrs ?? [];
   const labelItems = registration ? toLabelItems(registration, qrs) : [];
@@ -85,7 +98,7 @@ const QrGrid = () => {
       {!isPending && isError && (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            {error?.message ?? "Unable to load this stock registration. Please try again."}
+            {error?.message ?? "Unable to load this registration. Please try again."}
           </p>
           <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
             Try again
@@ -109,7 +122,9 @@ const QrGrid = () => {
             </div>
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate text-lg font-bold text-[#1E1B4B]">
-                Stock In #{registration.stockInTransactionId}
+                {registration.registrationType === "TRANSFORMATION"
+                  ? `Transformation #${registration.registrationId}`
+                  : `Stock In #${registration.registrationId}`}
               </span>
               <span className="inline-flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                 {registration.design.code ? `${registration.design.code} · ` : ""}
@@ -121,9 +136,10 @@ const QrGrid = () => {
                 {registration.variant.colorName}
               </span>
             </div>
-            <Badge variant="outline" className="ml-auto">
-              {dateFormatter.format(new Date(registration.stockDate))}
-            </Badge>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              {registration.challanNo && <Badge variant="outline">Challan: {registration.challanNo}</Badge>}
+              <Badge variant="outline">{formatRegistrationDate(registration)}</Badge>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -135,7 +151,7 @@ const QrGrid = () => {
 
             {labelItems.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No QR codes have been generated for this stock registration yet.
+                No QR codes have been generated for this registration yet.
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

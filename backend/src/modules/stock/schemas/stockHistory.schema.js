@@ -38,6 +38,9 @@ export const stockHistory = pgTable("stock_history", {
     stockOutTransactionId: integer("stock_out_transaction_id").references(() => stockOutTransaction.id, { onDelete: "set null" }),
 
     // STOCK_IN: total physical pieces added for the variant in this transaction.
+    // SET_ASSEMBLED / BUNDLE_ASSEMBLED: number of resulting units created by this transformation
+    // (1 for a single assembly, N for a bulk one) — source pieces consumed belong in metadata,
+    // not here.
     // STOCK_OUT: total physical pieces sold for the variant in this transaction.
     // SET_ASSEMBLED / BUNDLE_ASSEMBLED: always 1 (one resulting unit) — source pieces consumed
     // belong in metadata, not here.

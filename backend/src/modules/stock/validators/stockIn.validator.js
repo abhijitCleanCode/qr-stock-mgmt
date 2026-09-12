@@ -33,11 +33,24 @@ const loosePieceSchema = z.object({
     quantity: positiveInt,
 });
 
+// Challan No. is a free-form supplier/delivery reference — may contain letters, digits,
+// leading zeros, and separators like "/" or "-" (e.g. "CH-00125", "INV/2026/001", "001245").
+// Never coerced to a number, so leading zeros survive.
+const challanNoSchema = z
+    .string()
+    .trim()
+    .min(1, "Challan No. is required.")
+    .max(100, "Challan No. must be at most 100 characters.");
+
 // One Color Variant's stock registration within the overall request.
 const variantEntrySchema = z
     .object({
         colorVariantId: positiveInt,
-        stockDate: z.string().date().optional(),
+        // Delivery Date: the actual date stock was received. Required — the frontend always
+        // sends it (defaulted to today, editable) — and stored as a date-only string, never
+        // parsed into a Date object here, so no UTC shift can occur before it reaches the DB.
+        stockDate: z.string().date(),
+        challanNo: challanNoSchema,
         notes: z.string().max(1000).optional(),
         totalSetsReceived: nonNegativeInt.default(0),
         bundles: z.array(bundleSchema).default([]),

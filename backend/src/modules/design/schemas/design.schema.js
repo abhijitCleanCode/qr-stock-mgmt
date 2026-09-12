@@ -6,7 +6,13 @@ export const design = pgTable("designs", {
     name: varchar("name", { length: 255 }).notNull(),
     code: varchar("code", { length: 255 }),
 
-    defaultCostPricePerPiece: integer("default_cost_price_per_piece").notNull(),
+    itemName: varchar("item_name", { length: 255 }),
+    quality: varchar("quality", { length: 255 }),
+
+    // No longer collected on Register Design (superseded by defaultSellingPricePerPiece as the
+    // only active price field) — kept nullable rather than dropped so existing designs' cost
+    // price data isn't lost; new designs simply won't have a value here.
+    defaultCostPricePerPiece: integer("default_cost_price_per_piece"),
     defaultSellingPricePerPiece: integer("default_selling_price_per_piece").notNull(),
 
     notes: varchar("notes", { length: 255 }),

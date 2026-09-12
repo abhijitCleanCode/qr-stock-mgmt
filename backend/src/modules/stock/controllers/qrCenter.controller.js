@@ -18,9 +18,27 @@ class QrCenterController {
         const { stockInTransactionId } = req.params;
 
         try {
-            const response = await this._qrCenterService.getRegistrationDetail(stockInTransactionId);
+            const response = await this._qrCenterService.getRegistrationDetail({
+                registrationType: "STOCK_IN",
+                registrationId: stockInTransactionId,
+            });
 
             return res.status(200).json(new ApiResponse(200, response, "Stock registration QRs fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getTransformationDetail = async (req, res, next) => {
+        const { transformationId } = req.params;
+
+        try {
+            const response = await this._qrCenterService.getRegistrationDetail({
+                registrationType: "TRANSFORMATION",
+                registrationId: transformationId,
+            });
+
+            return res.status(200).json(new ApiResponse(200, response, "Stock transformation QRs fetched successfully."));
         } catch (error) {
             next(error);
         }

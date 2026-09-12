@@ -3,10 +3,15 @@ import { useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
 
-// Navigates to the dedicated QR Grid page for this Stock Registration — same "row -> detail
-// page, not a modal" pattern as CurrentStockRowActions (see App.jsx routes).
-const QrCenterRowActions = ({ stockInTransactionId }) => {
+// Navigates to the dedicated QR Grid page for this registration — same "row -> detail page,
+// not a modal" pattern as CurrentStockRowActions (see App.jsx routes). Stock In and
+// Transformation registrations resolve to different route shapes (see App.jsx).
+const QrCenterRowActions = ({ registrationType, registrationId }) => {
   const navigate = useNavigate();
+
+  const path = registrationType === "TRANSFORMATION"
+    ? `/qr-center/transformation/${registrationId}`
+    : `/qr-center/${registrationId}`;
 
   return (
     <Button
@@ -15,7 +20,7 @@ const QrCenterRowActions = ({ stockInTransactionId }) => {
       size="icon-sm"
       aria-label="View QR codes"
       title="View QR codes"
-      onClick={() => navigate(`/qr-center/${stockInTransactionId}`)}
+      onClick={() => navigate(path)}
     >
       <EyeIcon />
     </Button>

@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { getQrCenterRegistrationDetailApi } from "../services/qrCenter.api.js";
 
-// Lazy by construction: `enabled` keeps this from firing until a stockInTransactionId is
-// actually available — same pattern as useCurrentStockDetailApi.
-export function useQrCenterRegistrationDetailApi(stockInTransactionId) {
+// Lazy by construction: `enabled` keeps this from firing until a registrationId is actually
+// available — same pattern as useCurrentStockDetailApi. One hook for both registration types
+// (Stock In and Transformation), matching the single getRegistrationDetail() on the backend.
+export function useQrCenterRegistrationDetailApi({ registrationType, registrationId }) {
     return useQuery({
-        queryKey: ["qr-center", "registration", stockInTransactionId],
-        queryFn: () => getQrCenterRegistrationDetailApi(stockInTransactionId),
-        enabled: Boolean(stockInTransactionId),
+        queryKey: ["qr-center", "registration", registrationType, registrationId],
+        queryFn: () => getQrCenterRegistrationDetailApi({ registrationType, registrationId }),
+        enabled: Boolean(registrationId),
     });
 }

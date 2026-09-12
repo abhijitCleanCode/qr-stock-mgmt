@@ -13,7 +13,10 @@ const hasStock = (config) =>
 // Flattens the per-variant config map (keyed by UI-only variantKey) into the
 // designs -> variants -> bundles/loosePieces shape the Register Stock In API expects.
 // A selected variant nobody entered any stock for is skipped rather than sent empty.
-export function buildStockInPayload(selectedVariants, configs) {
+// deliveryDate/challanNo are entered once for the whole registration (see StockIn.jsx) and
+// applied identically to every variant entry — stockDate/challanNo are per-transaction fields
+// server-side (one stock_in_transaction per variant), so this is how one UI value becomes N.
+export function buildStockInPayload(selectedVariants, configs, { deliveryDate, challanNo }) {
   const designs = new Map();
 
   for (const variant of selectedVariants) {
@@ -22,6 +25,8 @@ export function buildStockInPayload(selectedVariants, configs) {
 
     const variantEntry = {
       colorVariantId: config.colorVariantId,
+      stockDate: deliveryDate,
+      challanNo: challanNo.trim(),
       totalSetsReceived: config.totalSetsReceived,
       bundles: config.bundles
         .map(({ quantity, composition }) => ({

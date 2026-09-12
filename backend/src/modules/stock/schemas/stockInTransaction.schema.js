@@ -14,6 +14,11 @@ export const stockInTransaction = pgTable("stock_in_transactions", {
 
     stockDate: date("stock_date").notNull(),
 
+    // Supplier/delivery challan reference, entered once per registration alongside stockDate —
+    // nullable so existing pre-feature transactions stay valid; required for new registrations
+    // via stockIn.validator.js, not a NOT NULL constraint here.
+    challanNo: text("challan_no"),
+
     totalSetsReceived: integer("total_sets_received").notNull(),
 
     notes: text("notes"),
