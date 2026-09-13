@@ -6,8 +6,8 @@ const DesignIdentity = ({ control }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
       <CustomFormField
         control={control}
-        name="name"
-        label="Design Name"
+        name="itemName"
+        label="Item Name"
         fieldType={FormFieldType.INPUT}
       />
       <CustomFormField
@@ -18,8 +18,8 @@ const DesignIdentity = ({ control }) => {
       />
       <CustomFormField
         control={control}
-        name="itemName"
-        label="Item Name"
+        name="name"
+        label="Pattern"
         fieldType={FormFieldType.INPUT}
       />
       <CustomFormField
