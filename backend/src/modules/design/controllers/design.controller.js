@@ -38,6 +38,18 @@ class DesignController {
         }
     }
 
+    searchJobbers = async (req, res, next) => {
+        const { keyword } = req.validatedQuery;
+
+        try {
+            const response = await this._designService.searchJobbers(keyword);
+
+            return res.status(200).json(new ApiResponse(200, response, "Jobbers fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    }
+
     getActiveVariantSizes = async (req, res, next) => {
         const { colorVariantId } = req.params;
 

@@ -1,5 +1,6 @@
 import CustomFormField from "@/components/shared/form/CustomFormField";
 import { FormFieldType } from "@/config/FormFieldType";
+import JobberSearchInput from "../components/JobberSearchInput";
 
 const DesignIdentity = ({ control }) => {
   return (
@@ -16,6 +17,7 @@ const DesignIdentity = ({ control }) => {
         label="Design Code"
         fieldType={FormFieldType.INPUT}
       />
+      <JobberSearchInput />
       <CustomFormField
         control={control}
         name="name"
