@@ -40,15 +40,34 @@ export const searchJobbersQuerySchema = z.object({
     keyword: z.string().trim().min(2, "Search keyword must be at least 2 characters"),
 });
 
+export const searchQualitiesQuerySchema = z.object({
+    keyword: z.string().trim().min(2, "Search keyword must be at least 2 characters"),
+});
+
+export const searchPatternsQuerySchema = z.object({
+    keyword: z.string().trim().min(2, "Search keyword must be at least 2 characters"),
+});
+
 export const colorVariantSizesParamsSchema = z.object({
     colorVariantId: z.coerce.number().int().positive(),
 });
 
 export const registerDesignSchema = z.object({
-    name: z.string().trim().min(1),
+    // Pattern (e.g. Anarkali/Straight/Flair) is required, same as quality: name carries the
+    // typed/selected name, patternId optionally selects an existing pattern by id. Backend
+    // re-validates patternId rather than trusting it outright — see DesignService._resolvePattern.
+    name: z.string().trim().min(1, "Pattern is required.").max(255),
+    patternId: z.coerce.number().int().positive().optional(),
+
     code: z.string().trim().optional(),
     itemName: z.string().trim().min(1, "Item Name is required."),
-    quality: z.string().trim().min(1, "Quality is required."),
+
+    // Quality is required (unlike jobber): quality carries the typed/selected name, qualityId
+    // optionally selects an existing quality by id. Backend re-validates qualityId rather than
+    // trusting it outright — see DesignService._resolveQuality.
+    quality: z.string().trim().min(1, "Quality is required.").max(255),
+    qualityId: z.coerce.number().int().positive().optional(),
+
     defaultSellingPricePerPiece: z.coerce.number().int().nonnegative(),
     notes: z.string().trim().optional(),
 
