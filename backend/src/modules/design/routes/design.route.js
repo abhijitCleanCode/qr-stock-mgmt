@@ -1,7 +1,7 @@
 import upload from "../../../app/middlewares/multer.middleware.js";
 import designController from "../controllers/design.controller.js";
 import { validateRequest } from "../../../core/validateRequest.js";
-import { colorVariantSizesParamsSchema, listDesignsQuerySchema, registerDesignSchema, searchDesignsQuerySchema, searchJobbersQuerySchema } from "../validators/design.validator.js";
+import { colorVariantSizesParamsSchema, listDesignsQuerySchema, registerDesignSchema, searchDesignsQuerySchema, searchJobbersQuerySchema, searchQualitiesQuerySchema, searchPatternsQuerySchema } from "../validators/design.validator.js";
 
 // Client contract: files are sent under the repeated "images" field, and the Nth file
 // corresponds to the Nth entry in colorVariants — one image per variant, in matching order.
@@ -40,6 +40,24 @@ export const designRoutes = [
         },
         validators: {
             get: validateRequest(searchJobbersQuerySchema, "query")
+        }
+    },
+    {
+        path: "/qualities",
+        controller: {
+            get: designController.searchQualities
+        },
+        validators: {
+            get: validateRequest(searchQualitiesQuerySchema, "query")
+        }
+    },
+    {
+        path: "/patterns",
+        controller: {
+            get: designController.searchPatterns
+        },
+        validators: {
+            get: validateRequest(searchPatternsQuerySchema, "query")
         }
     },
     {

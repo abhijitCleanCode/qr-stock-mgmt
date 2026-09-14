@@ -50,6 +50,30 @@ class DesignController {
         }
     }
 
+    searchQualities = async (req, res, next) => {
+        const { keyword } = req.validatedQuery;
+
+        try {
+            const response = await this._designService.searchQualities(keyword);
+
+            return res.status(200).json(new ApiResponse(200, response, "Qualities fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    searchPatterns = async (req, res, next) => {
+        const { keyword } = req.validatedQuery;
+
+        try {
+            const response = await this._designService.searchPatterns(keyword);
+
+            return res.status(200).json(new ApiResponse(200, response, "Patterns fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    }
+
     getActiveVariantSizes = async (req, res, next) => {
         const { colorVariantId } = req.params;
 

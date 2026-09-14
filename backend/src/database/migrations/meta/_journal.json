@@ -26,22 +26,13 @@
     {
       "idx": 3,
       "version": "7",
-<<<<<<< HEAD
-      "when": 1789186359342,
-      "tag": "0003_add_stock_in_challan_no",
-=======
       "when": 1788676496139,
       "tag": "0003_add_stock_out_history",
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
       "breakpoints": true
     },
     {
       "idx": 4,
       "version": "7",
-<<<<<<< HEAD
-      "when": 1789195797468,
-      "tag": "0004_add_item_quality_drop_cost_price_not_null",
-=======
       "when": 1788971778842,
       "tag": "0004_add_order_forms",
       "breakpoints": true
@@ -58,7 +49,41 @@
       "version": "7",
       "when": 1789151114764,
       "tag": "0006_order_form_photo_design_source",
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789186359342,
+      "tag": "0003_add_stock_in_challan_no",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789195797468,
+      "tag": "0004_add_item_quality_drop_cost_price_not_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789387500000,
+      "tag": "0007_add_jobbers",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789387600000,
+      "tag": "0008_add_qualities",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789430000000,
+      "tag": "0009_add_patterns",
       "breakpoints": true
     }
   ]

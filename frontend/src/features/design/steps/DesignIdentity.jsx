@@ -1,6 +1,8 @@
 import CustomFormField from "@/components/shared/form/CustomFormField";
 import { FormFieldType } from "@/config/FormFieldType";
 import JobberSearchInput from "../components/JobberSearchInput";
+import QualitySearchInput from "../components/QualitySearchInput";
+import PatternSearchInput from "../components/PatternSearchInput";
 
 const DesignIdentity = ({ control }) => {
   return (
@@ -18,18 +20,8 @@ const DesignIdentity = ({ control }) => {
         fieldType={FormFieldType.INPUT}
       />
       <JobberSearchInput />
-      <CustomFormField
-        control={control}
-        name="name"
-        label="Pattern"
-        fieldType={FormFieldType.INPUT}
-      />
-      <CustomFormField
-        control={control}
-        name="quality"
-        label="Quality"
-        fieldType={FormFieldType.INPUT}
-      />
+      <PatternSearchInput />
+      <QualitySearchInput />
       <CustomFormField
         control={control}
         name="defaultSellingPricePerPiece"

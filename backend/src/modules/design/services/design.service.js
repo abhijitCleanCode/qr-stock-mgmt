@@ -7,6 +7,8 @@ import designRepository from "../repositories/design.repository.js";
 import colorVariantRepository from "../repositories/colorVariant.repository.js";
 import designSizeRepository from "../repositories/designSize.repository.js";
 import jobberRepository from "../repositories/jobber.repository.js";
+import qualityRepository from "../repositories/quality.repository.js";
+import patternRepository from "../repositories/pattern.repository.js";
 import mediaUploadService from "../../../core/media/mediaUploadService.js";
 
 class DesignService {
@@ -14,10 +16,12 @@ class DesignService {
     _colorVariantRepository = colorVariantRepository;
     _designSizeRepository = designSizeRepository;
     _jobberRepository = jobberRepository;
+    _qualityRepository = qualityRepository;
+    _patternRepository = patternRepository;
     _mediaUploadService = mediaUploadService;
 
     async registerDesign(data, files = []) {
-        const { colorVariants, designSizes = [], jobberId, jobberName, ...designData } = data;
+        const { colorVariants, designSizes = [], jobberId, jobberName, qualityId, quality, patternId, name, ...designData } = data;
 
         if (colorVariants.length !== files.length) {
             throw new ApiError(
@@ -35,8 +39,17 @@ class DesignService {
         try {
             return await db.transaction(async (tx) => {
                 const resolvedJobberId = await this._resolveJobberId(tx, { jobberId, jobberName });
+                const resolvedQuality = await this._resolveQuality(tx, { qualityId, qualityName: quality });
+                const resolvedPattern = await this._resolvePattern(tx, { patternId, patternName: name });
 
-                const design = await this._designRepository.create(tx, { ...designData, jobberId: resolvedJobberId });
+                const design = await this._designRepository.create(tx, {
+                    ...designData,
+                    jobberId: resolvedJobberId,
+                    qualityId: resolvedQuality.id,
+                    quality: resolvedQuality.name,
+                    patternId: resolvedPattern.id,
+                    name: resolvedPattern.name,
+                });
 
                 //todo: service knows the persistent structure of color variant introducing some coupling in open/close principle
                 const variants = colorVariants.map((color, index) => ({
@@ -158,6 +171,47 @@ class DesignService {
         }
 
         return null;
+    }
+
+    async searchQualities(keyword) {
+        if (!keyword?.trim()) {
+            throw new ApiError("Search keyword is required.", 400);
+        }
+
+        return this._qualityRepository.search(keyword.trim());
+    }
+
+    // Mirrors _resolveJobberId, but quality is required on register (unlike jobber): the
+    // validator guarantees qualityName is a non-blank string, so this always resolves to a
+    // real row. Returns both id and name — name is stored denormalized on the design row
+    // alongside qualityId (see registerDesign).
+    async _resolveQuality(tx, { qualityId, qualityName }) {
+        if (qualityId) {
+            const existing = await this._qualityRepository.findById(tx, qualityId);
+            if (existing) return existing;
+        }
+
+        return this._qualityRepository.findOrCreate(tx, qualityName.trim());
+    }
+
+    async searchPatterns(keyword) {
+        if (!keyword?.trim()) {
+            throw new ApiError("Search keyword is required.", 400);
+        }
+
+        return this._patternRepository.search(keyword.trim());
+    }
+
+    // Mirrors _resolveQuality — pattern (the design "name", e.g. Anarkali/Straight/Flair) is
+    // required on register, so this always resolves to a real row. Returns both id and name —
+    // name is stored denormalized on the design row alongside patternId (see registerDesign).
+    async _resolvePattern(tx, { patternId, patternName }) {
+        if (patternId) {
+            const existing = await this._patternRepository.findById(tx, patternId);
+            if (existing) return existing;
+        }
+
+        return this._patternRepository.findOrCreate(tx, patternName.trim());
     }
 
     async getActiveVariantSizes(colorVariantId) {
