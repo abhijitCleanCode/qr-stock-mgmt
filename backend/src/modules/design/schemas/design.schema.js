@@ -1,4 +1,5 @@
 import { integer, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { jobber } from "./jobber.schema.js";
 
 export const design = pgTable("designs", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -8,6 +9,10 @@ export const design = pgTable("designs", {
 
     itemName: varchar("item_name", { length: 255 }),
     quality: varchar("quality", { length: 255 }),
+
+    // nullable: the party a design was received from — not collected for designs registered
+    // before this field existed, and not made mandatory going forward (see jobber.repository.js)
+    jobberId: integer("jobber_id").references(() => jobber.id),
 
     // No longer collected on Register Design (superseded by defaultSellingPricePerPiece as the
     // only active price field) — kept nullable rather than dropped so existing designs' cost

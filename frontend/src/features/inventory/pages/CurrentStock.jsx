@@ -65,17 +65,17 @@ const CurrentStock = () => {
               emptyState={
                 keyword
                   ? { title: "No matching stock found", description: `No designs match "${keyword}".` }
-                  : { title: "No current stock", description: "No design variants to display yet." }
+                  : { title: "No current stock", description: "No designs to display yet." }
               }
             />
           )}
         </div>
 
-        {/* Pagination — Design + Color Variant rows, per the API's page/limit/total/totalPages meta */}
+        {/* Pagination — one row per Design, per the API's page/limit/total/totalPages meta */}
         {meta && meta.totalPages > 1 && (
           <div className="flex shrink-0 items-center justify-between px-3 py-1.5 text-sm text-muted-foreground">
             <span>
-              Page {meta.page} of {meta.totalPages} · {meta.total} variants
+              Page {meta.page} of {meta.totalPages} · {meta.total} designs
             </span>
             <div className="flex items-center gap-2">
               <Button

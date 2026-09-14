@@ -1,3 +1,4 @@
+export * from "../modules/design/schemas/jobber.schema.js";
 export * from "../modules/design/schemas/design.schema.js";
 export * from "../modules/design/schemas/designSize.schema.js";
 

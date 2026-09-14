@@ -1,10 +1,11 @@
-import { and, count, desc, eq, getTableColumns, ilike, inArray, or } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, ilike, inArray, or, sql } from "drizzle-orm";
 
 import { db } from "../../../database/index.js";
 import { colorVariant } from "../schemas/colorVariant.schema.js";
 import { design } from "../schemas/design.schema.js";
 
-// Shared by findAll/count below so the row set behind the page and behind the total always agree.
+// Shared by findDesignsWithActiveVariants/countDesignsWithActiveVariants below so the row set
+// behind the page and behind the total always agree.
 function buildActiveWithDesignConditions(keyword) {
     const conditions = [eq(colorVariant.isActive, true)];
 
@@ -20,28 +21,25 @@ class ColorVariantRepository {
         return tx.insert(colorVariant).values(data).returning();
     }
 
-    // Design + Color Variant rows for the Current Stock summary — every active variant is
-    // included regardless of whether it has any variant_inventory rows yet (same "list every
-    // active row" convention as findByDesignIds/findActiveById), so out-of-stock variants still show up.
-    async findAll({ limit, offset, keyword }) {
+    // Design-level page for the Current Stock summary — one row per design (not per variant),
+    // grouped by design so its variants can be fetched separately (see findByDesignIds) and nested
+    // under it. Ordered by each design's most recently created active variant.
+    async findDesignsWithActiveVariants({ limit, offset, keyword }) {
         return db.select({
-            colorVariantId: colorVariant.id,
-            colorName: colorVariant.colorName,
-            colorHex: colorVariant.colorHex,
-            imageUrl: colorVariant.imageUrl,
             designId: design.id,
             designCode: design.code,
             designName: design.name,
         }).from(colorVariant)
             .innerJoin(design, eq(colorVariant.designId, design.id))
             .where(buildActiveWithDesignConditions(keyword))
-            .orderBy(desc(colorVariant.createdAt))
+            .groupBy(design.id, design.code, design.name)
+            .orderBy(desc(sql`max(${colorVariant.createdAt})`))
             .limit(limit)
             .offset(offset);
     }
 
-    async count({ keyword }) {
-        const [result] = await db.select({ value: count() })
+    async countDesignsWithActiveVariants({ keyword }) {
+        const [result] = await db.select({ value: sql`count(distinct ${design.id})`.mapWith(Number) })
             .from(colorVariant)
             .innerJoin(design, eq(colorVariant.designId, design.id))
             .where(buildActiveWithDesignConditions(keyword));

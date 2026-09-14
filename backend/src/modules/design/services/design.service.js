@@ -6,16 +6,18 @@ import { db } from "../../../database/index.js";
 import designRepository from "../repositories/design.repository.js";
 import colorVariantRepository from "../repositories/colorVariant.repository.js";
 import designSizeRepository from "../repositories/designSize.repository.js";
+import jobberRepository from "../repositories/jobber.repository.js";
 import mediaUploadService from "../../../core/media/mediaUploadService.js";
 
 class DesignService {
     _designRepository = designRepository;
     _colorVariantRepository = colorVariantRepository;
     _designSizeRepository = designSizeRepository;
+    _jobberRepository = jobberRepository;
     _mediaUploadService = mediaUploadService;
 
     async registerDesign(data, files = []) {
-        const { colorVariants, designSizes = [], ...designData } = data;
+        const { colorVariants, designSizes = [], jobberId, jobberName, ...designData } = data;
 
         if (colorVariants.length !== files.length) {
             throw new ApiError(
@@ -32,7 +34,9 @@ class DesignService {
 
         try {
             return await db.transaction(async (tx) => {
-                const design = await this._designRepository.create(tx, designData);
+                const resolvedJobberId = await this._resolveJobberId(tx, { jobberId, jobberName });
+
+                const design = await this._designRepository.create(tx, { ...designData, jobberId: resolvedJobberId });
 
                 //todo: service knows the persistent structure of color variant introducing some coupling in open/close principle
                 const variants = colorVariants.map((color, index) => ({
@@ -127,6 +131,33 @@ class DesignService {
             ...design,
             colorVariants: variantsByDesignId[design.id] ?? [],
         }));
+    }
+
+    async searchJobbers(keyword) {
+        if (!keyword?.trim()) {
+            throw new ApiError("Search keyword is required.", 400);
+        }
+
+        return this._jobberRepository.search(keyword.trim());
+    }
+
+    // Backend stays authoritative: an incoming jobberId is only trusted if it still resolves to
+    // a real row (it may be stale if the jobber was resolved from a search result that's since
+    // been superseded); a name with no id is resolved/created by name. Runs inside the caller's
+    // transaction so a newly created jobber is rolled back along with the rest of the design if
+    // anything downstream fails.
+    async _resolveJobberId(tx, { jobberId, jobberName }) {
+        if (jobberId) {
+            const existing = await this._jobberRepository.findById(tx, jobberId);
+            if (existing) return existing.id;
+        }
+
+        if (jobberName?.trim()) {
+            const jobber = await this._jobberRepository.findOrCreate(tx, jobberName.trim());
+            return jobber.id;
+        }
+
+        return null;
     }
 
     async getActiveVariantSizes(colorVariantId) {

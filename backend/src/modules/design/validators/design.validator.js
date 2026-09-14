@@ -36,6 +36,10 @@ export const searchDesignsQuerySchema = z.object({
     keyword: z.string().trim().min(2, "Search keyword must be at least 2 characters"),
 });
 
+export const searchJobbersQuerySchema = z.object({
+    keyword: z.string().trim().min(2, "Search keyword must be at least 2 characters"),
+});
+
 export const colorVariantSizesParamsSchema = z.object({
     colorVariantId: z.coerce.number().int().positive(),
 });
@@ -47,6 +51,13 @@ export const registerDesignSchema = z.object({
     quality: z.string().trim().min(1, "Quality is required."),
     defaultSellingPricePerPiece: z.coerce.number().int().nonnegative(),
     notes: z.string().trim().optional(),
+
+    // Jobber is optional (backward compatible with designs registered before this field
+    // existed): jobberId selects an existing jobber, jobberName resolves/creates one by name
+    // when no id is given — see DesignService._resolveJobberId. Backend re-validates jobberId
+    // rather than trusting it outright.
+    jobberId: z.coerce.number().int().positive().optional(),
+    jobberName: z.string().trim().min(1, "Jobber name cannot be blank.").max(255).optional(),
 
     // one image is required per entry — enforced against the uploaded file count in the
     // service layer, since multer's file count isn't part of req.body and can't be checked here

@@ -17,36 +17,60 @@ class CurrentStockService {
     _stockGroupRepository = stockGroupRepository;
     _variantInventoryRepository = variantInventoryRepository;
 
-    // Summary-only: totalPieces per Design + Color Variant, straight from variant_inventory
-    // (already the current-total-physical-pieces projection — see variantInventory.schema.js).
-    // Deliberately does NOT touch stock_items/stock_groups or explode set/bundle composition;
-    // that breakdown belongs to the separate Current Stock Detail API.
+    // Summary: one row per Design, with its active Color Variants nested inside — mirrors
+    // design.service.getAllDesigns's design-page + group-variants-in-JS pattern, so pagination/meta
+    // count designs (not variants) and a design's variants can never be split across two pages.
+    // Per-variant totalPieces comes straight from variant_inventory (already the current-total-
+    // physical-pieces projection — see variantInventory.schema.js); this deliberately does not touch
+    // stock_items/stock_groups or explode set/bundle composition — that breakdown belongs to the
+    // separate Current Stock Detail API.
     async getCurrentStockSummary({ page, limit, keyword }) {
         const offset = (page - 1) * limit;
 
-        const [variants, total] = await Promise.all([
-            this._colorVariantRepository.findAll({ limit, offset, keyword }),
-            this._colorVariantRepository.count({ keyword }),
+        const [designs, total] = await Promise.all([
+            this._colorVariantRepository.findDesignsWithActiveVariants({ limit, offset, keyword }),
+            this._colorVariantRepository.countDesignsWithActiveVariants({ keyword }),
         ]);
 
-        const colorVariantIds = variants.map((variant) => variant.colorVariantId);
+        const designIds = designs.map((design) => design.designId);
+        const variants = await this._colorVariantRepository.findByDesignIds(designIds);
+
+        const colorVariantIds = variants.map((variant) => variant.id);
         const totals = await this._variantInventoryRepository.sumQuantityByColorVariantIds(colorVariantIds);
         const totalPiecesByVariantId = new Map(totals.map((row) => [row.colorVariantId, row.totalPieces]));
 
+        const variantsByDesignId = variants.reduce((acc, variant) => {
+            // No variant_inventory rows yet (never received) → 0, not excluded — the Current
+            // Stock table is expected to surface out-of-stock variants, not hide them.
+            const totalPieces = totalPiecesByVariantId.get(variant.id) ?? 0;
+
+            (acc[variant.designId] ??= []).push({
+                colorVariantId: variant.id,
+                colorName: variant.colorName,
+                colorHex: variant.colorHex,
+                imageUrl: variant.imageUrl,
+                totalPieces,
+                status: totalPieces > 0 ? "IN_STOCK" : "OUT_OF_STOCK",
+            });
+
+            return acc;
+        }, {});
+
         return {
-            data: variants.map((variant) => {
-                // No variant_inventory rows yet (never received) → 0, not excluded — the Current
-                // Stock table is expected to surface out-of-stock variants, not hide them.
-                const totalPieces = totalPiecesByVariantId.get(variant.colorVariantId) ?? 0;
+            data: designs.map((design) => {
+                const designVariants = variantsByDesignId[design.designId] ?? [];
+                // Sum of variant pieces, never the variant count itself.
+                const totalPieces = designVariants.reduce((sum, variant) => sum + variant.totalPieces, 0);
 
                 return {
-                    designId: variant.designId,
-                    designCode: variant.designCode,
-                    designName: variant.designName,
-                    colorVariantId: variant.colorVariantId,
-                    colorName: variant.colorName,
-                    colorHex: variant.colorHex,
-                    imageUrl: variant.imageUrl,
+                    designId: design.designId,
+                    designCode: design.designCode,
+                    designName: design.designName,
+                    // Representative thumbnail — same "first variant of the design" convention
+                    // design.service uses for setComposition (every variant shares the same size set;
+                    // here every variant's image represents the same design row).
+                    imageUrl: designVariants[0]?.imageUrl ?? null,
+                    variants: designVariants,
                     totalPieces,
                     status: totalPieces > 0 ? "IN_STOCK" : "OUT_OF_STOCK",
                 };
@@ -60,15 +84,43 @@ class CurrentStockService {
         };
     }
 
-    // Detail breakdown for one Design + Color Variant: physical pieces per size, split by
-    // set/bundle/loose. Deliberately derived from stock_items + stock_groups — NOT from
+    // Detail breakdown for a Design + its Color Variants: physical pieces per size, split by
+    // set/bundle/loose, per variant, plus a design-wide "Total" aggregate — so the Current Stock
+    // Detail page can offer a Blue/Green/Gold/Total selector from a single request (no re-fetch
+    // per selection). Deliberately derived from stock_items + stock_groups — NOT from
     // variant_inventory, which only holds the blended total (see currentStockSummary above).
+    // `colorVariantId` both identifies the request (still the route's :colorVariantId) and picks
+    // which variant is selected by default, per selectedColorVariantId below.
     async getCurrentStockDetail(colorVariantId) {
-        const variant = await this._colorVariantRepository.findActiveById(db, colorVariantId);
-        if (!variant) {
+        const requestedVariant = await this._colorVariantRepository.findActiveById(db, colorVariantId);
+        if (!requestedVariant) {
             throw new ApiError(`Color variant ${colorVariantId} not found or inactive.`, 404, "VARIANT_NOT_FOUND");
         }
 
+        // Every active variant of the same design — including the requested one — so the page can
+        // show a Blue/Green/Gold selector, not just the single variant that was requested.
+        const designVariants = await this._colorVariantRepository.findByDesignIds([requestedVariant.designId]);
+
+        const variants = await Promise.all(
+            designVariants.map((variant) => this._buildVariantStockDetail(variant))
+        );
+
+        return {
+            design: {
+                id: requestedVariant.designId,
+                code: requestedVariant.designCode,
+                name: requestedVariant.designName,
+            },
+            selectedColorVariantId: colorVariantId,
+            variants,
+            total: this._buildTotalStockDetail(variants),
+        };
+    }
+
+    // Single variant's stock breakdown — same computation whether it ends up shown on its own
+    // (variant selected) or folded into _buildTotalStockDetail (Total selected).
+    async _buildVariantStockDetail(variant) {
+        const colorVariantId = variant.id;
         const sizes = await this._designSizeRepository.findActiveByVariantId(db, colorVariantId);
 
         const [loosePiecesBySize, setCount, bundleCountsByGroup] = await Promise.all([
@@ -149,17 +201,10 @@ class CurrentStockService {
         }), { ...EMPTY_TOTALS });
 
         return {
-            design: {
-                id: variant.designId,
-                code: variant.designCode,
-                name: variant.designName,
-            },
-            variant: {
-                id: variant.id,
-                colorName: variant.colorName,
-                colorHex: variant.colorHex,
-                imageUrl: variant.imageUrl,
-            },
+            colorVariantId,
+            colorName: variant.colorName,
+            colorHex: variant.colorHex,
+            imageUrl: variant.imageUrl,
             sizes: sizeRows,
             compositions,
             // Raw count of currently available SET stock items — same setCount already exploded
@@ -167,6 +212,59 @@ class CurrentStockService {
             // (Stock Out's "sets to sell" input) doesn't have to re-derive it from sizeRows,
             // which would be ambiguous/zero when the variant has no set-included sizes at all.
             availableSets: setCount,
+            totals,
+        };
+    }
+
+    // Design-wide aggregate across every variant — "Total" on the selector.
+    // Stock by Size is safely summed by sizeLabel: design_sizes rows are duplicated per variant
+    // (see design.service.registerDesign, which applies one shared size list to every variant at
+    // creation), but the label represents the same physical size across every color of a design.
+    // Bundle compositions are NOT merged the same way: a stock_group is scoped to a single
+    // colorVariantId and its composition's designSizeIds only mean something within that variant,
+    // so a "Blue S:2,XL:1" bundle and a same-labeled "Green" bundle are physically different
+    // assemblies — merging their counts would misrepresent which color the pieces belong to.
+    // Total instead surfaces every variant's compositions together, each tagged with its variant.
+    _buildTotalStockDetail(variants) {
+        const totals = variants.reduce((acc, variant) => ({
+            setPieces: acc.setPieces + variant.totals.setPieces,
+            bundlePieces: acc.bundlePieces + variant.totals.bundlePieces,
+            loosePieces: acc.loosePieces + variant.totals.loosePieces,
+            totalPieces: acc.totalPieces + variant.totals.totalPieces,
+        }), { ...EMPTY_TOTALS });
+
+        const availableSets = variants.reduce((sum, variant) => sum + variant.availableSets, 0);
+
+        const sizeRowByLabel = new Map();
+        for (const variant of variants) {
+            for (const row of variant.sizes) {
+                const existing = sizeRowByLabel.get(row.size) ?? { size: row.size, ...EMPTY_TOTALS };
+
+                sizeRowByLabel.set(row.size, {
+                    size: row.size,
+                    setPieces: existing.setPieces + row.setPieces,
+                    bundlePieces: existing.bundlePieces + row.bundlePieces,
+                    loosePieces: existing.loosePieces + row.loosePieces,
+                    totalPieces: existing.totalPieces + row.totalPieces,
+                });
+            }
+        }
+
+        const compositions = variants.flatMap((variant) =>
+            variant.compositions.map((composition) => ({
+                ...composition,
+                colorVariantId: variant.colorVariantId,
+                colorName: variant.colorName,
+                colorHex: variant.colorHex,
+            }))
+        ).sort((a, b) => a.colorVariantId - b.colorVariantId || a.stockGroupId - b.stockGroupId);
+
+        return {
+            // First-seen order across variants — every variant shares the same size ordering by
+            // convention (same "one shared size list per design" invariant noted above).
+            sizes: [...sizeRowByLabel.values()],
+            compositions,
+            availableSets,
             totals,
         };
     }

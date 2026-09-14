@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import CurrentStockRowActions from "../components/CurrentStockRowActions";
+import CurrentStockVariantChip from "../components/CurrentStockVariantChip";
 
 const STATUS_LABELS = {
   IN_STOCK: "In Stock",
@@ -34,21 +35,15 @@ export const columns = [
     },
   },
   {
-    id: "variant",
-    header: "Variant",
-    cell: ({ row }) => {
-      const { colorName, colorHex } = row.original;
-
-      return (
-        <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
-          <span
-            className="size-2.5 shrink-0 rounded-full border border-black/10"
-            style={{ backgroundColor: colorHex }}
-          />
-          {colorName}
-        </span>
-      );
-    },
+    id: "variants",
+    header: "Variants",
+    cell: ({ row }) => (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {(row.original.variants ?? []).map((variant) => (
+          <CurrentStockVariantChip key={variant.colorVariantId} variant={variant} />
+        ))}
+      </div>
+    ),
   },
   { accessorKey: "totalPieces", header: "Total Pieces" },
   {
@@ -67,6 +62,13 @@ export const columns = [
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => <CurrentStockRowActions colorVariantId={row.original.colorVariantId} />,
+    cell: ({ row }) => {
+      // Any active variant works as the route's entry point — the detail page resolves the whole
+      // design from it (see currentStock.service.js) — so the first is a stable, arbitrary-enough
+      // pick backed by a real colorVariantId, never derived from display text.
+      const colorVariantId = row.original.variants?.[0]?.colorVariantId;
+
+      return colorVariantId ? <CurrentStockRowActions colorVariantId={colorVariantId} /> : null;
+    },
   },
 ];
