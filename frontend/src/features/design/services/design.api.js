@@ -70,6 +70,34 @@ export const searchJobbersApi = async (keyword) => {
     return data;
 };
 
+export const searchQualitiesApi = async (keyword) => {
+    const params = new URLSearchParams({ keyword });
+
+    const response = await fetch(`${baseURL}/designs/qualities?${params.toString()}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to search qualities.");
+    }
+
+    return data;
+};
+
+export const searchPatternsApi = async (keyword) => {
+    const params = new URLSearchParams({ keyword });
+
+    const response = await fetch(`${baseURL}/designs/patterns?${params.toString()}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to search patterns.");
+    }
+
+    return data;
+};
+
 export const getActiveColorVariantSizesApi = async (colorVariantId) => {
     const response = await fetch(`${baseURL}/designs/color-variants/${colorVariantId}/sizes`);
 
