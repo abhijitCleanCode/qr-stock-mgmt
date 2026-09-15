@@ -1,225 +1,9 @@
 {
-  "id": "7c706314-1d39-4e96-ada0-ccace6ff694c",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "5c129dcf-1e19-4455-9356-0174fc39a315",
+  "prevId": "223386c5-d7c2-40ab-9272-f82a0d0f0a88",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.jobbers": {
-      "name": "jobbers",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "jobbers_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "normalized_name": {
-          "name": "normalized_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "jobbers_normalized_name_unique_idx": {
-          "name": "jobbers_normalized_name_unique_idx",
-          "columns": [
-            {
-              "expression": "normalized_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.qualities": {
-      "name": "qualities",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "qualities_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "normalized_name": {
-          "name": "normalized_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "qualities_normalized_name_unique_idx": {
-          "name": "qualities_normalized_name_unique_idx",
-          "columns": [
-            {
-              "expression": "normalized_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.patterns": {
-      "name": "patterns",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "patterns_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "normalized_name": {
-          "name": "normalized_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "patterns_normalized_name_unique_idx": {
-          "name": "patterns_normalized_name_unique_idx",
-          "columns": [
-            {
-              "expression": "normalized_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.designs": {
       "name": "designs",
       "schema": "",
@@ -230,15 +14,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "designs_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "name": {
@@ -247,39 +31,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "pattern_id": {
-          "name": "pattern_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "code": {
           "name": "code",
           "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "item_name": {
-          "name": "item_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "quality": {
-          "name": "quality",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "quality_id": {
-          "name": "quality_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "jobber_id": {
-          "name": "jobber_id",
-          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -287,7 +41,7 @@
           "name": "default_cost_price_per_piece",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "default_selling_price_per_piece": {
           "name": "default_selling_price_per_piece",
@@ -317,47 +71,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "designs_pattern_id_patterns_id_fk": {
-          "name": "designs_pattern_id_patterns_id_fk",
-          "tableFrom": "designs",
-          "tableTo": "patterns",
-          "columnsFrom": [
-            "pattern_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "designs_quality_id_qualities_id_fk": {
-          "name": "designs_quality_id_qualities_id_fk",
-          "tableFrom": "designs",
-          "tableTo": "qualities",
-          "columnsFrom": [
-            "quality_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "designs_jobber_id_jobbers_id_fk": {
-          "name": "designs_jobber_id_jobbers_id_fk",
-          "tableFrom": "designs",
-          "tableTo": "jobbers",
-          "columnsFrom": [
-            "jobber_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -374,15 +88,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "design_sizes_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "variant_id": {
@@ -437,15 +151,15 @@
         "design_sizes_variant_id_color_variants_id_fk": {
           "name": "design_sizes_variant_id_color_variants_id_fk",
           "tableFrom": "design_sizes",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -464,15 +178,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "color_variants_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "design_id": {
@@ -544,15 +258,15 @@
         "color_variants_design_id_designs_id_fk": {
           "name": "color_variants_design_id_designs_id_fk",
           "tableFrom": "color_variants",
-          "tableTo": "designs",
           "columnsFrom": [
             "design_id"
           ],
+          "tableTo": "designs",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -571,15 +285,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_in_transactions_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "variant_id": {
@@ -593,12 +307,6 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
-        },
-        "challan_no": {
-          "name": "challan_no",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "total_sets_received": {
           "name": "total_sets_received",
@@ -625,15 +333,15 @@
         "stock_in_transactions_variant_id_color_variants_id_fk": {
           "name": "stock_in_transactions_variant_id_color_variants_id_fk",
           "tableFrom": "stock_in_transactions",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -652,15 +360,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_in_entries_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "stock_in_transaction_id": {
@@ -700,41 +408,41 @@
         "stock_in_entries_stock_in_transaction_id_stock_in_transactions_id_fk": {
           "name": "stock_in_entries_stock_in_transaction_id_stock_in_transactions_id_fk",
           "tableFrom": "stock_in_entries",
-          "tableTo": "stock_in_transactions",
           "columnsFrom": [
             "stock_in_transaction_id"
           ],
+          "tableTo": "stock_in_transactions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_in_entries_color_variant_id_color_variants_id_fk": {
           "name": "stock_in_entries_color_variant_id_color_variants_id_fk",
           "tableFrom": "stock_in_entries",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "color_variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "stock_in_entries_design_size_id_design_sizes_id_fk": {
           "name": "stock_in_entries_design_size_id_design_sizes_id_fk",
           "tableFrom": "stock_in_entries",
-          "tableTo": "design_sizes",
           "columnsFrom": [
             "design_size_id"
           ],
+          "tableTo": "design_sizes",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -753,15 +461,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_in_bundle_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "stock_in_transaction_id": {
@@ -795,15 +503,15 @@
         "stock_in_bundle_stock_in_transaction_id_stock_in_transactions_id_fk": {
           "name": "stock_in_bundle_stock_in_transaction_id_stock_in_transactions_id_fk",
           "tableFrom": "stock_in_bundle",
-          "tableTo": "stock_in_transactions",
           "columnsFrom": [
             "stock_in_transaction_id"
           ],
+          "tableTo": "stock_in_transactions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -822,15 +530,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_in_bundle_pieces_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "bundle_id": {
@@ -857,39 +565,39 @@
         "stock_in_bundle_pieces_bundle_id_stock_in_bundle_id_fk": {
           "name": "stock_in_bundle_pieces_bundle_id_stock_in_bundle_id_fk",
           "tableFrom": "stock_in_bundle_pieces",
-          "tableTo": "stock_in_bundle",
           "columnsFrom": [
             "bundle_id"
           ],
+          "tableTo": "stock_in_bundle",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_in_bundle_pieces_design_size_id_design_sizes_id_fk": {
           "name": "stock_in_bundle_pieces_design_size_id_design_sizes_id_fk",
           "tableFrom": "stock_in_bundle_pieces",
-          "tableTo": "design_sizes",
           "columnsFrom": [
             "design_size_id"
           ],
+          "tableTo": "design_sizes",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "stock_in_bundle_pieces_bundle_id_design_size_id_unique": {
           "name": "stock_in_bundle_pieces_bundle_id_design_size_id_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "bundle_id",
             "design_size_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -906,15 +614,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_in_loose_pieces_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "stock_in_transaction_id": {
@@ -941,39 +649,39 @@
         "stock_in_loose_pieces_stock_in_transaction_id_stock_in_transactions_id_fk": {
           "name": "stock_in_loose_pieces_stock_in_transaction_id_stock_in_transactions_id_fk",
           "tableFrom": "stock_in_loose_pieces",
-          "tableTo": "stock_in_transactions",
           "columnsFrom": [
             "stock_in_transaction_id"
           ],
+          "tableTo": "stock_in_transactions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_in_loose_pieces_design_size_id_design_sizes_id_fk": {
           "name": "stock_in_loose_pieces_design_size_id_design_sizes_id_fk",
           "tableFrom": "stock_in_loose_pieces",
-          "tableTo": "design_sizes",
           "columnsFrom": [
             "design_size_id"
           ],
+          "tableTo": "design_sizes",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "stock_in_loose_pieces_stock_in_transaction_id_design_size_id_unique": {
           "name": "stock_in_loose_pieces_stock_in_transaction_id_design_size_id_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "stock_in_transaction_id",
             "design_size_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -990,15 +698,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_out_transactions_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "transaction_date": {
@@ -1040,15 +748,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_out_entries_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "stock_out_transaction_id": {
@@ -1094,41 +802,41 @@
         "stock_out_entries_stock_out_transaction_id_stock_out_transactions_id_fk": {
           "name": "stock_out_entries_stock_out_transaction_id_stock_out_transactions_id_fk",
           "tableFrom": "stock_out_entries",
-          "tableTo": "stock_out_transactions",
           "columnsFrom": [
             "stock_out_transaction_id"
           ],
+          "tableTo": "stock_out_transactions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_out_entries_color_variant_id_color_variants_id_fk": {
           "name": "stock_out_entries_color_variant_id_color_variants_id_fk",
           "tableFrom": "stock_out_entries",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "color_variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         },
         "stock_out_entries_design_size_id_design_sizes_id_fk": {
           "name": "stock_out_entries_design_size_id_design_sizes_id_fk",
           "tableFrom": "stock_out_entries",
-          "tableTo": "design_sizes",
           "columnsFrom": [
             "design_size_id"
           ],
+          "tableTo": "design_sizes",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1147,15 +855,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_groups_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "color_variant_id": {
@@ -1197,9 +905,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "stock_groups_set_unique_idx": {
           "name": "stock_groups_set_unique_idx",
@@ -1212,10 +920,10 @@
             }
           ],
           "isUnique": true,
-          "where": "\"stock_groups\".\"type\" = 'SET'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"stock_groups\".\"type\" = 'SET'",
+          "concurrently": false
         },
         "stock_groups_bundle_unique_idx": {
           "name": "stock_groups_bundle_unique_idx",
@@ -1234,10 +942,10 @@
             }
           ],
           "isUnique": true,
-          "where": "\"stock_groups\".\"type\" = 'BUNDLE'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"stock_groups\".\"type\" = 'BUNDLE'",
+          "concurrently": false
         },
         "stock_groups_loose_piece_unique_idx": {
           "name": "stock_groups_loose_piece_unique_idx",
@@ -1256,25 +964,25 @@
             }
           ],
           "isUnique": true,
-          "where": "\"stock_groups\".\"type\" = 'LOOSE_PIECE'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"stock_groups\".\"type\" = 'LOOSE_PIECE'",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "stock_groups_color_variant_id_color_variants_id_fk": {
           "name": "stock_groups_color_variant_id_color_variants_id_fk",
           "tableFrom": "stock_groups",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "color_variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1293,15 +1001,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_items_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "stock_group_id": {
@@ -1375,9 +1083,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "stock_items_stock_in_transaction_id_idx": {
           "name": "stock_items_stock_in_transaction_id_idx",
@@ -1390,9 +1098,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "stock_items_status_idx": {
           "name": "stock_items_status_idx",
@@ -1405,76 +1113,76 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "stock_items_stock_group_id_stock_groups_id_fk": {
           "name": "stock_items_stock_group_id_stock_groups_id_fk",
           "tableFrom": "stock_items",
-          "tableTo": "stock_groups",
           "columnsFrom": [
             "stock_group_id"
           ],
+          "tableTo": "stock_groups",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_items_color_variant_id_color_variants_id_fk": {
           "name": "stock_items_color_variant_id_color_variants_id_fk",
           "tableFrom": "stock_items",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "color_variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_items_design_size_id_design_sizes_id_fk": {
           "name": "stock_items_design_size_id_design_sizes_id_fk",
           "tableFrom": "stock_items",
-          "tableTo": "design_sizes",
           "columnsFrom": [
             "design_size_id"
           ],
+          "tableTo": "design_sizes",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_items_stock_in_transaction_id_stock_in_transactions_id_fk": {
           "name": "stock_items_stock_in_transaction_id_stock_in_transactions_id_fk",
           "tableFrom": "stock_items",
-          "tableTo": "stock_in_transactions",
           "columnsFrom": [
             "stock_in_transaction_id"
           ],
+          "tableTo": "stock_in_transactions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_items_bundle_id_stock_in_bundle_id_fk": {
           "name": "stock_items_bundle_id_stock_in_bundle_id_fk",
           "tableFrom": "stock_items",
-          "tableTo": "stock_in_bundle",
           "columnsFrom": [
             "bundle_id"
           ],
+          "tableTo": "stock_in_bundle",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1493,15 +1201,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_item_lineage_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "result_stock_item_id": {
@@ -1536,47 +1244,47 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "stock_item_lineage_result_stock_item_id_stock_items_id_fk": {
           "name": "stock_item_lineage_result_stock_item_id_stock_items_id_fk",
           "tableFrom": "stock_item_lineage",
-          "tableTo": "stock_items",
           "columnsFrom": [
             "result_stock_item_id"
           ],
+          "tableTo": "stock_items",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "stock_item_lineage_source_stock_item_id_stock_items_id_fk": {
           "name": "stock_item_lineage_source_stock_item_id_stock_items_id_fk",
           "tableFrom": "stock_item_lineage",
-          "tableTo": "stock_items",
           "columnsFrom": [
             "source_stock_item_id"
           ],
+          "tableTo": "stock_items",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "stock_item_lineage_source_stock_item_id_unique": {
           "name": "stock_item_lineage_source_stock_item_id_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "source_stock_item_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1593,15 +1301,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "variant_inventory_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "color_variant_id": {
@@ -1636,39 +1344,39 @@
         "variant_inventory_color_variant_id_color_variants_id_fk": {
           "name": "variant_inventory_color_variant_id_color_variants_id_fk",
           "tableFrom": "variant_inventory",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "color_variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "variant_inventory_design_size_id_design_sizes_id_fk": {
           "name": "variant_inventory_design_size_id_design_sizes_id_fk",
           "tableFrom": "variant_inventory",
-          "tableTo": "design_sizes",
           "columnsFrom": [
             "design_size_id"
           ],
+          "tableTo": "design_sizes",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "variant_inventory_color_variant_id_design_size_id_unique": {
           "name": "variant_inventory_color_variant_id_design_size_id_unique",
-          "nullsNotDistinct": false,
           "columns": [
             "color_variant_id",
             "design_size_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1685,15 +1393,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "variant_status_transactions_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "color_variant_id": {
@@ -1742,28 +1450,28 @@
         "variant_status_transactions_color_variant_id_color_variants_id_fk": {
           "name": "variant_status_transactions_color_variant_id_color_variants_id_fk",
           "tableFrom": "variant_status_transactions",
-          "tableTo": "color_variants",
           "columnsFrom": [
             "color_variant_id"
           ],
+          "tableTo": "color_variants",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "variant_status_transactions_stock_in_transaction_id_stock_in_transactions_id_fk": {
           "name": "variant_status_transactions_stock_in_transaction_id_stock_in_transactions_id_fk",
           "tableFrom": "variant_status_transactions",
-          "tableTo": "stock_in_transactions",
           "columnsFrom": [
             "stock_in_transaction_id"
           ],
+          "tableTo": "stock_in_transactions",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -1782,15 +1490,15 @@
           "primaryKey": true,
           "notNull": true,
           "identity": {
-            "type": "always",
             "name": "stock_item_qr_id_seq",
-            "schema": "public",
             "increment": "1",
-            "startWith": "1",
             "minValue": "1",
             "maxValue": "2147483647",
+            "startWith": "1",
             "cache": "1",
-            "cycle": false
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
           }
         },
         "stock_item_id": {
@@ -1825,24 +1533,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "stock_item_qr_stock_item_id_stock_items_id_fk": {
           "name": "stock_item_qr_stock_item_id_stock_items_id_fk",
           "tableFrom": "stock_item_qr",
-          "tableTo": "stock_items",
           "columnsFrom": [
             "stock_item_id"
           ],
+          "tableTo": "stock_items",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1875,9 +1583,9 @@
         "event_type": {
           "name": "event_type",
           "type": "stock_history_event_type",
-          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "typeSchema": "public"
         },
         "color_variant_id": {
           "name": "color_variant_id",
@@ -1899,12 +1607,6 @@
         },
         "stock_in_transaction_id": {
           "name": "stock_in_transaction_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stock_out_transaction_id": {
-          "name": "stock_out_transaction_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -2055,304 +1757,6 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-        },
-        "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk": {
-          "name": "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk",
-          "tableFrom": "stock_history",
-          "tableTo": "stock_out_transactions",
-          "columnsFrom": [
-            "stock_out_transaction_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.order_forms": {
-      "name": "order_forms",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "order_forms_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "retailer_name": {
-          "name": "retailer_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contact_person": {
-          "name": "contact_person",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "location": {
-          "name": "location",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "order_date": {
-          "name": "order_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "order_form_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'DRAFT'"
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.order_form_items": {
-      "name": "order_form_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "order_form_items_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "order_form_id": {
-          "name": "order_form_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "color_variant_id": {
-          "name": "color_variant_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "order_form_item_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "loose_pieces_breakdown": {
-          "name": "loose_pieces_breakdown",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "unit_price": {
-          "name": "unit_price",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "estimated_value": {
-          "name": "estimated_value",
-          "type": "numeric(12, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "order_form_items_order_form_id_order_forms_id_fk": {
-          "name": "order_form_items_order_form_id_order_forms_id_fk",
-          "tableFrom": "order_form_items",
-          "tableTo": "order_forms",
-          "columnsFrom": [
-            "order_form_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "order_form_items_color_variant_id_color_variants_id_fk": {
-          "name": "order_form_items_color_variant_id_color_variants_id_fk",
-          "tableFrom": "order_form_items",
-          "tableTo": "color_variants",
-          "columnsFrom": [
-            "color_variant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.order_form_photos": {
-      "name": "order_form_photos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "identity": {
-            "type": "always",
-            "name": "order_form_photos_id_seq",
-            "schema": "public",
-            "increment": "1",
-            "startWith": "1",
-            "minValue": "1",
-            "maxValue": "2147483647",
-            "cache": "1",
-            "cycle": false
-          }
-        },
-        "order_form_id": {
-          "name": "order_form_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "image_url": {
-          "name": "image_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "image_public_id": {
-          "name": "image_public_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "order_form_photo_source",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'UPLOADED'"
-        },
-        "color_variant_id": {
-          "name": "color_variant_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "order_form_photos_order_form_id_order_forms_id_fk": {
-          "name": "order_form_photos_order_form_id_order_forms_id_fk",
-          "tableFrom": "order_form_photos",
-          "tableTo": "order_forms",
-          "columnsFrom": [
-            "order_form_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "order_form_photos_color_variant_id_color_variants_id_fk": {
-          "name": "order_form_photos_color_variant_id_color_variants_id_fk",
-          "tableFrom": "order_form_photos",
-          "tableTo": "color_variants",
-          "columnsFrom": [
-            "color_variant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2404,42 +1808,15 @@
       "values": [
         "STOCK_IN",
         "SET_ASSEMBLED",
-        "BUNDLE_ASSEMBLED",
-        "STOCK_OUT"
-      ]
-    },
-    "public.order_form_status": {
-      "name": "order_form_status",
-      "schema": "public",
-      "values": [
-        "DRAFT",
-        "SHARED",
-        "CONVERTED",
-        "CANCELLED"
-      ]
-    },
-    "public.order_form_item_type": {
-      "name": "order_form_item_type",
-      "schema": "public",
-      "values": [
-        "SET",
-        "LOOSE_PIECE"
-      ]
-    },
-    "public.order_form_photo_source": {
-      "name": "order_form_photo_source",
-      "schema": "public",
-      "values": [
-        "UPLOADED",
-        "DESIGN"
+        "BUNDLE_ASSEMBLED"
       ]
     }
   },
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

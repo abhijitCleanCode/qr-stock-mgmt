@@ -24,6 +24,15 @@ export * from "../modules/stock/schemas/stockItemQr.schema.js";
 
 export * from "../modules/stock/schemas/stockHistory.schema.js";
 
+export * from "../modules/stock/schemas/rack.schema.js";
+export * from "../modules/stock/schemas/bin.schema.js";
+export * from "../modules/stock/schemas/printer.schema.js";
+export * from "../modules/stock/schemas/printJob.schema.js";
+export * from "../modules/stock/schemas/printJobItem.schema.js";
+export * from "../modules/stock/schemas/reprintRequest.schema.js";
+export * from "../modules/stock/schemas/recoveryEntry.schema.js";
+export * from "../modules/stock/schemas/tagPreset.schema.js";
+
 export * from "../modules/order/schemas/orderForm.schema.js";
 export * from "../modules/order/schemas/orderFormItem.schema.js";
 export * from "../modules/order/schemas/orderFormPhoto.schema.js";
