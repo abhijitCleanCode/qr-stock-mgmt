@@ -10,7 +10,11 @@ class DesignController {
         try {
             const response = await this._designService.registerDesign(req.body, files);
 
-            return res.status(200).json(new ApiResponse(201, response, "Design registered successfully."));
+            const message = response.isNewDesign
+                ? "Design registered successfully."
+                : "Design already exists. Details have been added to the existing design.";
+
+            return res.status(200).json(new ApiResponse(201, response, message));
         } catch (error) {
             next(error);
         }

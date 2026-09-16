@@ -1,0 +1,89 @@
+/* QR Center — scoped design system. Only imported by QrCenter.jsx so nothing
+   here leaks into the rest of the app (which uses the indigo/glass theme). */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+.qr-center-scope {
+  --qrc-page: #F1F5F9;
+  --qrc-surface: #FFFFFF;
+  --qrc-sunken: #F8FAFC;
+  --qrc-line: #E2E8F0;
+  --qrc-line-strong: #CBD5E1;
+  --qrc-ink: #0F172A;
+  --qrc-ink2: #475569;
+  --qrc-ink3: #64748B;
+  --qrc-ink4: #94A3B8;
+  --qrc-accent: #10B981;
+  --qrc-accent-hover: #059669;
+  --qrc-accent-bg: #ECFDF5;
+  --qrc-accent-border: #A7F3D0;
+  --qrc-warn: #B45309;
+  --qrc-warn-bg: #FFFBEB;
+  --qrc-warn-border: #FDE68A;
+  --qrc-danger: #DC2626;
+  --qrc-danger-bg: #FEF2F2;
+  --qrc-danger-border: #FECACA;
+  --qrc-info: #1D4ED8;
+  --qrc-info-bg: #EFF6FF;
+  --qrc-info-border: #BFDBFE;
+  --qrc-radius: 10px;
+
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--qrc-ink);
+  background: var(--qrc-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+.qr-center-scope .qrc-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.qr-center-scope .qrc-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--qrc-ink4);
+}
+
+.qr-center-scope table {
+  border-collapse: collapse;
+}
+
+.qr-center-scope .qrc-fade-in {
+  animation: qrc-fade-in 0.18s ease;
+}
+
+@keyframes qrc-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+
+.qr-center-scope .qrc-scrollx {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.qr-center-scope .qrc-resolver-input:focus {
+  box-shadow: 0 0 0 4px var(--qrc-accent-bg), 0 0 0 1px var(--qrc-accent);
+  border-color: var(--qrc-accent);
+  outline: none;
+}
+
+.qr-center-scope input:focus,
+.qr-center-scope select:focus,
+.qr-center-scope textarea:focus {
+  outline: none;
+}
+
+.qr-center-scope ::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.qr-center-scope ::-webkit-scrollbar-thumb {
+  background: var(--qrc-line-strong);
+  border-radius: 8px;
+}

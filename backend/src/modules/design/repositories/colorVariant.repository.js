@@ -4,6 +4,10 @@ import { db } from "../../../database/index.js";
 import { colorVariant } from "../schemas/colorVariant.schema.js";
 import { design } from "../schemas/design.schema.js";
 
+// trim + lowercase, so "Brown", "brown" and " Brown " all resolve to the same colour on a
+// design — backs the unique index on (designId, normalizedColorName).
+export const normalizeColorName = (colorName) => colorName.trim().toLowerCase();
+
 // Shared by findDesignsWithActiveVariants/countDesignsWithActiveVariants below so the row set
 // behind the page and behind the total always agree.
 function buildActiveWithDesignConditions(keyword) {
@@ -45,6 +49,15 @@ class ColorVariantRepository {
             .where(buildActiveWithDesignConditions(keyword));
 
         return result.value;
+    }
+
+    // All active variants of one design, used by the register-design upsert to check which
+    // colours already exist and to propagate merged sizes across every variant of the design.
+    async findActiveByDesignId(tx, designId) {
+        return tx
+            .select()
+            .from(colorVariant)
+            .where(and(eq(colorVariant.designId, designId), eq(colorVariant.isActive, true)));
     }
 
     async findByDesignIds(designIds) {

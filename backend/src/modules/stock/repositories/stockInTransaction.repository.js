@@ -3,6 +3,7 @@ import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
 import { stockItem } from "../schemas/stockItems.schema.js";
 import { stockItemQr } from "../schemas/stockItemQr.schema.js";
+import { stockInLoosePiece } from "../schemas/stockInLoosePiece.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
 
@@ -78,6 +79,56 @@ class StockInTransactionRepository {
 
         const [result] = await tx.select({ value: sql`count(*)`.mapWith(Number) }).from(grouped);
 
+        return result.value;
+    }
+
+    // QR Center's "To tag" queue: registrations whose QR-eligible (SET/BUNDLE) items are not
+    // all tagged yet (eligibleItemCount > qrGeneratedCount — same counts findRegistrationsWithQr
+    // computes, just filtered the opposite way via HAVING). Loose piece quantity is informational
+    // context on the row (loose stock is never individually QR-eligible — see
+    // stockItem.repository.js isQrEligible), not part of the tagging gap itself.
+    async findUntaggedRegistrations(tx, { limit, offset }) {
+        const eligibleItemCount = sql`count(distinct ${stockItem.id})`.mapWith(Number);
+        const qrGeneratedCount = sql`count(distinct ${stockItemQr.stockItemId})`.mapWith(Number);
+        const looseCount = sql`coalesce((select sum(${stockInLoosePiece.quantity}) from ${stockInLoosePiece} where ${stockInLoosePiece.stockInTransactionId} = ${stockInTransaction.id}), 0)`.mapWith(Number);
+
+        return tx.select({
+            stockInTransactionId: stockInTransaction.id,
+            challanNo: stockInTransaction.challanNo,
+            stockDate: stockInTransaction.stockDate,
+            createdAt: stockInTransaction.createdAt,
+            colorVariantId: colorVariant.id,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            imageUrl: colorVariant.imageUrl,
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+            eligibleItemCount,
+            qrGeneratedCount,
+            looseCount,
+        }).from(stockInTransaction)
+            .innerJoin(colorVariant, eq(stockInTransaction.variantId, colorVariant.id))
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .innerJoin(stockItem, and(eq(stockItem.stockInTransactionId, stockInTransaction.id), inArray(stockItem.type, QR_ELIGIBLE_TYPES)))
+            .leftJoin(stockItemQr, eq(stockItemQr.stockItemId, stockItem.id))
+            .groupBy(stockInTransaction.id, colorVariant.id, design.id)
+            .having(sql`count(distinct ${stockItem.id}) > count(distinct ${stockItemQr.stockItemId})`)
+            .orderBy(desc(stockInTransaction.createdAt))
+            .limit(limit)
+            .offset(offset);
+    }
+
+    async countUntaggedRegistrations(tx) {
+        const grouped = tx.select({ id: stockInTransaction.id })
+            .from(stockInTransaction)
+            .innerJoin(stockItem, and(eq(stockItem.stockInTransactionId, stockInTransaction.id), inArray(stockItem.type, QR_ELIGIBLE_TYPES)))
+            .leftJoin(stockItemQr, eq(stockItemQr.stockItemId, stockItem.id))
+            .groupBy(stockInTransaction.id)
+            .having(sql`count(distinct ${stockItem.id}) > count(distinct ${stockItemQr.stockItemId})`)
+            .as("untagged_registrations");
+
+        const [result] = await tx.select({ value: sql`count(*)`.mapWith(Number) }).from(grouped);
         return result.value;
     }
 

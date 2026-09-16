@@ -3,9 +3,24 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../../../database/index.js";
 import { designSize } from "../schemas/designSize.schema.js";
 
+// trim + uppercase, so "l", "L" and " l " all resolve to the same size label when checking
+// whether a submitted size is already present on a variant.
+export const normalizeSizeLabel = (sizeLabel) => sizeLabel.trim().toUpperCase();
+
 class DesignSize {
     async createMany(tx, data) {
         return tx.insert(designSize).values(data).returning();
+    }
+
+    // All sizes (active or not, regardless of includedInSet) for a set of variants — used by the
+    // register-design upsert to know which labels already exist before merging in new ones.
+    async findAllByVariantIds(tx, variantIds) {
+        if (variantIds.length === 0) return [];
+
+        return tx
+            .select()
+            .from(designSize)
+            .where(inArray(designSize.variantId, variantIds));
     }
 
     async findActiveByVariantId(tx, variantId) {

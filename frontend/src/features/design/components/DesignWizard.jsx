@@ -26,14 +26,14 @@ const DesignWizard = () => {
         }));
 
         try {
-            await mutateAsync({
+            const response = await mutateAsync({
                 ...designData,
                 colorVariants: colorVariants.map(({ colorName, colorHex }) => ({ colorName, colorHex })),
                 designSizes,
                 images: colorVariants.map((variant) => variant.imageFile),
             });
 
-            toast.success("Design registered successfully.");
+            toast.success(response?.message ?? "Design registered successfully.");
 
             form.reset();
             wizard.setActiveStep(0);
