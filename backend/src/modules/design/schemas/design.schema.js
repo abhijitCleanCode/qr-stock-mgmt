@@ -14,9 +14,9 @@ export const design = pgTable("designs", {
     code: varchar("code", { length: 255 }),
 
     // trim + lowercase form of `code`, computed in the repository before insert — backs the
-    // unique index below so re-registering the same pattern+code merges into the existing
-    // design instead of creating a duplicate (see DesignService.registerDesign). Null when code
-    // is blank — designs without a code aren't deduplicated against each other.
+    // unique index below so re-registering the same pattern+code is rejected as a duplicate
+    // instead of creating a second design row (see DesignService.registerDesign). Null when
+    // code is blank — designs without a code aren't deduplicated against each other.
     normalizedCode: varchar("normalized_code", { length: 255 }),
 
     itemName: varchar("item_name", { length: 255 }),

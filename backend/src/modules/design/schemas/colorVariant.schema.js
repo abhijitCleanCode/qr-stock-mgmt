@@ -9,9 +9,8 @@ export const colorVariant = pgTable("color_variants", {
     colorName: varchar("color_name", { length: 100 }).notNull(),
     colorHex: varchar("color_hex", { length: 7 }).notNull(),
 
-    // trim + lowercase form of `colorName`, computed in the repository before insert — backs the
-    // unique index below so re-submitting the same colour for a design merges into the existing
-    // variant instead of creating a duplicate (see DesignService.registerDesign).
+    // trim + lowercase form of `colorName`, computed in the repository before insert — backs
+    // the unique index below so a design can't end up with two rows for the same colour.
     normalizedColorName: varchar("normalized_color_name", { length: 100 }).notNull(),
 
     // every color variant must have exactly one image (business rule) — NOT NULL accordingly

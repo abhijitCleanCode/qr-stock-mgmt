@@ -5,16 +5,15 @@ import ApiError from "../../../core/apiError.js";
 import { db } from "../../../database/index.js";
 import designRepository, { normalizeDesignCode } from "../repositories/design.repository.js";
 import colorVariantRepository, { normalizeColorName } from "../repositories/colorVariant.repository.js";
-import designSizeRepository, { normalizeSizeLabel } from "../repositories/designSize.repository.js";
+import designSizeRepository from "../repositories/designSize.repository.js";
 import jobberRepository from "../repositories/jobber.repository.js";
 import qualityRepository from "../repositories/quality.repository.js";
 import patternRepository from "../repositories/pattern.repository.js";
 import mediaUploadService from "../../../core/media/mediaUploadService.js";
 
-// A field the caller didn't submit (or submitted blank) keeps the existing design's value —
-// merging into an existing design is never allowed to blank out information it already has.
-const mergeScalar = (existingValue, newValue) =>
-    newValue === undefined || newValue === null || newValue === "" ? existingValue : newValue;
+const DUPLICATE_DESIGN_MESSAGE = "Design already exists in the database.";
+const DESIGN_IDENTITY_CONSTRAINT = "designs_pattern_id_normalized_code_unique_idx";
+const COLOR_VARIANT_IDENTITY_CONSTRAINT = "color_variants_design_id_normalized_color_name_unique_idx";
 
 class DesignService {
     _designRepository = designRepository;
@@ -36,50 +35,56 @@ class DesignService {
             );
         }
 
+        const normalizedCode = normalizeDesignCode(code);
+
+        // Resolving the pattern (read-or-create) up front never creates an orphan on the reject
+        // path below: a brand-new pattern can't already have a design against it, so the
+        // duplicate check that follows only ever finds a match when the pattern already existed.
+        const resolvedPattern = await this._resolvePattern(db, { patternId, patternName: name });
+
+        // Design identity is (pattern, code). A matching design row alone is NOT rejected here —
+        // the same code can legitimately gain a new colour over time (e.g. "Paisley Straight /
+        // FL205" starting with just Blue and later getting Green added). Only reject when every
+        // submitted colour already exists on that design too — at that point nothing in the
+        // submission is new (see REQUIRED BEHAVIOR).
+        const existingDesign = await this._designRepository.findByIdentity(db, {
+            patternId: resolvedPattern.id,
+            normalizedCode,
+        });
+
+        const existingVariantsByColor = new Map();
+        if (existingDesign) {
+            const existingVariants = await this._colorVariantRepository.findActiveByDesignId(db, existingDesign.id);
+            for (const variant of existingVariants) {
+                existingVariantsByColor.set(variant.normalizedColorName, variant);
+            }
+
+            const nothingNewSubmitted = colorVariants.every(
+                (color) => existingVariantsByColor.has(normalizeColorName(color.colorName))
+            );
+            if (nothingNewSubmitted) {
+                throw new ApiError(DUPLICATE_DESIGN_MESSAGE, 409, "DESIGN_ALREADY_EXISTS");
+            }
+        }
+
         // Cloudinary is a separate system from PostgreSQL and can't participate in the
         // db.transaction below — uploading here, before the transaction opens, keeps the
         // transaction free of network I/O and gives us publicIds to clean up on failure.
         const uploadedImages = await this._mediaUploadService.uploadDesignColorVariantImages(files);
         // Images for colours that turn out to already exist on the matched design are never
-        // attached to a row — tracked here so they can be cleaned up from storage after the
-        // transaction commits (deleting them on failure is handled by the catch below instead).
+        // attached to a row — cleaned up from storage after the transaction commits (failure
+        // cleanup is handled by the catch below instead).
         const unusedImages = [];
 
         try {
             const result = await db.transaction(async (tx) => {
-                const resolvedJobberId = await this._resolveJobberId(tx, { jobberId, jobberName });
-                const resolvedQuality = await this._resolveQuality(tx, { qualityId, qualityName: quality });
-                const resolvedPattern = await this._resolvePattern(tx, { patternId, patternName: name });
-                const normalizedCode = normalizeDesignCode(code);
+                let design = existingDesign;
 
-                // Design identity = same pattern + same code (see DesignRepository.findByIdentity).
-                // Found → merge into it; not found → create it, exactly as before.
-                const existingDesign = await this._designRepository.findByIdentity(tx, {
-                    patternId: resolvedPattern.id,
-                    normalizedCode,
-                });
+                if (!design) {
+                    const resolvedJobberId = await this._resolveJobberId(tx, { jobberId, jobberName });
+                    const resolvedQuality = await this._resolveQuality(tx, { qualityId, qualityName: quality });
 
-                const mergeInto = async (target) => this._designRepository.update(tx, target.id, {
-                    itemName: mergeScalar(target.itemName, designData.itemName),
-                    defaultSellingPricePerPiece: mergeScalar(target.defaultSellingPricePerPiece, designData.defaultSellingPricePerPiece),
-                    notes: mergeScalar(target.notes, designData.notes),
-                    jobberId: resolvedJobberId ?? target.jobberId,
-                    qualityId: resolvedQuality.id,
-                    quality: resolvedQuality.name,
-                });
-
-                let design;
-                let isNewDesign;
-
-                if (existingDesign) {
-                    design = await mergeInto(existingDesign);
-                    isNewDesign = false;
-                } else {
-                    // Race-safe: if another request creates this same (pattern, code) design
-                    // between our findByIdentity above and this insert, the unique index rejects
-                    // it and we merge into the row the other request just committed instead of
-                    // erroring or duplicating (see DesignRepository.createOrFindExisting).
-                    const { row, wasCreated } = await this._designRepository.createOrFindExisting(tx, {
+                    design = await this._designRepository.create(tx, {
                         ...designData,
                         code,
                         normalizedCode,
@@ -89,24 +94,18 @@ class DesignService {
                         patternId: resolvedPattern.id,
                         name: resolvedPattern.name,
                     });
-
-                    design = wasCreated ? row : await mergeInto(row);
-                    isNewDesign = wasCreated;
                 }
 
                 //todo: service knows the persistent structure of color variant introducing some coupling in open/close principle
-                // existingVariants accumulates newly-created variants too, so a duplicate colour
-                // submitted twice in the same request also merges instead of creating a second row.
-                const existingVariants = isNewDesign ? [] : await this._colorVariantRepository.findActiveByDesignId(tx, design.id);
-
-                const variants = [];
+                const createdVariants = [];
+                const reusedVariants = [];
                 for (const [index, color] of colorVariants.entries()) {
                     const normalizedColorName = normalizeColorName(color.colorName);
-                    const matchedVariant = existingVariants.find((variant) => variant.normalizedColorName === normalizedColorName);
+                    const matchedVariant = existingVariantsByColor.get(normalizedColorName);
 
                     if (matchedVariant) {
                         unusedImages.push(uploadedImages[index]);
-                        variants.push(matchedVariant);
+                        reusedVariants.push(matchedVariant);
                         continue;
                     }
 
@@ -122,41 +121,32 @@ class DesignService {
                         qrPayload: randomUUID(),
                         qrGeneratedAt: new Date(),
                     }]);
-                    existingVariants.push(createdVariant);
-                    variants.push(createdVariant);
+                    createdVariants.push(createdVariant);
                 }
 
                 //todo: service knows the persistent structure of design size introducing some coupling in open/close principle
-                // designSizes belong to a color variant (variantId), not the design directly — the
-                // same size set is applied to every variant of the design (new or pre-existing), so
-                // sizes stay in sync across colours; already-present labels are left untouched.
-                const targetVariantIds = existingVariants.map((variant) => variant.id);
-                const currentSizes = designSizes.length > 0
-                    ? await this._designSizeRepository.findAllByVariantIds(tx, targetVariantIds)
-                    : [];
-                const currentLabelsByVariantId = currentSizes.reduce((acc, size) => {
-                    (acc[size.variantId] ??= new Set()).add(normalizeSizeLabel(size.sizeLabel));
-                    return acc;
-                }, {});
-
-                const newSizeRows = targetVariantIds.flatMap((variantId) => {
-                    const currentLabels = currentLabelsByVariantId[variantId] ?? new Set();
-
-                    return designSizes
-                        .filter((size) => !currentLabels.has(normalizeSizeLabel(size.sizeLabel)))
-                        .map((size) => ({
-                            variantId,
-                            sizeLabel: size.sizeLabel,
-                            displayOrder: size.displayOrder,
-                            unsetPricePerSize: size.unsetPricePerSize,
-                            includedInSet: size.includedInSet,
-                        }));
-                });
-                const createdSizes = newSizeRows.length > 0
-                    ? await this._designSizeRepository.createMany(tx, newSizeRows)
+                // designSizes belong to a color variant (variantId), not the design directly —
+                // the same size set is applied to every newly created variant in this request;
+                // pre-existing variants (colours already on the design) are left untouched.
+                const sizes = createdVariants.flatMap(variant =>
+                    designSizes.map(size => ({
+                        variantId: variant.id,
+                        sizeLabel: size.sizeLabel,
+                        displayOrder: size.displayOrder,
+                        unsetPricePerSize: size.unsetPricePerSize,
+                        includedInSet: size.includedInSet,
+                    }))
+                );
+                const createdSizes = sizes.length > 0
+                    ? await this._designSizeRepository.createMany(tx, sizes)
                     : [];
 
-                return { design, colorVariants: variants, designSizes: createdSizes, isNewDesign };
+                return {
+                    design,
+                    colorVariants: [...reusedVariants, ...createdVariants],
+                    designSizes: createdSizes,
+                    isNewDesign: !existingDesign,
+                };
             });
 
             if (unusedImages.length > 0) {
@@ -166,8 +156,23 @@ class DesignService {
             return result;
         } catch (error) {
             await this._mediaUploadService.deleteUploadedImages(uploadedImages);
-            throw error;
+            throw this._translateDuplicateError(error);
         }
+    }
+
+    // The pre-check above closes the normal-case race window; this only fires if two identical
+    // submissions land inside it concurrently (either two brand-new designs with the same
+    // pattern+code, or two requests adding the same new colour to the same existing design).
+    // Rewritten to the same friendly 409 so a genuine race is indistinguishable from the
+    // ordinary reject path — the DB's raw unique-violation detail is never shown to the user.
+    _translateDuplicateError(error) {
+        const constraint = error?.cause?.constraint ?? error?.originalError?.cause?.constraint;
+
+        if (constraint === DESIGN_IDENTITY_CONSTRAINT || constraint === COLOR_VARIANT_IDENTITY_CONSTRAINT) {
+            return new ApiError(DUPLICATE_DESIGN_MESSAGE, 409, "DESIGN_ALREADY_EXISTS");
+        }
+
+        return error;
     }
 
     async getAllDesigns({ page, limit }) {

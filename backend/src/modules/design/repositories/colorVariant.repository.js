@@ -51,10 +51,10 @@ class ColorVariantRepository {
         return result.value;
     }
 
-    // All active variants of one design, used by the register-design upsert to check which
-    // colours already exist and to propagate merged sizes across every variant of the design.
-    async findActiveByDesignId(tx, designId) {
-        return tx
+    // All active variants of one design — used by the register-design flow to check which
+    // colours already exist on a design whose (pattern, code) matched an existing row.
+    async findActiveByDesignId(runner, designId) {
+        return runner
             .select()
             .from(colorVariant)
             .where(and(eq(colorVariant.designId, designId), eq(colorVariant.isActive, true)));

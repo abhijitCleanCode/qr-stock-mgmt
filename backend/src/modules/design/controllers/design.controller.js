@@ -12,7 +12,7 @@ class DesignController {
 
             const message = response.isNewDesign
                 ? "Design registered successfully."
-                : "Design already exists. Details have been added to the existing design.";
+                : "Design code already exists — new colour variant added to the existing design.";
 
             return res.status(200).json(new ApiResponse(201, response, message));
         } catch (error) {
