@@ -24,7 +24,7 @@ const CompleteSetsInput = ({ value, onChange, label = "Sets received", id = "tot
         type="number"
         inputMode="numeric"
         min={0}
-        value={value}
+        value={value || ""}
         onChange={handleChange}
         className="h-11 w-20 text-center text-base"
       />

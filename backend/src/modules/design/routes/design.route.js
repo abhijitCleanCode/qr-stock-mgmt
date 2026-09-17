@@ -68,5 +68,14 @@ export const designRoutes = [
         validators: {
             get: validateRequest(colorVariantSizesParamsSchema, "params")
         }
+    },
+    {
+        path: "/color-variants/:colorVariantId/semi-sets",
+        controller: {
+            get: designController.getVariantSemiSets
+        },
+        validators: {
+            get: validateRequest(colorVariantSizesParamsSchema, "params")
+        }
     }
 ]

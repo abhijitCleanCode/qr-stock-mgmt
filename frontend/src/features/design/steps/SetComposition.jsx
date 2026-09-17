@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { Controller } from "react-hook-form";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,110 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_SIZES = ["S", "M", "L", "XL", "XXL"];
+
+// Semi sets are named sub-compositions of the full set above (e.g. "3-pc: S/M/L") — jobbers
+// sometimes deliver these instead of a complete set. Kept as a second, sibling Controller so
+// its own array shape (label + sizeLabels) doesn't have to live inside the `sizes` field.
+const SemiSetsField = ({ control, selectedSizes }) => (
+  <Controller
+    control={control}
+    name="semiSets"
+    defaultValue={[]}
+    render={({ field }) => {
+      const semiSets = field.value ?? [];
+
+      const addSemiSet = () => {
+        field.onChange([...semiSets, { label: "", sizeLabels: [] }]);
+      };
+
+      const removeSemiSet = (index) => {
+        field.onChange(semiSets.filter((_, i) => i !== index));
+      };
+
+      const updateSemiSet = (index, patch) => {
+        field.onChange(semiSets.map((semiSet, i) => (i === index ? { ...semiSet, ...patch } : semiSet)));
+      };
+
+      const toggleSemiSetSize = (index, size) => {
+        const semiSet = semiSets[index];
+        const sizeLabels = semiSet.sizeLabels.includes(size)
+          ? semiSet.sizeLabels.filter((s) => s !== size)
+          : [...semiSet.sizeLabels, size];
+        updateSemiSet(index, { sizeLabels });
+      };
+
+      return (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">Semi Sets (optional)</h3>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addSemiSet}
+              disabled={selectedSizes.length === 0}
+            >
+              <Plus className="size-3.5" /> Add Semi Set
+            </Button>
+          </div>
+
+          {semiSets.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Define a smaller, named sub-composition (e.g. "3-pc: S/M/L") for jobbers who sometimes deliver
+              partial sets instead of the full set above.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {semiSets.map((semiSet, index) => (
+                <div key={index} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Input
+                      value={semiSet.label}
+                      onChange={(e) => updateSemiSet(index, { label: e.target.value })}
+                      placeholder='e.g. "3-pc: S/M/L"'
+                      className="h-9 flex-1 bg-white text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSemiSet(index)}
+                      className="neu-icon-button text-muted-foreground hover:text-red-600"
+                      aria-label="Remove semi set"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selectedSizes.map((size) => {
+                      const isSelected = semiSet.sizeLabels.includes(size);
+
+                      return (
+                        <Button
+                          key={size}
+                          type="button"
+                          onClick={() => toggleSemiSetSize(index, size)}
+                          className={cn(
+                            "flex h-8 items-center gap-1 rounded-full neu-button border px-3 text-xs font-medium transition-colors",
+                            isSelected
+                              ? "border-[#00694C]! bg-[#00694C]! text-[#ffffff]"
+                              : "border-transparent! text-muted-foreground hover:bg-muted/70!"
+                          )}
+                        >
+                          {isSelected && <Check className="size-3" />}
+                          {size}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }}
+  />
+);
 
 const SetComposition = ({ control }) => {
   const [customSizes, setCustomSizes] = useState([]);
@@ -149,6 +253,8 @@ const SetComposition = ({ control }) => {
                 </p>
               )}
             </div>
+
+            <SemiSetsField control={control} selectedSizes={selectedSizes} />
           </div>
         );
       }}

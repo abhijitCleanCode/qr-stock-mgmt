@@ -3,25 +3,33 @@ import { randomUUID } from "node:crypto";
 import ApiError from "../../../core/apiError.js";
 
 import { db } from "../../../database/index.js";
-import designRepository from "../repositories/design.repository.js";
-import colorVariantRepository from "../repositories/colorVariant.repository.js";
+import designRepository, { normalizeDesignCode } from "../repositories/design.repository.js";
+import colorVariantRepository, { normalizeColorName } from "../repositories/colorVariant.repository.js";
 import designSizeRepository from "../repositories/designSize.repository.js";
+import designSemiSetRepository from "../repositories/designSemiSet.repository.js";
+import designSemiSetSizeRepository from "../repositories/designSemiSetSize.repository.js";
 import jobberRepository from "../repositories/jobber.repository.js";
 import qualityRepository from "../repositories/quality.repository.js";
 import patternRepository from "../repositories/pattern.repository.js";
 import mediaUploadService from "../../../core/media/mediaUploadService.js";
 
+const DUPLICATE_DESIGN_MESSAGE = "Design already exists in the database.";
+const DESIGN_IDENTITY_CONSTRAINT = "designs_pattern_id_normalized_code_unique_idx";
+const COLOR_VARIANT_IDENTITY_CONSTRAINT = "color_variants_design_id_normalized_color_name_unique_idx";
+
 class DesignService {
     _designRepository = designRepository;
     _colorVariantRepository = colorVariantRepository;
     _designSizeRepository = designSizeRepository;
+    _designSemiSetRepository = designSemiSetRepository;
+    _designSemiSetSizeRepository = designSemiSetSizeRepository;
     _jobberRepository = jobberRepository;
     _qualityRepository = qualityRepository;
     _patternRepository = patternRepository;
     _mediaUploadService = mediaUploadService;
 
     async registerDesign(data, files = []) {
-        const { colorVariants, designSizes = [], jobberId, jobberName, qualityId, quality, patternId, name, ...designData } = data;
+        const { colorVariants, designSizes = [], semiSets = [], jobberId, jobberName, qualityId, quality, patternId, name, code, ...designData } = data;
 
         if (colorVariants.length !== files.length) {
             throw new ApiError(
@@ -31,43 +39,99 @@ class DesignService {
             );
         }
 
+        const normalizedCode = normalizeDesignCode(code);
+
+        // Resolving the pattern (read-or-create) up front never creates an orphan on the reject
+        // path below: a brand-new pattern can't already have a design against it, so the
+        // duplicate check that follows only ever finds a match when the pattern already existed.
+        const resolvedPattern = await this._resolvePattern(db, { patternId, patternName: name });
+
+        // Design identity is (pattern, code). A matching design row alone is NOT rejected here —
+        // the same code can legitimately gain a new colour over time (e.g. "Paisley Straight /
+        // FL205" starting with just Blue and later getting Green added). Only reject when every
+        // submitted colour already exists on that design too — at that point nothing in the
+        // submission is new (see REQUIRED BEHAVIOR).
+        const existingDesign = await this._designRepository.findByIdentity(db, {
+            patternId: resolvedPattern.id,
+            normalizedCode,
+        });
+
+        const existingVariantsByColor = new Map();
+        if (existingDesign) {
+            const existingVariants = await this._colorVariantRepository.findActiveByDesignId(db, existingDesign.id);
+            for (const variant of existingVariants) {
+                existingVariantsByColor.set(variant.normalizedColorName, variant);
+            }
+
+            const nothingNewSubmitted = colorVariants.every(
+                (color) => existingVariantsByColor.has(normalizeColorName(color.colorName))
+            );
+            if (nothingNewSubmitted) {
+                throw new ApiError(DUPLICATE_DESIGN_MESSAGE, 409, "DESIGN_ALREADY_EXISTS");
+            }
+        }
+
         // Cloudinary is a separate system from PostgreSQL and can't participate in the
         // db.transaction below — uploading here, before the transaction opens, keeps the
         // transaction free of network I/O and gives us publicIds to clean up on failure.
         const uploadedImages = await this._mediaUploadService.uploadDesignColorVariantImages(files);
+        // Images for colours that turn out to already exist on the matched design are never
+        // attached to a row — cleaned up from storage after the transaction commits (failure
+        // cleanup is handled by the catch below instead).
+        const unusedImages = [];
 
         try {
-            return await db.transaction(async (tx) => {
-                const resolvedJobberId = await this._resolveJobberId(tx, { jobberId, jobberName });
-                const resolvedQuality = await this._resolveQuality(tx, { qualityId, qualityName: quality });
-                const resolvedPattern = await this._resolvePattern(tx, { patternId, patternName: name });
+            const result = await db.transaction(async (tx) => {
+                let design = existingDesign;
 
-                const design = await this._designRepository.create(tx, {
-                    ...designData,
-                    jobberId: resolvedJobberId,
-                    qualityId: resolvedQuality.id,
-                    quality: resolvedQuality.name,
-                    patternId: resolvedPattern.id,
-                    name: resolvedPattern.name,
-                });
+                if (!design) {
+                    const resolvedJobberId = await this._resolveJobberId(tx, { jobberId, jobberName });
+                    const resolvedQuality = await this._resolveQuality(tx, { qualityId, qualityName: quality });
+
+                    design = await this._designRepository.create(tx, {
+                        ...designData,
+                        code,
+                        normalizedCode,
+                        jobberId: resolvedJobberId,
+                        qualityId: resolvedQuality.id,
+                        quality: resolvedQuality.name,
+                        patternId: resolvedPattern.id,
+                        name: resolvedPattern.name,
+                    });
+                }
 
                 //todo: service knows the persistent structure of color variant introducing some coupling in open/close principle
-                const variants = colorVariants.map((color, index) => ({
-                    designId: design.id,
-                    colorName: color.colorName,
-                    colorHex: color.colorHex,
-                    imageUrl: uploadedImages[index].imageUrl,
-                    imagePublicId: uploadedImages[index].imagePublicId,
-                    // qrService isn't implemented yet; a random unique payload satisfies the
-                    // NOT NULL constraint without blocking variant creation on this feature
-                    qrPayload: randomUUID(),
-                    qrGeneratedAt: new Date(),
-                }));
-                const createdVariants = await this._colorVariantRepository.createMany(tx, variants);
+                const createdVariants = [];
+                const reusedVariants = [];
+                for (const [index, color] of colorVariants.entries()) {
+                    const normalizedColorName = normalizeColorName(color.colorName);
+                    const matchedVariant = existingVariantsByColor.get(normalizedColorName);
+
+                    if (matchedVariant) {
+                        unusedImages.push(uploadedImages[index]);
+                        reusedVariants.push(matchedVariant);
+                        continue;
+                    }
+
+                    const [createdVariant] = await this._colorVariantRepository.createMany(tx, [{
+                        designId: design.id,
+                        colorName: color.colorName,
+                        colorHex: color.colorHex,
+                        normalizedColorName,
+                        imageUrl: uploadedImages[index].imageUrl,
+                        imagePublicId: uploadedImages[index].imagePublicId,
+                        // qrService isn't implemented yet; a random unique payload satisfies the
+                        // NOT NULL constraint without blocking variant creation on this feature
+                        qrPayload: randomUUID(),
+                        qrGeneratedAt: new Date(),
+                    }]);
+                    createdVariants.push(createdVariant);
+                }
 
                 //todo: service knows the persistent structure of design size introducing some coupling in open/close principle
                 // designSizes belong to a color variant (variantId), not the design directly —
-                // the same size set is applied to every variant created in this request
+                // the same size set is applied to every newly created variant in this request;
+                // pre-existing variants (colours already on the design) are left untouched.
                 const sizes = createdVariants.flatMap(variant =>
                     designSizes.map(size => ({
                         variantId: variant.id,
@@ -81,12 +145,80 @@ class DesignService {
                     ? await this._designSizeRepository.createMany(tx, sizes)
                     : [];
 
-                return { design, colorVariants: createdVariants, designSizes: createdSizes };
+                //todo: service knows the persistent structure of semi sets, same coupling as designSizes above
+                // Each semi set is created once per newly created variant, resolving its sizeLabels
+                // against that variant's just-created designSize rows (a semi set can't reference a
+                // size that isn't also part of the variant's own size list).
+                const createdSemiSets = [];
+                if (semiSets.length > 0 && createdVariants.length > 0) {
+                    const sizeIdByVariantAndLabel = new Map(
+                        createdSizes.map((size) => [`${size.variantId}:${size.sizeLabel}`, size.id])
+                    );
+                    // sizeLabels per (variantId, semi set label) — looked back up after insert since
+                    // designSemiSet rows don't carry sizeLabels themselves.
+                    const sizeLabelsByVariantAndLabel = new Map();
+                    for (const variant of createdVariants) {
+                        for (const semiSet of semiSets) {
+                            sizeLabelsByVariantAndLabel.set(`${variant.id}:${semiSet.label}`, semiSet.sizeLabels);
+                        }
+                    }
+
+                    const semiSetRows = createdVariants.flatMap((variant) =>
+                        semiSets.map((semiSet) => ({
+                            variantId: variant.id,
+                            label: semiSet.label,
+                            displayOrder: semiSet.displayOrder,
+                        }))
+                    );
+                    const insertedSemiSets = await this._designSemiSetRepository.createMany(tx, semiSetRows);
+
+                    const semiSetSizeRows = insertedSemiSets.flatMap((insertedSemiSet) => {
+                        const sizeLabels = sizeLabelsByVariantAndLabel.get(`${insertedSemiSet.variantId}:${insertedSemiSet.label}`) ?? [];
+                        return sizeLabels
+                            .map((sizeLabel) => sizeIdByVariantAndLabel.get(`${insertedSemiSet.variantId}:${sizeLabel}`))
+                            .filter(Boolean)
+                            .map((designSizeId) => ({ semiSetId: insertedSemiSet.id, designSizeId }));
+                    });
+                    if (semiSetSizeRows.length > 0) {
+                        await this._designSemiSetSizeRepository.createMany(tx, semiSetSizeRows);
+                    }
+
+                    createdSemiSets.push(...insertedSemiSets);
+                }
+
+                return {
+                    design,
+                    colorVariants: [...reusedVariants, ...createdVariants],
+                    designSizes: createdSizes,
+                    semiSets: createdSemiSets,
+                    isNewDesign: !existingDesign,
+                };
             });
+
+            if (unusedImages.length > 0) {
+                await this._mediaUploadService.deleteUploadedImages(unusedImages);
+            }
+
+            return result;
         } catch (error) {
             await this._mediaUploadService.deleteUploadedImages(uploadedImages);
-            throw error;
+            throw this._translateDuplicateError(error);
         }
+    }
+
+    // The pre-check above closes the normal-case race window; this only fires if two identical
+    // submissions land inside it concurrently (either two brand-new designs with the same
+    // pattern+code, or two requests adding the same new colour to the same existing design).
+    // Rewritten to the same friendly 409 so a genuine race is indistinguishable from the
+    // ordinary reject path — the DB's raw unique-violation detail is never shown to the user.
+    _translateDuplicateError(error) {
+        const constraint = error?.cause?.constraint ?? error?.originalError?.cause?.constraint;
+
+        if (constraint === DESIGN_IDENTITY_CONSTRAINT || constraint === COLOR_VARIANT_IDENTITY_CONSTRAINT) {
+            return new ApiError(DUPLICATE_DESIGN_MESSAGE, 409, "DESIGN_ALREADY_EXISTS");
+        }
+
+        return error;
     }
 
     async getAllDesigns({ page, limit }) {
@@ -221,6 +353,35 @@ class DesignService {
         }
 
         return this._designSizeRepository.findActiveByVariantId(db, colorVariantId);
+    }
+
+    // Named semi sets for a variant, each with its composing sizes resolved — Stock In's Set
+    // Matrix step uses this to offer "+ Add Semi Set" alongside the full set.
+    async getVariantSemiSets(colorVariantId) {
+        const variant = await this._colorVariantRepository.findActiveById(db, colorVariantId);
+        if (!variant) {
+            throw new ApiError(`Color variant ${colorVariantId} not found or inactive.`, 404, "VARIANT_NOT_FOUND");
+        }
+
+        const semiSets = await this._designSemiSetRepository.findByVariantId(db, colorVariantId);
+        if (semiSets.length === 0) return [];
+
+        const semiSetSizes = await this._designSemiSetSizeRepository.findBySemiSetIds(db, semiSets.map((semiSet) => semiSet.id));
+        const allSizes = await this._designSizeRepository.findActiveByVariantId(db, colorVariantId);
+        const sizeById = new Map(allSizes.map((size) => [size.id, size]));
+
+        const sizesBySemiSetId = new Map();
+        for (const semiSetSize of semiSetSizes) {
+            const size = sizeById.get(semiSetSize.designSizeId);
+            if (!size) continue;
+            if (!sizesBySemiSetId.has(semiSetSize.semiSetId)) sizesBySemiSetId.set(semiSetSize.semiSetId, []);
+            sizesBySemiSetId.get(semiSetSize.semiSetId).push(size);
+        }
+
+        return semiSets.map((semiSet) => ({
+            ...semiSet,
+            sizes: (sizesBySemiSetId.get(semiSet.id) ?? []).sort((a, b) => a.displayOrder - b.displayOrder),
+        }));
     }
 
     _groupVariantsByDesignId(variants) {

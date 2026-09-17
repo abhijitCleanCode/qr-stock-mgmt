@@ -10,7 +10,11 @@ class DesignController {
         try {
             const response = await this._designService.registerDesign(req.body, files);
 
-            return res.status(200).json(new ApiResponse(201, response, "Design registered successfully."));
+            const message = response.isNewDesign
+                ? "Design registered successfully."
+                : "Design code already exists — new colour variant added to the existing design.";
+
+            return res.status(200).json(new ApiResponse(201, response, message));
         } catch (error) {
             next(error);
         }
@@ -81,6 +85,18 @@ class DesignController {
             const response = await this._designService.getActiveVariantSizes(colorVariantId);
 
             return res.status(200).json(new ApiResponse(200, response, "Active sizes fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    getVariantSemiSets = async (req, res, next) => {
+        const { colorVariantId } = req.params;
+
+        try {
+            const response = await this._designService.getVariantSemiSets(colorVariantId);
+
+            return res.status(200).json(new ApiResponse(200, response, "Semi sets fetched successfully."));
         } catch (error) {
             next(error);
         }

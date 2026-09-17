@@ -6,6 +6,23 @@ import stockItemQrRepository from "../repositories/stockItemQr.repository.js";
 import stockInTransactionRepository from "../repositories/stockInTransaction.repository.js";
 import stockHistoryRepository from "../repositories/stockHistory.repository.js";
 import stockQrService from "./stockQr.service.js";
+import stockHistoryService from "./stockHistory.service.js";
+
+import rackRepository from "../repositories/rack.repository.js";
+import binRepository from "../repositories/bin.repository.js";
+import printerRepository from "../repositories/printer.repository.js";
+import printJobRepository from "../repositories/printJob.repository.js";
+import printJobItemRepository from "../repositories/printJobItem.repository.js";
+import reprintRequestRepository from "../repositories/reprintRequest.repository.js";
+import recoveryEntryRepository from "../repositories/recoveryEntry.repository.js";
+import tagPresetRepository from "../repositories/tagPreset.repository.js";
+import stockGroupRepository from "../repositories/stockGroup.repository.js";
+
+import designRepository from "../../design/repositories/design.repository.js";
+import designSizeRepository from "../../design/repositories/designSize.repository.js";
+import colorVariantRepository from "../../design/repositories/colorVariant.repository.js";
+
+import { generateUniqueShortCode } from "../utils/qrShortCode.util.js";
 
 // findByStockItemIds returns rows newest-first — keep only the first (latest) row per
 // stock item so a stock item with QR "history" (see stockItemQr.schema.js) still resolves
@@ -109,12 +126,75 @@ function resultStockItemIdsFromMetadata(event) {
     return [];
 }
 
+// Fixed small vocabulary (see stockItemQr.schema.js / reprintRequest.schema.js) surfaced
+// read-only from GET /qr-center/reference — never a table of their own, same rationale as
+// retiredReason not being a foreign key.
+const REASON_CODES = [
+    { code: "LOST", label: "Lost" },
+    { code: "TORN", label: "Torn" },
+    { code: "FADED", label: "Faded" },
+    { code: "REBAG", label: "Re-bag" },
+    { code: "JAM", label: "Jam" },
+    { code: "PRICE_CHANGE", label: "Price change" },
+];
+
+// Descriptive only (no auth module exists — see class-level comment in every schema's
+// `performedBy`/`raisedBy`/`createdBy` field) — purely informational copy for the reference
+// panel's role/capability legend.
+const PERMISSIONS = [
+    { role: "Godown Worker", capabilities: "Raise reprint requests, Scan & resolve codes" },
+    { role: "Back Office", capabilities: "Print batches, Manage queues, Accept stale" },
+    { role: "Supervisor", capabilities: "Approve recovery, Void labels, Rack reconcile" },
+];
+
+// Safety cap for in-memory bulk operations over a set of stock items (migration-run) — same
+// rationale/order-of-magnitude as REGISTRATION_SAFETY_CAP above.
+const BULK_SAFETY_CAP = 1000;
+
+// Recent-print window for the duplicate-print guard (print-check) — a code printed again inside
+// this window is surfaced as a likely accidental re-print, not a hard block.
+const PRINT_CHECK_WINDOW_MS = 15 * 60 * 1000;
+
+function daysSince(date) {
+    if (!date) return null;
+    const ms = Date.now() - new Date(date).getTime();
+    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+}
+
+function toMoneyString(value) {
+    if (value === null || value === undefined) return null;
+    return Number(value).toFixed(2);
+}
+
+function designView(context) {
+    return { id: context.designId, code: context.designCode, name: context.designName };
+}
+
+function variantView(context) {
+    return { id: context.colorVariantId, colorName: context.colorName, colorHex: context.colorHex };
+}
+
 class QrCenterService {
     _stockItemRepository = stockItemRepository;
     _stockItemQrRepository = stockItemQrRepository;
     _stockInTransactionRepository = stockInTransactionRepository;
     _stockHistoryRepository = stockHistoryRepository;
     _stockQrService = stockQrService;
+    _stockHistoryService = stockHistoryService;
+
+    _rackRepository = rackRepository;
+    _binRepository = binRepository;
+    _printerRepository = printerRepository;
+    _printJobRepository = printJobRepository;
+    _printJobItemRepository = printJobItemRepository;
+    _reprintRequestRepository = reprintRequestRepository;
+    _recoveryEntryRepository = recoveryEntryRepository;
+    _tagPresetRepository = tagPresetRepository;
+    _stockGroupRepository = stockGroupRepository;
+
+    _designRepository = designRepository;
+    _designSizeRepository = designSizeRepository;
+    _colorVariantRepository = colorVariantRepository;
 
     // QR Center listing: one row per stock EVENT that produced QR-eligible stock — a Stock In
     // transaction, or a loose-to-set/bundle transformation — not one row per QR. Each source is
@@ -306,6 +386,877 @@ class QrCenterService {
                 skipped,
             };
         });
+    }
+
+    // Shared by every bulk generator that mints fresh QRs for still-untagged SET/BUNDLE stock
+    // items (migration-run) — same variant-grouping rationale as generateForStockItemIds above,
+    // just always-run-inside-the-caller's-own-transaction rather than opening its own, so a
+    // bulk generator's printJob creation stays atomic with the QR rows it prints.
+    async _generateQrRowsForStockItemIds(tx, stockItemIds) {
+        const eligibleItems = await this._stockItemRepository.findEligibleByIds(tx, stockItemIds);
+
+        const groupsByVariant = new Map();
+        for (const item of eligibleItems) {
+            if (!groupsByVariant.has(item.colorVariantId)) groupsByVariant.set(item.colorVariantId, []);
+            groupsByVariant.get(item.colorVariantId).push(item);
+        }
+
+        const created = [];
+        for (const groupItems of groupsByVariant.values()) {
+            const { designCode, designName, colorName } = groupItems[0];
+            const rows = await this._stockQrService.generateForStockItems(
+                tx,
+                groupItems.map((item) => ({ id: item.stockItemId, type: item.type })),
+                { designCode, designName, colorName }
+            );
+            created.push(...rows);
+        }
+        return created;
+    }
+
+    // === 1. Resolve =========================================================================
+
+    // Resolves any scanned/typed code to one of six states. Never 404s — an unrecognized code is
+    // a valid UNKNOWN result, not an error (see QR_CENTER_API_CONTRACT.md §1). Read-only, so runs
+    // against `db` directly rather than opening a transaction.
+    async resolve(code) {
+        const rackRow = await this._rackRepository.findByCode(db, code);
+        if (rackRow) return this._resolveRackState(rackRow);
+
+        const qrRows = await this._stockItemQrRepository.findByShortCode(db, code);
+        if (qrRows.length === 0) return { state: "UNKNOWN", code };
+
+        const activeRows = qrRows.filter((row) => row.status === "ACTIVE");
+        const activeStockItemIds = [...new Set(activeRows.map((row) => row.stockItemId))];
+
+        if (activeStockItemIds.length > 1) return this._resolveDuplicateState(code, activeRows);
+        if (activeStockItemIds.length === 1) return this._resolveActiveState(activeRows[0]);
+
+        // No ACTIVE row for this shortCode at all — every match is retired history.
+        return this._resolveRetiredState(qrRows[0]);
+    }
+
+    async _resolveRackState(rackRow) {
+        const [{ expectedSets, scannedSets }, breakdown] = await Promise.all([
+            this._rackRepository.findSetCountsByRackId(db, rackRow.id),
+            this._rackRepository.findBreakdownByRackId(db, rackRow.id),
+        ]);
+
+        return {
+            state: "RACK",
+            rack: {
+                id: rackRow.id,
+                code: rackRow.code,
+                expectedSets,
+                scannedSets,
+                missing: expectedSets - scannedSets,
+                breakdown: breakdown.map((row) => ({
+                    designCode: row.designCode,
+                    colorName: row.colorName,
+                    colorHex: row.colorHex,
+                    sets: row.sets,
+                })),
+            },
+        };
+    }
+
+    async _resolveDuplicateState(code, activeRows) {
+        const recent = await this._printJobItemRepository.findRecentByQrIds(db, activeRows.map((row) => row.id), null);
+
+        const latestByQrId = new Map();
+        for (const row of recent) {
+            const existing = latestByQrId.get(row.stockItemQrId);
+            if (!existing || new Date(row.printedAt ?? 0) > new Date(existing.printedAt ?? 0)) {
+                latestByQrId.set(row.stockItemQrId, row);
+            }
+        }
+
+        return {
+            state: "DUPLICATE",
+            duplicate: {
+                shortCode: code,
+                events: activeRows.map((row) => {
+                    const match = latestByQrId.get(row.id);
+                    return {
+                        stockItemId: row.stockItemId,
+                        printJobId: match?.printJobId ?? null,
+                        printerName: match?.printerName ?? null,
+                        printedAt: match?.printedAt ?? null,
+                        createdBy: match?.printedBy ?? null,
+                    };
+                }),
+            },
+        };
+    }
+
+    async _resolveActiveState(activeRow) {
+        const context = await this._stockItemRepository.findWithContextById(db, activeRow.stockItemId);
+        if (!context) return { state: "UNKNOWN", code: activeRow.shortCode };
+
+        if (context.type === "SET" || context.type === "BUNDLE") return this._resolveSetState(activeRow, context);
+        if (context.type === "PIECE") return this._resolvePieceState(activeRow, context);
+
+        // LOOSE_PIECE (or any future type) is never individually QR-scanned — defensive fallback.
+        return { state: "UNKNOWN", code: activeRow.shortCode };
+    }
+
+    async _resolveSetState(activeRow, context) {
+        const activeSizes = await this._designSizeRepository.findActiveByVariantId(db, context.colorVariantId);
+        const setSizes = activeSizes.filter((size) => size.includedInSet);
+
+        // MRP = sum of each set-size's own price where snapshotted, falling back to the design's
+        // flat per-piece price for any size that predates unsetPricePerSize being populated.
+        const mrpValue = setSizes.reduce((sum, size) => {
+            const perPiece = size.unsetPricePerSize !== null ? Number(size.unsetPricePerSize) : Number(context.defaultSellingPricePerPiece);
+            return sum + perPiece;
+        }, 0);
+
+        return {
+            state: "SET",
+            set: {
+                shortCode: activeRow.shortCode,
+                stockItemId: context.stockItemId,
+                design: designView(context),
+                variant: variantView(context),
+                pieceCount: setSizes.length,
+                sizeLabels: setSizes.map((size) => size.sizeLabel),
+                rack: context.rackId ? { id: context.rackId, code: context.rackCode } : null,
+                sealedDays: daysSince(activeRow.generatedAt),
+                mrp: toMoneyString(mrpValue),
+            },
+        };
+    }
+
+    async _resolvePieceState(activeRow, context) {
+        let origin = "LOOSE_RECEIVED";
+        let originReason = null;
+        let parent = null;
+
+        if (context.originSetStockItemId) {
+            origin = "SET_BREAK";
+            const parentRows = await this._stockItemQrRepository.findByStockItemIds(db, [context.originSetStockItemId]);
+            if (parentRows.length > 0) {
+                const latestParentRow = parentRows[0]; // newest first
+                parent = { shortCode: latestParentRow.shortCode, stockItemId: context.originSetStockItemId };
+                originReason = latestParentRow.retiredReason ?? null;
+            }
+        }
+
+        return {
+            state: "PIECE",
+            piece: {
+                shortCode: activeRow.shortCode,
+                stockItemId: context.stockItemId,
+                design: designView(context),
+                variant: variantView(context),
+                sizeLabel: context.sizeLabel ?? null,
+                looseDays: daysSince(activeRow.generatedAt),
+                bin: context.binId ? { id: context.binId, code: context.binCode } : null,
+                origin,
+                originReason,
+                parent,
+            },
+        };
+    }
+
+    async _resolveRetiredState(latestRow) {
+        const successors = await this._stockItemRepository.findSuccessorsByOriginId(db, latestRow.stockItemId);
+
+        return {
+            state: "RETIRED",
+            retired: {
+                shortCode: latestRow.shortCode,
+                stockItemId: latestRow.stockItemId,
+                retiredAt: latestRow.retiredAt,
+                retiredReason: latestRow.retiredReason,
+                successors: successors.map((row) => ({
+                    shortCode: row.shortCode,
+                    stockItemId: row.stockItemId,
+                    sizeLabel: row.sizeLabel,
+                })),
+            },
+        };
+    }
+
+    // === 2. Health ===========================================================================
+
+    async getHealth() {
+        const [untaggedRows, reprintsPending, staleSummary, duplicateSuspectCount, unverifiedPrintJobs] = await Promise.all([
+            this._stockInTransactionRepository.findUntaggedRegistrations(db, { limit: BULK_SAFETY_CAP, offset: 0 }),
+            this._reprintRequestRepository.countByStatus(db, "PENDING"),
+            this._stockItemQrRepository.findStaleSummaryByDesign(db),
+            this._stockItemQrRepository.countDuplicateSuspects(db),
+            this._printJobRepository.countByStatus(db, "COMPLETED_UNVERIFIED"),
+        ]);
+
+        const untaggedBatches = untaggedRows.length;
+        const untaggedPieces = untaggedRows.reduce((sum, row) => sum + row.looseCount, 0);
+        const staleTagCount = staleSummary.reduce((sum, row) => sum + row.staleCount, 0);
+
+        return { untaggedBatches, untaggedPieces, reprintsPending, staleTagCount, duplicateSuspectCount, unverifiedPrintJobs };
+    }
+
+    // === 3. To-tag ===========================================================================
+
+    async listToTag({ page, limit }) {
+        const offset = (page - 1) * limit;
+        const [rows, total] = await Promise.all([
+            this._stockInTransactionRepository.findUntaggedRegistrations(db, { limit, offset }),
+            this._stockInTransactionRepository.countUntaggedRegistrations(db),
+        ]);
+
+        return {
+            data: rows.map((row) => ({
+                source: row.challanNo || `ST-${row.stockInTransactionId}`,
+                note: row.challanNo ? null : "skipped at Stock In",
+                design: { id: row.designId, code: row.designCode, name: row.designName },
+                variant: { id: row.colorVariantId, colorName: row.colorName, colorHex: row.colorHex },
+                sets: row.eligibleItemCount - row.qrGeneratedCount,
+                loose: row.looseCount,
+                ageDays: daysSince(row.stockDate),
+                // Untagged stock hasn't been placed on a rack yet — location is only assigned at
+                // QR-generation/tagging time (see stockItems.schema.js rackId comment).
+                location: null,
+                stockInTransactionId: row.stockInTransactionId,
+            })),
+            meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        };
+    }
+
+    // === 4. Reprints =========================================================================
+
+    async listReprints({ status, page, limit }) {
+        const offset = (page - 1) * limit;
+        const [rows, total] = await Promise.all([
+            this._reprintRequestRepository.findManyWithContext(db, { status, limit, offset }),
+            this._reprintRequestRepository.countByStatus(db, status),
+        ]);
+
+        return {
+            data: rows.map((row) => this._toReprintView(row)),
+            meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        };
+    }
+
+    _toReprintView(row) {
+        return {
+            id: row.id,
+            stockItemId: row.stockItemId,
+            stockItemQrId: row.stockItemQrId ?? null,
+            shortCode: row.shortCode ?? null,
+            design: { id: row.designId, code: row.designCode, name: row.designName },
+            variant: { id: row.colorVariantId, colorName: row.colorName, colorHex: row.colorHex },
+            reasonCode: row.reasonCode,
+            raisedBy: row.raisedBy,
+            rack: row.rackId ? { id: row.rackId, code: row.rackCode } : null,
+            ageDays: daysSince(row.createdAt),
+            status: row.status,
+        };
+    }
+
+    async createReprintRequest({ stockItemId, reasonCode, raisedBy, rackId }) {
+        return db.transaction(async (tx) => {
+            const item = await this._stockItemRepository.findById(tx, stockItemId);
+            if (!item) throw new ApiError(`Stock item ${stockItemId} not found.`, 404, "STOCK_ITEM_NOT_FOUND");
+
+            const created = await this._reprintRequestRepository.create(tx, {
+                stockItemId,
+                reasonCode,
+                raisedBy,
+                rackId: rackId ?? null,
+            });
+
+            const withContext = await this._reprintRequestRepository.findByIdWithContext(tx, created.id);
+            return this._toReprintView(withContext);
+        });
+    }
+
+    // Bulk "Print batch" — mints one fresh stockItemQr row per reprinted item (same shortCode,
+    // new generation event; see stockItemQr.schema.js), never retiring the prior row: a reprint
+    // is the same logical code reprinted, not a new identity.
+    async bulkPrintReprints({ reprintRequestIds, printerId }) {
+        return db.transaction(async (tx) => {
+            const printerRow = await this._printerRepository.findById(tx, printerId);
+            if (!printerRow) throw new ApiError(`Printer ${printerId} not found.`, 404, "PRINTER_NOT_FOUND");
+
+            const requests = await this._reprintRequestRepository.findByIds(tx, reprintRequestIds);
+            const pending = requests.filter((row) => row.status === "PENDING");
+            if (pending.length === 0) {
+                throw new ApiError("No pending reprint requests found for the given ids.", 400, "NO_PENDING_REPRINTS");
+            }
+
+            const existingQrRows = await this._stockItemQrRepository.findByStockItemIds(tx, pending.map((row) => row.stockItemId));
+            const latestActiveByStockItemId = new Map();
+            for (const row of existingQrRows) {
+                if (row.status !== "ACTIVE") continue;
+                if (!latestActiveByStockItemId.has(row.stockItemId)) latestActiveByStockItemId.set(row.stockItemId, row);
+            }
+
+            const reprintable = pending.filter((row) => latestActiveByStockItemId.has(row.stockItemId));
+            const newQrRows = reprintable.map((row) => {
+                const prior = latestActiveByStockItemId.get(row.stockItemId);
+                return {
+                    stockItemId: row.stockItemId,
+                    payload: prior.payload,
+                    shortCode: prior.shortCode,
+                    status: "ACTIVE",
+                    priceSnapshot: prior.priceSnapshot,
+                };
+            });
+            const createdQrRows = await this._stockItemQrRepository.createMany(tx, newQrRows);
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId,
+                jobType: "REPRINT",
+                status: "COMPLETED",
+                totalCount: createdQrRows.length,
+                createdBy: null,
+            });
+
+            await this._printJobItemRepository.createMany(tx, createdQrRows.map((row, index) => ({
+                printJobId: printJob.id,
+                stockItemQrId: row.id,
+                sequence: index + 1,
+                printedAt: new Date(),
+            })));
+
+            await this._reprintRequestRepository.markPrinted(tx, reprintable.map((row) => row.id));
+
+            return { printJob, reprintedCount: createdQrRows.length };
+        });
+    }
+
+    // === 5. Stale ============================================================================
+
+    async listStale() {
+        const rows = await this._stockItemQrRepository.findStaleSummaryByDesign(db);
+        return {
+            data: rows.map((row) => ({
+                designId: row.designId,
+                designCode: row.designCode,
+                currentPrice: toMoneyString(row.currentPrice),
+                staleCount: row.staleCount,
+                onHandCount: row.onHandCount,
+            })),
+        };
+    }
+
+    async staleReprint({ designId, scope }) {
+        return db.transaction(async (tx) => {
+            const designRow = await this._designRepository.findById(tx, designId);
+            if (!designRow) throw new ApiError(`Design ${designId} not found.`, 404, "DESIGN_NOT_FOUND");
+
+            const staleRows = await this._stockItemQrRepository.findStaleByDesign(tx, designId, { onHandOnly: scope === "ON_HAND" });
+            if (staleRows.length === 0) {
+                throw new ApiError(`No stale tags found for design ${designId} (scope ${scope}).`, 400, "NO_STALE_TAGS");
+            }
+
+            const freshPrice = toMoneyString(designRow.defaultSellingPricePerPiece);
+            const newQrRows = staleRows.map((row) => ({
+                stockItemId: row.stockItemId,
+                payload: row.payload,
+                shortCode: row.shortCode,
+                status: "ACTIVE",
+                priceSnapshot: freshPrice,
+            }));
+            const createdQrRows = await this._stockItemQrRepository.createMany(tx, newQrRows);
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId: null,
+                jobType: "REPRINT",
+                status: "COMPLETED",
+                totalCount: createdQrRows.length,
+                createdBy: null,
+            });
+
+            await this._printJobItemRepository.createMany(tx, createdQrRows.map((row, index) => ({
+                printJobId: printJob.id,
+                stockItemQrId: row.id,
+                sequence: index + 1,
+                printedAt: new Date(),
+            })));
+
+            return { printJob, reprintedCount: createdQrRows.length };
+        });
+    }
+
+    async staleAccept({ designId }) {
+        return db.transaction(async (tx) => {
+            const designRow = await this._designRepository.findById(tx, designId);
+            if (!designRow) throw new ApiError(`Design ${designId} not found.`, 404, "DESIGN_NOT_FOUND");
+
+            const acceptedCount = await this._stockItemQrRepository.acceptStaleByDesign(tx, designId);
+            return { acceptedCount };
+        });
+    }
+
+    // === 6. Recovery =========================================================================
+
+    async listRecovery({ status }) {
+        const rows = await this._recoveryEntryRepository.findMany(db, { status });
+        return {
+            data: rows.map((row) => ({
+                id: row.id,
+                status: row.status,
+                foundLocation: row.foundLocation,
+                notes: row.notes,
+                createdAt: row.createdAt,
+            })),
+        };
+    }
+
+    async createRecovery({ foundLocation, notes }) {
+        return this._recoveryEntryRepository.create(db, {
+            foundLocation: foundLocation ?? null,
+            notes: notes ?? null,
+            status: "PENDING",
+        });
+    }
+
+    // The deliberate, real duplicate-producing path (see recoveryEntry.schema.js) — an operator
+    // can assign an EXISTING shortCode to a second, newly-created physical stock item rather than
+    // minting a fresh one, which is exactly what the Resolver's DUPLICATE result exists to catch
+    // afterward. Gated on supervisorName + acknowledged for the same reason: this is deliberate
+    // UI friction around the one flow in this app that can genuinely corrupt QR uniqueness.
+    async assignRecoveryIdentity(id, { designId, colorVariantId, rackId, supervisorName, acknowledged, claimShortCode }) {
+        return db.transaction(async (tx) => {
+            const entry = await this._recoveryEntryRepository.findById(tx, id);
+            if (!entry) throw new ApiError(`Recovery entry ${id} not found.`, 404, "RECOVERY_ENTRY_NOT_FOUND");
+            if (entry.status === "ASSIGNED") {
+                throw new ApiError(`Recovery entry ${id} has already been assigned.`, 400, "RECOVERY_ENTRY_ALREADY_ASSIGNED");
+            }
+
+            const variant = await this._colorVariantRepository.findActiveById(tx, colorVariantId);
+            if (!variant || variant.designId !== designId) {
+                throw new ApiError(`Color variant ${colorVariantId} not found for design ${designId}.`, 404, "VARIANT_NOT_FOUND");
+            }
+
+            // A recovered anonymous find is always treated as an individually-tagged PIECE —
+            // never a sealed SET, which can only come from Stock In or assembly.
+            const pieceGroup = await this._stockGroupRepository.findOrCreate(tx, { colorVariantId, type: "PIECE" });
+            const [createdItem] = await this._stockItemRepository.createMany(tx, [{
+                stockGroupId: pieceGroup.id,
+                colorVariantId,
+                designSizeId: null,
+                stockInTransactionId: null,
+                bundleId: null,
+                type: "PIECE",
+                status: "AVAILABLE",
+                rackId: rackId ?? null,
+            }]);
+
+            let qrRow;
+            if (claimShortCode) {
+                const existingRows = await this._stockItemQrRepository.findByShortCode(tx, claimShortCode);
+                if (existingRows.length === 0) {
+                    throw new ApiError(`No existing QR found for code ${claimShortCode} to claim.`, 404, "CLAIM_SHORT_CODE_NOT_FOUND");
+                }
+                const template = existingRows[0];
+                qrRow = await this._stockItemQrRepository.create(tx, {
+                    stockItemId: createdItem.id,
+                    payload: template.payload,
+                    shortCode: claimShortCode,
+                    status: "ACTIVE",
+                    priceSnapshot: template.priceSnapshot,
+                });
+            } else {
+                const shortCode = await generateUniqueShortCode((candidate) => this._stockItemQrRepository.existsActiveShortCode(tx, candidate));
+                qrRow = await this._stockItemQrRepository.create(tx, {
+                    stockItemId: createdItem.id,
+                    payload: this._stockQrService.buildPayload({
+                        designCode: variant.designCode,
+                        designName: variant.designName,
+                        colorName: variant.colorName,
+                        stockItemId: createdItem.id,
+                    }),
+                    shortCode,
+                    status: "ACTIVE",
+                    priceSnapshot: null,
+                });
+            }
+
+            const updatedEntry = await this._recoveryEntryRepository.assign(tx, id, {
+                assignedStockItemId: createdItem.id,
+                supervisorName,
+                acknowledged,
+            });
+
+            return { recoveryEntry: updatedEntry, stockItem: createdItem, stockItemQr: qrRow };
+        });
+    }
+
+    // === 7. Jobs =============================================================================
+
+    async listJobs({ status, page, limit }) {
+        const offset = (page - 1) * limit;
+        const [rows, total] = await Promise.all([
+            this._printJobRepository.findMany(db, { status, limit, offset }),
+            this._printJobRepository.count(db, { status }),
+        ]);
+
+        return {
+            data: rows.map((row) => ({
+                id: row.id,
+                jobType: row.jobType,
+                printer: row.printerId ? { id: row.printerId, name: row.printerName } : null,
+                totalCount: row.totalCount,
+                jammedAtCount: row.jammedAtCount,
+                status: row.status,
+                createdBy: row.createdBy,
+                createdAt: row.createdAt,
+            })),
+            meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        };
+    }
+
+    async reprintJobRange(jobId, { fromSeq, toSeq }) {
+        return db.transaction(async (tx) => {
+            const job = await this._printJobRepository.findById(tx, jobId);
+            if (!job) throw new ApiError(`Print job ${jobId} not found.`, 404, "PRINT_JOB_NOT_FOUND");
+
+            const items = await this._printJobItemRepository.findByJobIdAndSeqRange(tx, jobId, fromSeq, toSeq);
+            if (items.length === 0) {
+                throw new ApiError(`No items found in job ${jobId} for sequence range ${fromSeq}-${toSeq}.`, 400, "NO_ITEMS_IN_RANGE");
+            }
+
+            const newQrRows = items.map((item) => ({
+                stockItemId: item.stockItemId,
+                payload: item.payload,
+                shortCode: item.shortCode,
+                status: "ACTIVE",
+                priceSnapshot: item.priceSnapshot,
+            }));
+            const createdQrRows = await this._stockItemQrRepository.createMany(tx, newQrRows);
+
+            const newJob = await this._printJobRepository.create(tx, {
+                printerId: job.printerId,
+                jobType: job.jobType,
+                status: "COMPLETED",
+                totalCount: createdQrRows.length,
+                createdBy: job.createdBy,
+            });
+
+            await this._printJobItemRepository.createMany(tx, createdQrRows.map((row, index) => ({
+                printJobId: newJob.id,
+                stockItemQrId: row.id,
+                sequence: index + 1,
+                printedAt: new Date(),
+            })));
+
+            return { printJob: newJob };
+        });
+    }
+
+    async verifyJobSample(jobId) {
+        return db.transaction(async (tx) => {
+            const updated = await this._printJobRepository.verify(tx, jobId);
+            if (updated) return updated;
+
+            const current = await this._printJobRepository.findById(tx, jobId);
+            if (!current) throw new ApiError(`Print job ${jobId} not found.`, 404, "PRINT_JOB_NOT_FOUND");
+            if (current.status === "COMPLETED") return current; // idempotent
+
+            throw new ApiError(`Print job ${jobId} is not in COMPLETED_UNVERIFIED status.`, 400, "PRINT_JOB_NOT_UNVERIFIED");
+        });
+    }
+
+    // === 8. Break set ========================================================================
+
+    async breakSet({ stockItemId, reasonCode, note }) {
+        return db.transaction(async (tx) => {
+            const context = await this._stockItemRepository.findWithContextById(tx, stockItemId);
+            if (!context) throw new ApiError(`Stock item ${stockItemId} not found.`, 404, "STOCK_ITEM_NOT_FOUND");
+            if (context.type !== "SET" && context.type !== "BUNDLE") {
+                throw new ApiError(`Stock item ${stockItemId} is not a SET/BUNDLE and cannot be broken.`, 400, "NOT_BREAKABLE");
+            }
+
+            const activeQr = await this._stockItemQrRepository.findLatestActiveByStockItemId(tx, stockItemId);
+            if (!activeQr) throw new ApiError(`Stock item ${stockItemId} has no active QR to break.`, 400, "NO_ACTIVE_QR");
+
+            const activeSizes = await this._designSizeRepository.findActiveByVariantId(tx, context.colorVariantId);
+            const setSizes = activeSizes.filter((size) => size.includedInSet);
+            if (setSizes.length === 0) {
+                throw new ApiError(`Color variant ${context.colorVariantId} has no sizes configured as part of a set.`, 400, "NO_SET_SIZES");
+            }
+
+            const pieceGroup = await this._stockGroupRepository.findOrCreate(tx, { colorVariantId: context.colorVariantId, type: "PIECE" });
+
+            const createdItems = await this._stockItemRepository.createMany(tx, setSizes.map((size) => ({
+                stockGroupId: pieceGroup.id,
+                colorVariantId: context.colorVariantId,
+                designSizeId: size.id,
+                stockInTransactionId: null,
+                bundleId: null,
+                type: "PIECE",
+                status: "AVAILABLE",
+                originSetStockItemId: stockItemId,
+            })));
+
+            const successors = [];
+            for (let i = 0; i < createdItems.length; i++) {
+                const item = createdItems[i];
+                const size = setSizes[i];
+                const shortCode = await generateUniqueShortCode((candidate) => this._stockItemQrRepository.existsActiveShortCode(tx, candidate));
+
+                await this._stockItemQrRepository.create(tx, {
+                    stockItemId: item.id,
+                    payload: this._stockQrService.buildPayload({
+                        designCode: context.designCode,
+                        designName: context.designName,
+                        colorName: context.colorName,
+                        stockItemId: item.id,
+                    }),
+                    shortCode,
+                    status: "ACTIVE",
+                    priceSnapshot: size.unsetPricePerSize,
+                });
+
+                successors.push({ shortCode, sizeLabel: size.sizeLabel, stockItemId: item.id });
+            }
+
+            // Original SET's own `status` column is deliberately left AVAILABLE — CONSUMED is
+            // reserved for assembly-consumption elsewhere; its QR going RETIRED is what makes it
+            // inert for scanning (see stockItems.schema.js originSetStockItemId comment).
+            await this._stockItemQrRepository.retireActiveByStockItemId(tx, stockItemId, { retiredReason: reasonCode });
+
+            const resultStockItemIds = createdItems.map((item) => item.id);
+            await this._stockHistoryService.record(tx, "SET_BROKEN", {
+                colorVariantId: context.colorVariantId,
+                resultStockItemId: null,
+                quantity: resultStockItemIds.length,
+                metadata: { sourceStockItemId: stockItemId, resultStockItemIds, reasonCode, note: note ?? null },
+            });
+
+            return { retiredShortCode: activeQr.shortCode, successors };
+        });
+    }
+
+    // === 9. Bulk generators ==================================================================
+
+    async runBulkGenerator(kind, body) {
+        switch (kind) {
+            case "migration-run": return this._bulkMigrationRun(body);
+            case "rack-bin-labels": return this._bulkRackBinLabels(body);
+            case "rebag-rack": return this._bulkRebagRack(body);
+            case "tour-manifest": return this._bulkTourManifest(body);
+            case "void-labels": return this._bulkVoidLabels(body);
+            default: throw new ApiError(`Unknown bulk generator kind: ${kind}.`, 400, "UNKNOWN_BULK_KIND");
+        }
+    }
+
+    // Deviation from the contract doc's "legacy racks" scoping: this schema has no notion of a
+    // legacy rack (racks are a flat, undifferentiated table — see rack.schema.js), so this
+    // targets every currently untagged SET/BUNDLE stock item network-wide instead.
+    async _bulkMigrationRun({ printerId }) {
+        if (!printerId) throw new ApiError("printerId is required.", 400, "PRINTER_ID_REQUIRED");
+
+        return db.transaction(async (tx) => {
+            const printerRow = await this._printerRepository.findById(tx, printerId);
+            if (!printerRow) throw new ApiError(`Printer ${printerId} not found.`, 404, "PRINTER_NOT_FOUND");
+
+            const untaggedIds = await this._stockItemRepository.findUntaggedIds(tx, { limit: BULK_SAFETY_CAP });
+            if (untaggedIds.length === 0) throw new ApiError("No untagged stock found to migrate.", 400, "NOTHING_TO_MIGRATE");
+
+            const generated = await this._generateQrRowsForStockItemIds(tx, untaggedIds.map((row) => row.stockItemId));
+            if (generated.length === 0) throw new ApiError("No untagged stock found to migrate.", 400, "NOTHING_TO_MIGRATE");
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId,
+                jobType: "QR_GENERATE",
+                status: "COMPLETED",
+                totalCount: generated.length,
+                createdBy: null,
+            });
+
+            await this._printJobItemRepository.createMany(tx, generated.map((row, index) => ({
+                printJobId: printJob.id,
+                stockItemQrId: row.id,
+                sequence: index + 1,
+                printedAt: new Date(),
+            })));
+
+            return { printJob };
+        });
+    }
+
+    async _bulkRackBinLabels({ printerId }) {
+        if (!printerId) throw new ApiError("printerId is required.", 400, "PRINTER_ID_REQUIRED");
+
+        return db.transaction(async (tx) => {
+            const printerRow = await this._printerRepository.findById(tx, printerId);
+            if (!printerRow) throw new ApiError(`Printer ${printerId} not found.`, 404, "PRINTER_NOT_FOUND");
+
+            const [racks, bins] = await Promise.all([
+                this._rackRepository.findAll(tx),
+                this._binRepository.findAll(tx),
+            ]);
+            const totalCount = racks.length + bins.length;
+            if (totalCount === 0) throw new ApiError("No racks or bins found to label.", 400, "NOTHING_TO_LABEL");
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId,
+                jobType: "RACK_BIN_LABEL",
+                status: "COMPLETED",
+                totalCount,
+                createdBy: null,
+            });
+
+            return { printJob };
+        });
+    }
+
+    async _bulkRebagRack({ rackId, printerId }) {
+        if (!rackId) throw new ApiError("rackId is required.", 400, "RACK_ID_REQUIRED");
+        if (!printerId) throw new ApiError("printerId is required.", 400, "PRINTER_ID_REQUIRED");
+
+        return db.transaction(async (tx) => {
+            const rackRow = await this._rackRepository.findById(tx, rackId);
+            if (!rackRow) throw new ApiError(`Rack ${rackId} not found.`, 404, "RACK_NOT_FOUND");
+
+            const printerRow = await this._printerRepository.findById(tx, printerId);
+            if (!printerRow) throw new ApiError(`Printer ${printerId} not found.`, 404, "PRINTER_NOT_FOUND");
+
+            const activeQrs = await this._stockItemQrRepository.findActiveByRackId(tx, rackId);
+            if (activeQrs.length === 0) throw new ApiError(`No tagged stock found in rack ${rackId} to rebag.`, 400, "NOTHING_TO_REBAG");
+
+            const createdQrRows = await this._stockItemQrRepository.createMany(tx, activeQrs.map((row) => ({
+                stockItemId: row.stockItemId,
+                payload: row.payload,
+                shortCode: row.shortCode,
+                status: "ACTIVE",
+                priceSnapshot: row.priceSnapshot,
+            })));
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId,
+                jobType: "REPRINT",
+                status: "COMPLETED",
+                totalCount: createdQrRows.length,
+                createdBy: null,
+            });
+
+            await this._printJobItemRepository.createMany(tx, createdQrRows.map((row, index) => ({
+                printJobId: printJob.id,
+                stockItemQrId: row.id,
+                sequence: index + 1,
+                printedAt: new Date(),
+            })));
+
+            return { printJob };
+        });
+    }
+
+    async _bulkTourManifest({ stockItemIds }) {
+        if (!Array.isArray(stockItemIds) || stockItemIds.length === 0) {
+            throw new ApiError("stockItemIds is required.", 400, "STOCK_ITEM_IDS_REQUIRED");
+        }
+
+        return db.transaction(async (tx) => {
+            const items = await this._stockItemRepository.findByIds(tx, stockItemIds);
+            if (items.length === 0) throw new ApiError("None of the given stock items were found.", 404, "STOCK_ITEMS_NOT_FOUND");
+
+            const activeQrs = await this._stockItemQrRepository.findByStockItemIds(tx, items.map((item) => item.id));
+            const latestActiveByItem = new Map();
+            for (const row of activeQrs) {
+                if (row.status !== "ACTIVE") continue;
+                if (!latestActiveByItem.has(row.stockItemId)) latestActiveByItem.set(row.stockItemId, row);
+            }
+
+            const qrRowsInOrder = stockItemIds.map((id) => latestActiveByItem.get(id)).filter(Boolean);
+            if (qrRowsInOrder.length === 0) {
+                throw new ApiError("None of the given stock items have an active QR to manifest.", 400, "NO_ACTIVE_QR_FOR_MANIFEST");
+            }
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId: null,
+                jobType: "TOUR_MANIFEST",
+                status: "COMPLETED",
+                totalCount: qrRowsInOrder.length,
+                createdBy: null,
+            });
+
+            await this._printJobItemRepository.createMany(tx, qrRowsInOrder.map((row, index) => ({
+                printJobId: printJob.id,
+                stockItemQrId: row.id,
+                sequence: index + 1,
+                printedAt: new Date(),
+            })));
+
+            return { printJob };
+        });
+    }
+
+    async _bulkVoidLabels({ stockInTransactionId, printerId }) {
+        if (!stockInTransactionId) throw new ApiError("stockInTransactionId is required.", 400, "STOCK_IN_TRANSACTION_ID_REQUIRED");
+        if (!printerId) throw new ApiError("printerId is required.", 400, "PRINTER_ID_REQUIRED");
+
+        return db.transaction(async (tx) => {
+            const printerRow = await this._printerRepository.findById(tx, printerId);
+            if (!printerRow) throw new ApiError(`Printer ${printerId} not found.`, 404, "PRINTER_NOT_FOUND");
+
+            const items = await this._stockItemRepository.findByStockInTransactionId(tx, stockInTransactionId);
+            if (items.length === 0) {
+                throw new ApiError(`Stock-in transaction ${stockInTransactionId} not found or has no stock items.`, 404, "STOCK_IN_TRANSACTION_NOT_FOUND");
+            }
+
+            let retiredCount = 0;
+            for (const item of items) {
+                const retired = await this._stockItemQrRepository.retireActiveByStockItemId(tx, item.id, { retiredReason: "VOID" });
+                retiredCount += retired.length;
+            }
+            if (retiredCount === 0) {
+                throw new ApiError(`No active QR labels found for stock-in transaction ${stockInTransactionId} to void.`, 400, "NOTHING_TO_VOID");
+            }
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId,
+                jobType: "VOID",
+                status: "COMPLETED",
+                totalCount: retiredCount,
+                createdBy: null,
+            });
+
+            return { printJob };
+        });
+    }
+
+    // === 10. Print-check =====================================================================
+
+    async printCheck({ stockItemQrIds }) {
+        const since = new Date(Date.now() - PRINT_CHECK_WINDOW_MS);
+        const matches = await this._printJobItemRepository.findRecentByQrIds(db, stockItemQrIds, since);
+
+        return {
+            recentMatches: matches.map((row) => ({
+                stockItemQrId: row.stockItemQrId,
+                printJobId: row.printJobId,
+                printedBy: row.printedBy,
+                printedAt: row.printedAt,
+            })),
+            matchedCount: matches.length,
+        };
+    }
+
+    // === 11. Reference =======================================================================
+
+    async getReference() {
+        const [printers, tagPresets] = await Promise.all([
+            this._printerRepository.findAllActive(db),
+            this._tagPresetRepository.findAllWithContext(db),
+        ]);
+
+        return {
+            printers: printers.map((row) => ({ id: row.id, name: row.name, location: row.location, isActive: row.isActive })),
+            reasonCodes: REASON_CODES,
+            permissions: PERMISSIONS,
+            tagPresets: tagPresets.map((row) => ({
+                designId: row.designId,
+                designCode: row.designCode,
+                presetName: row.presetName,
+                mediaSize: row.mediaSize,
+                defaultPrinter: row.defaultPrinterName ?? null,
+            })),
+        };
     }
 }
 

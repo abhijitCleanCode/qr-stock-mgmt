@@ -1,6 +1,6 @@
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
-export const registerDesignApi = async ({ colorVariants, designSizes, images, ...designData }) => {
+export const registerDesignApi = async ({ colorVariants, designSizes, semiSets = [], images, ...designData }) => {
     const formData = new FormData();
 
     Object.entries(designData).forEach(([key, value]) => {
@@ -11,6 +11,7 @@ export const registerDesignApi = async ({ colorVariants, designSizes, images, ..
 
     formData.append("colorVariants", JSON.stringify(colorVariants));
     formData.append("designSizes", JSON.stringify(designSizes));
+    formData.append("semiSets", JSON.stringify(semiSets));
 
     images.forEach((image) => formData.append("images", image));
 
@@ -105,6 +106,18 @@ export const getActiveColorVariantSizesApi = async (colorVariantId) => {
 
     if (!response.ok) {
         throw new Error(data?.error?.message ?? "Failed to fetch active sizes.");
+    }
+
+    return data;
+};
+
+export const getVariantSemiSetsApi = async (colorVariantId) => {
+    const response = await fetch(`${baseURL}/designs/color-variants/${colorVariantId}/semi-sets`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to fetch semi sets.");
     }
 
     return data;

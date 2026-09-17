@@ -3,6 +3,8 @@ export * from "../modules/design/schemas/quality.schema.js";
 export * from "../modules/design/schemas/pattern.schema.js";
 export * from "../modules/design/schemas/design.schema.js";
 export * from "../modules/design/schemas/designSize.schema.js";
+export * from "../modules/design/schemas/designSemiSet.schema.js";
+export * from "../modules/design/schemas/designSemiSetSize.schema.js";
 
 export * from "../modules/design/schemas/colorVariant.schema.js";
 
@@ -23,6 +25,15 @@ export * from "../modules/inventory/schemas/variantStatusTransaction.schema.js";
 export * from "../modules/stock/schemas/stockItemQr.schema.js";
 
 export * from "../modules/stock/schemas/stockHistory.schema.js";
+
+export * from "../modules/stock/schemas/rack.schema.js";
+export * from "../modules/stock/schemas/bin.schema.js";
+export * from "../modules/stock/schemas/printer.schema.js";
+export * from "../modules/stock/schemas/printJob.schema.js";
+export * from "../modules/stock/schemas/printJobItem.schema.js";
+export * from "../modules/stock/schemas/reprintRequest.schema.js";
+export * from "../modules/stock/schemas/recoveryEntry.schema.js";
+export * from "../modules/stock/schemas/tagPreset.schema.js";
 
 export * from "../modules/order/schemas/orderForm.schema.js";
 export * from "../modules/order/schemas/orderFormItem.schema.js";

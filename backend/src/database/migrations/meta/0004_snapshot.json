@@ -1,14 +1,225 @@
 {
-<<<<<<< HEAD
-  "id": "b91e8f3a-3554-43ff-9531-b6568a871743",
-  "prevId": "3d85301c-f757-4278-8c13-de355945f211",
-=======
-  "id": "2083517c-97dc-4a29-afc0-dca604693c6f",
-  "prevId": "43e400c8-bd1f-4de3-8402-b56fe5a6693c",
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
+  "id": "9e92d767-b98a-4b40-9815-75fc0397e30e",
+  "prevId": "387d459b-c93c-4c58-8e48-f060fa5d3d7e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.jobbers": {
+      "name": "jobbers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "jobbers_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_name": {
+          "name": "normalized_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "jobbers_normalized_name_unique_idx": {
+          "name": "jobbers_normalized_name_unique_idx",
+          "columns": [
+            {
+              "expression": "normalized_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.qualities": {
+      "name": "qualities",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "qualities_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_name": {
+          "name": "normalized_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "qualities_normalized_name_unique_idx": {
+          "name": "qualities_normalized_name_unique_idx",
+          "columns": [
+            {
+              "expression": "normalized_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.patterns": {
+      "name": "patterns",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "patterns_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_name": {
+          "name": "normalized_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "patterns_normalized_name_unique_idx": {
+          "name": "patterns_normalized_name_unique_idx",
+          "columns": [
+            {
+              "expression": "normalized_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.designs": {
       "name": "designs",
       "schema": "",
@@ -36,13 +247,24 @@
           "primaryKey": false,
           "notNull": true
         },
+        "pattern_id": {
+          "name": "pattern_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "code": {
           "name": "code",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
-<<<<<<< HEAD
+        "normalized_code": {
+          "name": "normalized_code",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "item_name": {
           "name": "item_name",
           "type": "varchar(255)",
@@ -55,17 +277,23 @@
           "primaryKey": false,
           "notNull": false
         },
-=======
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
+        "quality_id": {
+          "name": "quality_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "jobber_id": {
+          "name": "jobber_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "default_cost_price_per_piece": {
           "name": "default_cost_price_per_piece",
           "type": "integer",
           "primaryKey": false,
-<<<<<<< HEAD
           "notNull": false
-=======
-          "notNull": true
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         },
         "default_selling_price_per_piece": {
           "name": "default_selling_price_per_piece",
@@ -94,8 +322,70 @@
           "default": "now()"
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "designs_pattern_id_normalized_code_unique_idx": {
+          "name": "designs_pattern_id_normalized_code_unique_idx",
+          "columns": [
+            {
+              "expression": "pattern_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "normalized_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "designs_pattern_id_patterns_id_fk": {
+          "name": "designs_pattern_id_patterns_id_fk",
+          "tableFrom": "designs",
+          "tableTo": "patterns",
+          "columnsFrom": [
+            "pattern_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "designs_quality_id_qualities_id_fk": {
+          "name": "designs_quality_id_qualities_id_fk",
+          "tableFrom": "designs",
+          "tableTo": "qualities",
+          "columnsFrom": [
+            "quality_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "designs_jobber_id_jobbers_id_fk": {
+          "name": "designs_jobber_id_jobbers_id_fk",
+          "tableFrom": "designs",
+          "tableTo": "jobbers",
+          "columnsFrom": [
+            "jobber_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -192,6 +482,154 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.design_semi_sets": {
+      "name": "design_semi_sets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "design_semi_sets_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_order": {
+          "name": "display_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "design_semi_sets_variant_id_color_variants_id_fk": {
+          "name": "design_semi_sets_variant_id_color_variants_id_fk",
+          "tableFrom": "design_semi_sets",
+          "tableTo": "color_variants",
+          "columnsFrom": [
+            "variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.design_semi_set_sizes": {
+      "name": "design_semi_set_sizes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "design_semi_set_sizes_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "semi_set_id": {
+          "name": "semi_set_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "design_size_id": {
+          "name": "design_size_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "design_semi_set_sizes_semi_set_id_design_semi_sets_id_fk": {
+          "name": "design_semi_set_sizes_semi_set_id_design_semi_sets_id_fk",
+          "tableFrom": "design_semi_set_sizes",
+          "tableTo": "design_semi_sets",
+          "columnsFrom": [
+            "semi_set_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "design_semi_set_sizes_design_size_id_design_sizes_id_fk": {
+          "name": "design_semi_set_sizes_design_size_id_design_sizes_id_fk",
+          "tableFrom": "design_semi_set_sizes",
+          "tableTo": "design_sizes",
+          "columnsFrom": [
+            "design_size_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "design_semi_set_sizes_semi_set_id_design_size_id_unique": {
+          "name": "design_semi_set_sizes_semi_set_id_design_size_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "semi_set_id",
+            "design_size_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.color_variants": {
       "name": "color_variants",
       "schema": "",
@@ -228,6 +666,12 @@
         "color_hex": {
           "name": "color_hex",
           "type": "varchar(7)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "normalized_color_name": {
+          "name": "normalized_color_name",
+          "type": "varchar(100)",
           "primaryKey": false,
           "notNull": true
         },
@@ -277,7 +721,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "color_variants_design_id_normalized_color_name_unique_idx": {
+          "name": "color_variants_design_id_normalized_color_name_unique_idx",
+          "columns": [
+            {
+              "expression": "design_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "normalized_color_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "color_variants_design_id_designs_id_fk": {
           "name": "color_variants_design_id_designs_id_fk",
@@ -332,15 +798,12 @@
           "primaryKey": false,
           "notNull": true
         },
-<<<<<<< HEAD
         "challan_no": {
           "name": "challan_no",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-=======
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         "total_sets_received": {
           "name": "total_sets_received",
           "type": "integer",
@@ -958,6 +1421,22 @@
           "method": "btree",
           "with": {}
         },
+        "stock_groups_piece_unique_idx": {
+          "name": "stock_groups_piece_unique_idx",
+          "columns": [
+            {
+              "expression": "color_variant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"stock_groups\".\"type\" = 'PIECE'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "stock_groups_bundle_unique_idx": {
           "name": "stock_groups_bundle_unique_idx",
           "columns": [
@@ -1096,6 +1575,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rack_id": {
+          "name": "rack_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bin_id": {
+          "name": "bin_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origin_set_stock_item_id": {
+          "name": "origin_set_stock_item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -1140,6 +1637,36 @@
           "columns": [
             {
               "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stock_items_rack_id_idx": {
+          "name": "stock_items_rack_id_idx",
+          "columns": [
+            {
+              "expression": "rack_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stock_items_origin_set_stock_item_id_idx": {
+          "name": "stock_items_origin_set_stock_item_id_idx",
+          "columns": [
+            {
+              "expression": "origin_set_stock_item_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1215,6 +1742,45 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "stock_items_rack_id_racks_id_fk": {
+          "name": "stock_items_rack_id_racks_id_fk",
+          "tableFrom": "stock_items",
+          "tableTo": "racks",
+          "columnsFrom": [
+            "rack_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "stock_items_bin_id_bins_id_fk": {
+          "name": "stock_items_bin_id_bins_id_fk",
+          "tableFrom": "stock_items",
+          "tableTo": "bins",
+          "columnsFrom": [
+            "bin_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "stock_items_origin_set_stock_item_id_stock_items_id_fk": {
+          "name": "stock_items_origin_set_stock_item_id_stock_items_id_fk",
+          "tableFrom": "stock_items",
+          "tableTo": "stock_items",
+          "columnsFrom": [
+            "origin_set_stock_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1546,6 +2112,44 @@
           "primaryKey": false,
           "notNull": true
         },
+        "short_code": {
+          "name": "short_code",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "stock_item_qr_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "retired_at": {
+          "name": "retired_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "retired_reason": {
+          "name": "retired_reason",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_snapshot": {
+          "name": "price_snapshot",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_accepted_at": {
+          "name": "price_accepted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
         "generated_at": {
           "name": "generated_at",
           "type": "timestamp",
@@ -1560,6 +2164,36 @@
           "columns": [
             {
               "expression": "stock_item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stock_item_qr_short_code_idx": {
+          "name": "stock_item_qr_short_code_idx",
+          "columns": [
+            {
+              "expression": "short_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stock_item_qr_status_idx": {
+          "name": "stock_item_qr_status_idx",
+          "columns": [
+            {
+              "expression": "status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1644,15 +2278,12 @@
           "primaryKey": false,
           "notNull": false
         },
-<<<<<<< HEAD
-=======
         "stock_out_transaction_id": {
           "name": "stock_out_transaction_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
         "quantity": {
           "name": "quantity",
           "type": "integer",
@@ -1799,8 +2430,6 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-<<<<<<< HEAD
-=======
         },
         "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk": {
           "name": "stock_history_stock_out_transaction_id_stock_out_transactions_id_fk",
@@ -1818,6 +2447,774 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.racks": {
+      "name": "racks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "racks_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "racks_code_unique": {
+          "name": "racks_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bins": {
+      "name": "bins",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "bins_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "rack_id": {
+          "name": "rack_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "bins_rack_id_idx": {
+          "name": "bins_rack_id_idx",
+          "columns": [
+            {
+              "expression": "rack_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bins_rack_id_racks_id_fk": {
+          "name": "bins_rack_id_racks_id_fk",
+          "tableFrom": "bins",
+          "tableTo": "racks",
+          "columnsFrom": [
+            "rack_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "bins_code_unique": {
+          "name": "bins_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.printers": {
+      "name": "printers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "printers_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model": {
+          "name": "model",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location": {
+          "name": "location",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.print_jobs": {
+      "name": "print_jobs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "print_jobs_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "printer_id": {
+          "name": "printer_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "job_type": {
+          "name": "job_type",
+          "type": "print_job_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "print_job_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_count": {
+          "name": "total_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "jammed_at_count": {
+          "name": "jammed_at_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verified_at": {
+          "name": "verified_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "print_jobs_printer_id_printers_id_fk": {
+          "name": "print_jobs_printer_id_printers_id_fk",
+          "tableFrom": "print_jobs",
+          "tableTo": "printers",
+          "columnsFrom": [
+            "printer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.print_job_items": {
+      "name": "print_job_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "print_job_items_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "print_job_id": {
+          "name": "print_job_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stock_item_qr_id": {
+          "name": "stock_item_qr_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence": {
+          "name": "sequence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "printed_at": {
+          "name": "printed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "print_job_items_print_job_id_idx": {
+          "name": "print_job_items_print_job_id_idx",
+          "columns": [
+            {
+              "expression": "print_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "print_job_items_stock_item_qr_id_idx": {
+          "name": "print_job_items_stock_item_qr_id_idx",
+          "columns": [
+            {
+              "expression": "stock_item_qr_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "print_job_items_print_job_id_print_jobs_id_fk": {
+          "name": "print_job_items_print_job_id_print_jobs_id_fk",
+          "tableFrom": "print_job_items",
+          "tableTo": "print_jobs",
+          "columnsFrom": [
+            "print_job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "print_job_items_stock_item_qr_id_stock_item_qr_id_fk": {
+          "name": "print_job_items_stock_item_qr_id_stock_item_qr_id_fk",
+          "tableFrom": "print_job_items",
+          "tableTo": "stock_item_qr",
+          "columnsFrom": [
+            "stock_item_qr_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reprint_requests": {
+      "name": "reprint_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "reprint_requests_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "stock_item_id": {
+          "name": "stock_item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason_code": {
+          "name": "reason_code",
+          "type": "reprint_reason_code",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raised_by": {
+          "name": "raised_by",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rack_id": {
+          "name": "rack_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "reprint_request_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "reprint_requests_status_idx": {
+          "name": "reprint_requests_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "reprint_requests_stock_item_id_idx": {
+          "name": "reprint_requests_stock_item_id_idx",
+          "columns": [
+            {
+              "expression": "stock_item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reprint_requests_stock_item_id_stock_items_id_fk": {
+          "name": "reprint_requests_stock_item_id_stock_items_id_fk",
+          "tableFrom": "reprint_requests",
+          "tableTo": "stock_items",
+          "columnsFrom": [
+            "stock_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "reprint_requests_rack_id_racks_id_fk": {
+          "name": "reprint_requests_rack_id_racks_id_fk",
+          "tableFrom": "reprint_requests",
+          "tableTo": "racks",
+          "columnsFrom": [
+            "rack_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.recovery_entries": {
+      "name": "recovery_entries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "recovery_entries_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "status": {
+          "name": "status",
+          "type": "recovery_entry_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "found_location": {
+          "name": "found_location",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_stock_item_id": {
+          "name": "assigned_stock_item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supervisor_name": {
+          "name": "supervisor_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acknowledged": {
+          "name": "acknowledged",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "recovery_entries_status_idx": {
+          "name": "recovery_entries_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "recovery_entries_assigned_stock_item_id_stock_items_id_fk": {
+          "name": "recovery_entries_assigned_stock_item_id_stock_items_id_fk",
+          "tableFrom": "recovery_entries",
+          "tableTo": "stock_items",
+          "columnsFrom": [
+            "assigned_stock_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tag_presets": {
+      "name": "tag_presets",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "tag_presets_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "design_id": {
+          "name": "design_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preset_name": {
+          "name": "preset_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "media_size": {
+          "name": "media_size",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_printer_id": {
+          "name": "default_printer_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tag_presets_design_id_designs_id_fk": {
+          "name": "tag_presets_design_id_designs_id_fk",
+          "tableFrom": "tag_presets",
+          "tableTo": "designs",
+          "columnsFrom": [
+            "design_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tag_presets_default_printer_id_printers_id_fk": {
+          "name": "tag_presets_default_printer_id_printers_id_fk",
+          "tableFrom": "tag_presets",
+          "tableTo": "printers",
+          "columnsFrom": [
+            "default_printer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tag_presets_design_id_unique": {
+          "name": "tag_presets_design_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "design_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2003,7 +3400,102 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.order_form_photos": {
+      "name": "order_form_photos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "order_form_photos_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "order_form_id": {
+          "name": "order_form_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_public_id": {
+          "name": "image_public_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "order_form_photo_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'UPLOADED'"
+        },
+        "color_variant_id": {
+          "name": "color_variant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "order_form_photos_order_form_id_order_forms_id_fk": {
+          "name": "order_form_photos_order_form_id_order_forms_id_fk",
+          "tableFrom": "order_form_photos",
+          "tableTo": "order_forms",
+          "columnsFrom": [
+            "order_form_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "order_form_photos_color_variant_id_color_variants_id_fk": {
+          "name": "order_form_photos_color_variant_id_color_variants_id_fk",
+          "tableFrom": "order_form_photos",
+          "tableTo": "color_variants",
+          "columnsFrom": [
+            "color_variant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2020,7 +3512,8 @@
       "values": [
         "SET",
         "BUNDLE",
-        "LOOSE_PIECE"
+        "LOOSE_PIECE",
+        "PIECE"
       ]
     },
     "public.stock_item_status": {
@@ -2049,17 +3542,72 @@
         "MANUAL_ADJUSTMENT"
       ]
     },
+    "public.stock_item_qr_status": {
+      "name": "stock_item_qr_status",
+      "schema": "public",
+      "values": [
+        "ACTIVE",
+        "RETIRED"
+      ]
+    },
     "public.stock_history_event_type": {
       "name": "stock_history_event_type",
       "schema": "public",
       "values": [
         "STOCK_IN",
         "SET_ASSEMBLED",
-<<<<<<< HEAD
-        "BUNDLE_ASSEMBLED"
-=======
         "BUNDLE_ASSEMBLED",
-        "STOCK_OUT"
+        "STOCK_OUT",
+        "SET_BROKEN"
+      ]
+    },
+    "public.print_job_status": {
+      "name": "print_job_status",
+      "schema": "public",
+      "values": [
+        "COMPLETED",
+        "JAMMED",
+        "QUEUED_OFFLINE",
+        "COMPLETED_UNVERIFIED"
+      ]
+    },
+    "public.print_job_type": {
+      "name": "print_job_type",
+      "schema": "public",
+      "values": [
+        "QR_GENERATE",
+        "REPRINT",
+        "RACK_BIN_LABEL",
+        "TOUR_MANIFEST",
+        "VOID"
+      ]
+    },
+    "public.reprint_reason_code": {
+      "name": "reprint_reason_code",
+      "schema": "public",
+      "values": [
+        "LOST",
+        "TORN",
+        "FADED",
+        "REBAG",
+        "JAM",
+        "PRICE_CHANGE"
+      ]
+    },
+    "public.reprint_request_status": {
+      "name": "reprint_request_status",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "PRINTED"
+      ]
+    },
+    "public.recovery_entry_status": {
+      "name": "recovery_entry_status",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "ASSIGNED"
       ]
     },
     "public.order_form_status": {
@@ -2078,7 +3626,14 @@
       "values": [
         "SET",
         "LOOSE_PIECE"
->>>>>>> fe0fda8b1819bc4c383b59f229a3b47b2578ba65
+      ]
+    },
+    "public.order_form_photo_source": {
+      "name": "order_form_photo_source",
+      "schema": "public",
+      "values": [
+        "UPLOADED",
+        "DESIGN"
       ]
     }
   },

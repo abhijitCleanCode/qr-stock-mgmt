@@ -1,5 +1,6 @@
 import { useFieldArray } from "react-hook-form";
 import { Plus, X } from "lucide-react";
+import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +15,26 @@ import {
 import { useModal } from "@/components/shared/ModalProvider";
 import VariantModal from "./VariantModal";
 
-const Variants = ({ control }) => {
+const Variants = ({ control, existingDesignByCode }) => {
     const { openModal } = useModal();
     const { fields, append, remove } = useFieldArray({ control, name: "colorVariants" });
 
-    const handleAddVariant = () => openModal(VariantModal, { onAdd: append });
+    // Design code + colour together already exist on this design — adding it here would be a
+    // full duplicate the backend will reject anyway, so block it at the point of entry instead.
+    const handleAddVariant = () => openModal(VariantModal, {
+        onAdd: (variant) => {
+            const alreadyExists = (existingDesignByCode?.colorVariants ?? []).some(
+                (existing) => existing.colorName.trim().toLowerCase() === variant.colorName.trim().toLowerCase()
+            );
+
+            if (alreadyExists) {
+                toast.error(`"${variant.colorName}" already exists for design code "${existingDesignByCode.code}". Choose a different colour.`);
+                return;
+            }
+
+            append(variant);
+        },
+    });
 
     if (fields.length === 0) {
         return (

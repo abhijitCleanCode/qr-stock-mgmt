@@ -1,8 +1,12 @@
-import { and, count, desc, eq, ilike, inArray, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { stockItem } from "../schemas/stockItems.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
+import { designSize } from "../../design/schemas/designSize.schema.js";
+import { rack } from "../schemas/rack.schema.js";
+import { bin } from "../schemas/bin.schema.js";
+import { stockItemQr } from "../schemas/stockItemQr.schema.js";
 
 // Shared by every current-stock aggregate below: CONSUMED source items were transformed into a
 // replacement stock item (set/bundle assembly) and must not also be counted themselves — see
@@ -49,6 +53,82 @@ class StockItemRepository {
     async findById(tx, id) {
         const [result] = await tx.select().from(stockItem).where(eq(stockItem.id, id)).limit(1);
         return result;
+    }
+
+    // Full Resolver context for one stock item: design/variant identity, its size (PIECE only),
+    // and its current rack/bin placement — every field the QR Center Resolver's SET/PIECE result
+    // needs, in one query rather than the Resolver stitching several repositories together.
+    async findWithContextById(tx, id) {
+        const [result] = await tx.select({
+            stockItemId: stockItem.id,
+            type: stockItem.type,
+            status: stockItem.status,
+            colorVariantId: stockItem.colorVariantId,
+            designSizeId: stockItem.designSizeId,
+            rackId: stockItem.rackId,
+            binId: stockItem.binId,
+            originSetStockItemId: stockItem.originSetStockItemId,
+            createdAt: stockItem.createdAt,
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+            defaultSellingPricePerPiece: design.defaultSellingPricePerPiece,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            sizeLabel: designSize.sizeLabel,
+            unsetPricePerSize: designSize.unsetPricePerSize,
+            rackCode: rack.code,
+            binCode: bin.code,
+        }).from(stockItem)
+            .innerJoin(colorVariant, eq(stockItem.colorVariantId, colorVariant.id))
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .leftJoin(designSize, eq(stockItem.designSizeId, designSize.id))
+            .leftJoin(rack, eq(stockItem.rackId, rack.id))
+            .leftJoin(bin, eq(stockItem.binId, bin.id))
+            .where(eq(stockItem.id, id))
+            .limit(1);
+        return result;
+    }
+
+    async findByIds(tx, ids) {
+        if (ids.length === 0) return [];
+        return tx.select().from(stockItem).where(inArray(stockItem.id, ids));
+    }
+
+    // Break Set successors — PIECE stock items created out of a broken SET (see
+    // originSetStockItemId in stockItems.schema.js), joined to each one's current ACTIVE QR for
+    // the Resolver's RETIRED result and the break-set response itself.
+    async findSuccessorsByOriginId(tx, originStockItemId) {
+        return tx.select({
+            stockItemId: stockItem.id,
+            sizeLabel: designSize.sizeLabel,
+            shortCode: stockItemQr.shortCode,
+        }).from(stockItem)
+            .leftJoin(designSize, eq(stockItem.designSizeId, designSize.id))
+            .leftJoin(stockItemQr, and(eq(stockItemQr.stockItemId, stockItem.id), eq(stockItemQr.status, "ACTIVE")))
+            .where(eq(stockItem.originSetStockItemId, originStockItemId));
+    }
+
+    async updateLocation(tx, id, { rackId, binId }) {
+        const [result] = await tx.update(stockItem).set({ rackId, binId }).where(eq(stockItem.id, id)).returning();
+        return result;
+    }
+
+    async findByStockInTransactionId(tx, stockInTransactionId) {
+        return tx.select().from(stockItem).where(eq(stockItem.stockInTransactionId, stockInTransactionId));
+    }
+
+    // "Migration run" bulk generator: SET/BUNDLE stock items that have never had a QR generated
+    // at all (no stock_item_qr row of any status) — a stricter/simpler definition than the
+    // to-tag registration query above, since this targets individual items directly rather than
+    // whole registrations.
+    async findUntaggedIds(tx, { limit }) {
+        const rows = await tx.select({ stockItemId: stockItem.id }).from(stockItem)
+            .leftJoin(stockItemQr, eq(stockItemQr.stockItemId, stockItem.id))
+            .where(and(inArray(stockItem.type, ["SET", "BUNDLE"]), ne(stockItem.status, "CONSUMED"), isNull(stockItemQr.id)))
+            .groupBy(stockItem.id)
+            .limit(limit);
+        return rows;
     }
 
     async updateStatusIfCurrentAndFlippable(tx, id, { form, to, unsetAt }) {
