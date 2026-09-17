@@ -1,5 +1,6 @@
 import stockItemQrRepository from "../repositories/stockItemQr.repository.js";
 import ApiError from "../../../core/apiError.js";
+import { generateUniqueShortCode } from "../utils/qrShortCode.util.js";
 
 const QR_ELIGIBLE_TYPES = new Set(["SET", "BUNDLE"]);
 
@@ -22,10 +23,20 @@ class StockQrService {
         const eligibleItems = stockItems.filter((item) => QR_ELIGIBLE_TYPES.has(item.type));
         if (eligibleItems.length === 0) return [];
 
-        const rows = eligibleItems.map((item) => ({
-            stockItemId: item.id,
-            payload: this.buildPayload({ designCode, designName, colorName, stockItemId: item.id }),
-        }));
+        // Every ACTIVE row needs its own collision-checked shortCode (see qrShortCode.util.js) —
+        // generated sequentially so `existsActiveShortCode` sees each prior pick in this same
+        // batch, same pattern as qrCenter.service.js's single-item generation path.
+        const rows = [];
+        for (const item of eligibleItems) {
+            const shortCode = await generateUniqueShortCode((candidate) =>
+                this._stockItemQrRepository.existsActiveShortCode(tx, candidate)
+            );
+            rows.push({
+                stockItemId: item.id,
+                payload: this.buildPayload({ designCode, designName, colorName, stockItemId: item.id }),
+                shortCode,
+            });
+        }
 
         return this._stockItemQrRepository.createMany(tx, rows);
     }

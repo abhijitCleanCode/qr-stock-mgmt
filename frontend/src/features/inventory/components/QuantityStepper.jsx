@@ -38,7 +38,7 @@ const QuantityStepper = ({ value, onChange, min = 0, max = Infinity, id }) => {
         inputMode="numeric"
         min={min}
         max={Number.isFinite(max) ? max : undefined}
-        value={value}
+        value={value || ""}
         onChange={handleInputChange}
         className="h-11 w-16 text-center text-base"
       />

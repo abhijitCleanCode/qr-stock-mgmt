@@ -14,6 +14,7 @@ export const stockHistoryEventTypeEnum = pgEnum("stock_history_event_type", [
     "SET_ASSEMBLED",
     "BUNDLE_ASSEMBLED",
     "STOCK_OUT",
+    "SET_BROKEN",
 ]);
 
 // Append-only log of stock movement events — what happened, and when, not current state.

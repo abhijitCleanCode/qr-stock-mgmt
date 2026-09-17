@@ -7,7 +7,7 @@ const toCompositionArray = (record) =>
 
 const hasStock = (config) =>
   config.totalSetsReceived > 0 ||
-  config.bundles.some((bundle) => toCompositionArray(bundle.composition).length > 0) ||
+  config.bundles.some((bundle) => bundle.quantity > 0 && toCompositionArray(bundle.composition).length > 0) ||
   toCompositionArray(config.loosePieces).length > 0;
 
 // Flattens the per-variant config map (keyed by UI-only variantKey) into the
@@ -29,6 +29,7 @@ export function buildStockInPayload(selectedVariants, configs, { deliveryDate, c
       challanNo: challanNo.trim(),
       totalSetsReceived: config.totalSetsReceived,
       bundles: config.bundles
+        .filter((bundle) => bundle.quantity > 0)
         .map(({ quantity, composition }) => ({
           quantity,
           composition: toCompositionArray(composition),

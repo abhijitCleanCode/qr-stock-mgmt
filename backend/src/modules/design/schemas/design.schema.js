@@ -1,4 +1,4 @@
-import { integer, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { integer, pgTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import { jobber } from "./jobber.schema.js";
 import { quality } from "./quality.schema.js";
 import { pattern } from "./pattern.schema.js";
@@ -12,6 +12,12 @@ export const design = pgTable("designs", {
     patternId: integer("pattern_id").references(() => pattern.id),
 
     code: varchar("code", { length: 255 }),
+
+    // trim + lowercase form of `code`, computed in the repository before insert — backs the
+    // unique index below so re-registering the same pattern+code is rejected as a duplicate
+    // instead of creating a second design row (see DesignService.registerDesign). Null when
+    // code is blank — designs without a code aren't deduplicated against each other.
+    normalizedCode: varchar("normalized_code", { length: 255 }),
 
     itemName: varchar("item_name", { length: 255 }),
 
@@ -35,4 +41,10 @@ export const design = pgTable("designs", {
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()),
-});
+},
+    (table) => [
+        // patternId + normalizedCode identifies a design (see DesignRepository.findByIdentity).
+        // Postgres treats each NULL as distinct, so rows with no code are exempt.
+        uniqueIndex("designs_pattern_id_normalized_code_unique_idx").on(table.patternId, table.normalizedCode),
+    ]
+);

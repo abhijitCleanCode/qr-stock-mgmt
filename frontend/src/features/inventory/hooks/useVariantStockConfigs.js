@@ -27,14 +27,14 @@ export function useVariantStockConfigs() {
     }));
   }, []);
 
-  const addBundle = useCallback((variantKey, { quantity, composition }) => {
+  const addBundle = useCallback((variantKey, { quantity, composition, label }) => {
     setConfigs((prev) => ({
       ...prev,
       [variantKey]: {
         ...prev[variantKey],
         bundles: [
           ...prev[variantKey].bundles,
-          { localId: createLocalId(), quantity, composition },
+          { localId: createLocalId(), quantity, composition, label },
         ],
       },
     }));
