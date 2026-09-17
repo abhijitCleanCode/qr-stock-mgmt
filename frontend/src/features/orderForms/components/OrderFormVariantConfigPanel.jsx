@@ -54,7 +54,7 @@ const OrderFormVariantConfigPanel = ({
                 inputMode="decimal"
                 min={0}
                 step="0.01"
-                value={config.looseUnitPrice}
+                value={config.looseUnitPrice || ""}
                 onChange={(event) => onSetLooseUnitPrice(parseNonNegativeNumber(event.target.value))}
                 className="h-9 w-24 text-center text-base"
               />

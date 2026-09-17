@@ -27,8 +27,6 @@ const flattenToVariantItems = (designs) =>
       colorVariantId: variant.id,
       designCode: design.code,
       designName: design.name,
-      designQuality: design.quality,
-      designItemName: design.itemName,
       colorName: variant.colorName,
       colorHex: variant.colorHex,
       imageUrl: variant.imageUrl,
@@ -61,15 +59,11 @@ const getVariantLabel = (item) =>
 const isSameVariant = (item, other) =>
   item?.designId === other?.designId && item?.colorVariantId === other?.colorVariantId;
 
-const DEFAULT_INPUT_CLASSNAME =
-  "neu-pressed h-10 rounded-full border-none bg-transparent shadow-none **:data-[slot=input-group-control]:pl-9";
-
 const DesignSearchInput = ({
   onSelect,
   placeholder = "Search by design code or name...",
   disabled = false,
   id,
-  inputClassName = DEFAULT_INPUT_CLASSNAME,
 }) => {
   // Remounting on every selection resets the input text, the debounced keyword, and the
   // popover's open/highlight state all at once, so the component is immediately ready for
@@ -88,12 +82,11 @@ const DesignSearchInput = ({
       placeholder={placeholder}
       disabled={disabled}
       onSelect={handleSelect}
-      inputClassName={inputClassName}
     />
   );
 };
 
-const DesignSearchInputSession = ({ onSelect, placeholder, disabled, id, inputClassName }) => {
+const DesignSearchInputSession = ({ onSelect, placeholder, disabled, id }) => {
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const keyword = debouncedQuery.trim();
@@ -126,7 +119,7 @@ const DesignSearchInputSession = ({ onSelect, placeholder, disabled, id, inputCl
         disabled={disabled}
         showTrigger={false}
         showClear
-        className={inputClassName}
+        className="neu-pressed h-10 rounded-full border-none bg-transparent shadow-none **:data-[slot=input-group-control]:pl-9"
       >
         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
       </ComboboxInput>

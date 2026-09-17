@@ -27,7 +27,7 @@ const SizeQuantityGrid = ({ sizes, values, onChange, readOnly = false }) => {
             type="number"
             inputMode="numeric"
             min={0}
-            value={values[size.id] ?? 0}
+            value={values[size.id] || ""}
             onChange={readOnly ? undefined : (event) => handleChange(size.id, event.target.value)}
             disabled={readOnly}
             className="h-11 w-full text-center text-base"

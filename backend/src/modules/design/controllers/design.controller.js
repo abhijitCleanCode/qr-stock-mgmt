@@ -89,6 +89,18 @@ class DesignController {
             next(error);
         }
     }
+
+    getVariantSemiSets = async (req, res, next) => {
+        const { colorVariantId } = req.params;
+
+        try {
+            const response = await this._designService.getVariantSemiSets(colorVariantId);
+
+            return res.status(200).json(new ApiResponse(200, response, "Semi sets fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new DesignController();

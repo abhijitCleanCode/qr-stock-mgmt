@@ -23,13 +23,22 @@ const DesignWizard = () => {
     const [existingDesignByCode, setExistingDesignByCode] = useState(null);
 
     const onSubmit = async (data) => {
-        const { colorVariants = [], sizes = [], ...designData } = data;
+        const { colorVariants = [], sizes = [], semiSets = [], ...designData } = data;
 
         const designSizes = sizes.map((sizeLabel, index) => ({
             sizeLabel,
             displayOrder: index,
             includedInSet: true,
         }));
+
+        // Blank labels or sizeless entries are left-behind form state, not real semi sets.
+        const semiSetsPayload = semiSets
+            .filter((semiSet) => semiSet.label?.trim() && semiSet.sizeLabels?.length > 0)
+            .map((semiSet, index) => ({
+                label: semiSet.label.trim(),
+                displayOrder: index,
+                sizeLabels: semiSet.sizeLabels,
+            }));
 
         // Last-resort client-side gate: if every submitted colour already exists on the matched
         // design, this submission has nothing new in it — the backend would reject it as a full
@@ -53,6 +62,7 @@ const DesignWizard = () => {
                 ...designData,
                 colorVariants: colorVariants.map(({ colorName, colorHex }) => ({ colorName, colorHex })),
                 designSizes,
+                semiSets: semiSetsPayload,
                 images: colorVariants.map((variant) => variant.imageFile),
             });
 

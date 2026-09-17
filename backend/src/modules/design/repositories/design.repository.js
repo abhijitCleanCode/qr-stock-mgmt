@@ -60,6 +60,8 @@ class DesignRepository {
                 id: design.id,
                 code: design.code,
                 name: design.name,
+                quality: design.quality,
+                itemName: design.itemName,
                 defaultSellingPricePerPiece: design.defaultSellingPricePerPiece,
             })
             .from(design)

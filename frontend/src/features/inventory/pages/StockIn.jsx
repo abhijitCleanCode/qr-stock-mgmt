@@ -1,14 +1,20 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import DesignSearchInput from "../components/DesignSearchInput";
-import VariantStockCard from "../components/VariantStockCard";
+import StockInStepper from "../components/stock-in/StockInStepper";
+import StockInWizardNavigation from "../components/stock-in/StockInWizardNavigation";
+import { useStockInWizard } from "../hooks/useStockInWizard";
 import { useVariantStockConfigs } from "../hooks/useVariantStockConfigs";
 import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
 import { buildStockInPayload } from "../utils/buildStockInPayload";
 import { getVariantKey } from "../utils/variantKey";
+import InwardDetailsStep from "../steps/stockIn/InwardDetailsStep";
+import SetMatrixStep from "../steps/stockIn/SetMatrixStep";
+import QcDefectStep from "../steps/stockIn/QcDefectStep";
+import QrTagStudioStep from "../steps/stockIn/QrTagStudioStep";
+import SummaryStep from "../steps/stockIn/SummaryStep";
+
+const STOCK_IN_DRAFT_KEY = "stockIn.draft.v1";
 
 // "YYYY-MM-DD" in the user's own local calendar day — never via `new Date().toISOString()`,
 // which reads UTC and can report yesterday's/tomorrow's date depending on the local offset.
@@ -21,138 +27,296 @@ function todayAsIsoDate() {
 }
 
 const StockIn = () => {
-  const [selectedVariants, setSelectedVariants] = useState([]);
-  // Accordion behavior: at most one card expanded at a time, so registering a variant
-  // and moving to the next one never requires scrolling past everyone else's config.
-  const [expandedVariantKey, setExpandedVariantKey] = useState(null);
-  // One Delivery Date + Challan No. per registration submission, applied to every design/variant
-  // in it — same convention the backend already uses for stockDate (see stockIn.validator.js).
-  const [deliveryDate, setDeliveryDate] = useState(todayAsIsoDate);
+  const [jobber, setJobber] = useState({ id: null, name: "" });
   const [challanNo, setChallanNo] = useState("");
+  const [challanDate, setChallanDate] = useState(todayAsIsoDate);
+
+  const [selectedVariants, setSelectedVariants] = useState([]);
+  // All variants added against one inward batch share the same Job Work/Design reference, so
+  // the selling price registered on that design (fetched via DesignSearchInput) applies to the
+  // whole batch — taken from the first variant added rather than re-entered by hand.
+  const sellingPricePerPiece = selectedVariants[0]?.sellingPricePerPiece ?? 0;
   const {
     configs,
     ensureConfig,
     setTotalSetsReceived,
+    setLoosePieces,
     addBundle,
     updateBundle,
     removeBundle,
-    setLoosePieces,
     reset: resetConfigs,
   } = useVariantStockConfigs();
 
-  const { mutateAsync: registerStockIn, isPending } = useStockInRegisterApi();
-
-  const handleSelect = (variant) => {
-    const key = getVariantKey(variant);
-
-    setSelectedVariants((prev) =>
-      prev.some((item) => getVariantKey(item) === key) ? prev : [...prev, variant]
-    );
-    ensureConfig(variant);
-    // Newly picked variant opens for entry immediately — no separate "make active" step.
-    setExpandedVariantKey(key);
+  // Per-variant derived totals (sets/loose/garments), reported up by each SetMatrixVariantCard
+  // once it knows its own active sizes — single source of truth consumed by QC, QR Tag Studio
+  // and Summary so every step stays dynamically linked to what was actually entered in Step 2.
+  const [variantTotals, setVariantTotals] = useState({});
+  const handleVariantTotalsChange = (key, totals) => {
+    setVariantTotals((prev) => ({ ...prev, [key]: totals }));
   };
 
-  const handleRegisterStockIn = async () => {
-    if (!deliveryDate) {
-      toast.error("Delivery Date is required.");
-      return;
+  // QC overrides per variant — only holds fields the user has actually hand-edited. Until
+  // touched, Passed keeps auto-syncing to the live "expected" (garments) total from Step 2
+  // (resolved into `qcByKey` below), same as the reference workflow's live recalculation.
+  const [qcOverridesByKey, setQcOverridesByKey] = useState({});
+  const qcByKey = useMemo(() => {
+    const resolved = {};
+    for (const [key, totals] of Object.entries(variantTotals)) {
+      const override = qcOverridesByKey[key];
+      resolved[key] = {
+        passed: override?.passed ?? totals.garmentsTotal,
+        defects: override?.defects ?? 0,
+        category: override?.category ?? "No defect detected",
+      };
     }
+    return resolved;
+  }, [variantTotals, qcOverridesByKey]);
 
-    if (!challanNo.trim()) {
-      toast.error("Challan No. is required.");
-      return;
+  const handleQcFieldChange = (key, patch) => {
+    setQcOverridesByKey((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  };
+
+  const [defectAction, setDefectAction] = useState("seconds");
+  const [qcRemarks, setQcRemarks] = useState("");
+
+  // "parent" | "parentChild" | "custom" — QR Tag Studio's tagging strategy. Per-variant
+  // include/child-tag overrides only apply when strategy is "custom"; QrTagStudioStep
+  // defaults any variant missing from this map to { included: true, childTags: false }.
+  const [printStrategy, setPrintStrategy] = useState("parent");
+  const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
+  const [printer, setPrinter] = useState("TSC TE244 Thermal Roll (50x30mm) [Bluetooth]");
+
+  const toggleVariantIncluded = (key) => {
+    setQrPerVariantSettings((prev) => {
+      const current = prev[key] ?? { included: true, childTags: false };
+      return { ...prev, [key]: { ...current, included: !current.included } };
+    });
+  };
+
+  const toggleVariantChildTags = (key) => {
+    setQrPerVariantSettings((prev) => {
+      const current = prev[key] ?? { included: true, childTags: false };
+      return { ...prev, [key]: { ...current, childTags: !current.childTags } };
+    });
+  };
+
+  const { mutateAsync: registerStockIn, isPending } = useStockInRegisterApi();
+
+  const handleAddVariant = (variant) => {
+    const key = getVariantKey(variant);
+    setSelectedVariants((prev) => (prev.some((item) => getVariantKey(item) === key) ? prev : [...prev, variant]));
+    ensureConfig(variant);
+  };
+
+  const omitKey = (record, key) =>
+    Object.fromEntries(Object.entries(record).filter(([recordKey]) => recordKey !== key));
+
+  const handleRemoveVariant = (variant) => {
+    const key = getVariantKey(variant);
+    setSelectedVariants((prev) => prev.filter((item) => getVariantKey(item) !== key));
+    setVariantTotals((prev) => omitKey(prev, key));
+    setQcOverridesByKey((prev) => omitKey(prev, key));
+    setQrPerVariantSettings((prev) => omitKey(prev, key));
+  };
+
+  const resetAll = () => {
+    setSelectedVariants([]);
+    resetConfigs();
+    setVariantTotals({});
+    setQcOverridesByKey({});
+    setJobber({ id: null, name: "" });
+    setChallanNo("");
+    setChallanDate(todayAsIsoDate());
+    setDefectAction("seconds");
+    setQcRemarks("");
+    setPrintStrategy("parent");
+    setQrPerVariantSettings({});
+  };
+
+  const canAdvance = (step) => {
+    if (step === 0) {
+      if (!challanNo.trim()) {
+        toast.error("Jobber Delivery Challan No. is required.");
+        return false;
+      }
+      if (selectedVariants.length === 0) {
+        toast.error("Add at least one design colour variant before continuing.");
+        return false;
+      }
+      return true;
     }
+    if (step === 1) {
+      const totalGarments = Object.values(variantTotals).reduce((sum, item) => sum + item.garmentsTotal, 0);
+      if (totalGarments === 0) {
+        toast.error("Enter at least one full set or loose piece before continuing.");
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
 
-    const payload = buildStockInPayload(selectedVariants, configs, { deliveryDate, challanNo });
+  const wizard = useStockInWizard(canAdvance);
+
+  const handleConfirmInward = async () => {
+    const payload = buildStockInPayload(selectedVariants, configs, { deliveryDate: challanDate, challanNo });
 
     if (payload.designs.length === 0) {
       toast.error("Enter stock for at least one variant before registering.");
       return;
     }
 
+    const totalSets = Object.values(variantTotals).reduce((sum, item) => sum + item.setsTotal, 0);
+    const totalPassed = Object.values(qcByKey).reduce((sum, item) => sum + (Number(item.passed) || 0), 0);
+
     try {
       await registerStockIn(payload);
-      toast.success("Stock registered successfully.");
-      setSelectedVariants([]);
-      setExpandedVariantKey(null);
-      resetConfigs();
-      setChallanNo("");
-      setDeliveryDate(todayAsIsoDate());
+      toast.success(
+        `Stock Inward confirmed! Spooling ${totalSets} Parent & ${totalPassed} Child QR tags to ${printer.split(" [")[0]}...`
+      );
+      localStorage.removeItem(STOCK_IN_DRAFT_KEY);
+      resetAll();
+      wizard.setActiveStep(0);
     } catch (error) {
       toast.error(error?.message ?? "Couldn't register stock. Please try again.");
     }
   };
 
+  const handleNext = () => {
+    if (wizard.activeStep === 4) {
+      handleConfirmInward();
+      return;
+    }
+    wizard.next();
+  };
+
+  const handleSaveDraft = () => {
+    try {
+      const draft = {
+        jobber,
+        challanNo,
+        challanDate,
+        selectedVariants,
+        configs,
+        qcOverridesByKey,
+        defectAction,
+        qcRemarks,
+        printStrategy,
+        qrPerVariantSettings,
+        printer,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(STOCK_IN_DRAFT_KEY, JSON.stringify(draft));
+      toast.success("Stock inward batch draft saved on this device.");
+    } catch {
+      toast.error("Couldn't save draft — your browser may be blocking local storage.");
+    }
+  };
+
+  // No physical printer/driver integration exists yet — this is an honest frontend
+  // simulation (toast only), not a real call to hardware. See useStockInRegisterApi for the
+  // one thing that IS real here: the QR short codes themselves are generated server-side on
+  // Confirm, so whatever eventually drives real printing has real codes to print.
+  const handleTestPrint = (tagId) => {
+    toast.success(`Test label ${tagId ? `(${tagId}) ` : ""}sent to ${printer.split(" [")[0]}.`);
+  };
+
   return (
-    <div className="flex flex-col font-sans space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-[#1E1B4B] tracking-tight">Stock In</h1>
+    <div className="mx-auto flex min-h-[640px] w-full max-w-5xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8">
+      <div className="mb-6 space-y-5 border-b border-slate-100 pb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>
+          <p className="mt-0.5 text-xs text-slate-500 md:text-sm">
+            Log received stock from Jobbers &amp; generate inventory QR tags.
+          </p>
+        </div>
+
+        <StockInStepper activeStep={wizard.activeStep} setActiveStep={wizard.setActiveStep} />
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="flex flex-1 flex-col gap-2.5">
-          <label className="text-sm font-medium" htmlFor="delivery-date">Date of Delivery</label>
-          <Input
-            id="delivery-date"
-            type="date"
-            value={deliveryDate}
-            onChange={(event) => setDeliveryDate(event.target.value)}
+      <div className="flex-1">
+        {wizard.activeStep === 0 && (
+          <InwardDetailsStep
+            jobber={jobber}
+            onJobberChange={setJobber}
+            challanNo={challanNo}
+            onChallanNoChange={setChallanNo}
+            challanDate={challanDate}
+            onChallanDateChange={setChallanDate}
+            selectedVariants={selectedVariants}
+            onAddVariant={handleAddVariant}
+            onRemoveVariant={handleRemoveVariant}
+            sellingPricePerPiece={sellingPricePerPiece}
           />
-        </div>
+        )}
 
-        <div className="flex flex-1 flex-col gap-2.5">
-          <label className="text-sm font-medium" htmlFor="challan-no">Challan No.</label>
-          <Input
-            id="challan-no"
-            type="text"
-            placeholder="Enter challan number..."
-            value={challanNo}
-            onChange={(event) => setChallanNo(event.target.value)}
+        {wizard.activeStep === 1 && (
+          <SetMatrixStep
+            selectedVariants={selectedVariants}
+            configs={configs}
+            onSetTotalSetsReceived={setTotalSetsReceived}
+            onSetLoosePieces={setLoosePieces}
+            onAddBundle={addBundle}
+            onUpdateBundle={updateBundle}
+            onRemoveBundle={removeBundle}
+            variantTotals={variantTotals}
+            onVariantTotalsChange={handleVariantTotalsChange}
+            sellingPricePerPiece={sellingPricePerPiece}
           />
-        </div>
+        )}
+
+        {wizard.activeStep === 2 && (
+          <QcDefectStep
+            selectedVariants={selectedVariants}
+            variantTotals={variantTotals}
+            qcByKey={qcByKey}
+            onQcFieldChange={handleQcFieldChange}
+            defectAction={defectAction}
+            onDefectActionChange={setDefectAction}
+            qcRemarks={qcRemarks}
+            onQcRemarksChange={setQcRemarks}
+          />
+        )}
+
+        {wizard.activeStep === 3 && (
+          <QrTagStudioStep
+            selectedVariants={selectedVariants}
+            variantTotals={variantTotals}
+            qcByKey={qcByKey}
+            jobber={jobber}
+            challanNo={challanNo}
+            challanDate={challanDate}
+            defectAction={defectAction}
+            printStrategy={printStrategy}
+            onPrintStrategyChange={setPrintStrategy}
+            perVariantSettings={qrPerVariantSettings}
+            onToggleVariantIncluded={toggleVariantIncluded}
+            onToggleVariantChildTags={toggleVariantChildTags}
+            printer={printer}
+            onPrinterChange={setPrinter}
+            onTestPrint={handleTestPrint}
+          />
+        )}
+
+        {wizard.activeStep === 4 && (
+          <SummaryStep
+            selectedVariants={selectedVariants}
+            variantTotals={variantTotals}
+            qcByKey={qcByKey}
+            defectAction={defectAction}
+            sellingPricePerPiece={sellingPricePerPiece}
+            challanNo={challanNo}
+          />
+        )}
       </div>
 
-      <div className="flex flex-col gap-2.5">
-        <label className="text-sm font-medium" htmlFor="design-search">Design</label>
-        <DesignSearchInput id="design-search" onSelect={handleSelect} />
-      </div>
-
-      {selectedVariants.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {selectedVariants.map((variant) => {
-            const key = getVariantKey(variant);
-            const config = configs[key];
-            if (!config) return null;
-
-            return (
-              <VariantStockCard
-                key={key}
-                variant={variant}
-                config={config}
-                isExpanded={key === expandedVariantKey}
-                onToggle={(open) => setExpandedVariantKey(open ? key : null)}
-                onSetTotalSetsReceived={(value) => setTotalSetsReceived(key, value)}
-                onAddBundle={(bundle) => addBundle(key, bundle)}
-                onUpdateBundle={(localId, bundle) => updateBundle(key, localId, bundle)}
-                onRemoveBundle={(localId) => removeBundle(key, localId)}
-                onSetLoosePieces={(loosePieces) => setLoosePieces(key, loosePieces)}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {selectedVariants.length > 0 && (
-        <Button
-          type="button"
-          className="h-11 w-full bg-[#00694C] sm:w-auto sm:self-end"
-          onClick={handleRegisterStockIn}
-          disabled={isPending}
-        >
-          {isPending ? "Registering..." : "Register Stock In"}
-        </Button>
-      )}
+      <StockInWizardNavigation
+        activeStep={wizard.activeStep}
+        onPrev={wizard.prev}
+        onNext={handleNext}
+        onSaveDraft={handleSaveDraft}
+        isSubmitting={isPending}
+      />
     </div>
   );
 };

@@ -27,6 +27,15 @@ const designSizeInputSchema = z.object({
     includedInSet: z.boolean().default(true),
 });
 
+// A semi set names a subset of the sizes submitted in colorVariants' full set — sizeLabels are
+// re-matched against the created designSize rows per variant in the service layer (see
+// DesignService.registerDesign), since designSizeId doesn't exist yet at validation time.
+const designSemiSetInputSchema = z.object({
+    label: z.string().trim().min(1),
+    displayOrder: nonNegativeInt.default(0),
+    sizeLabels: z.array(z.string().trim().min(1)).min(1, "A semi set needs at least one size"),
+});
+
 export const listDesignsQuerySchema = z.object({
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
@@ -82,4 +91,5 @@ export const registerDesignSchema = z.object({
     // service layer, since multer's file count isn't part of req.body and can't be checked here
     colorVariants: jsonField(z.array(colorVariantInputSchema).min(1, "At least one color variant is required")),
     designSizes: jsonField(z.array(designSizeInputSchema)).default([]),
+    semiSets: jsonField(z.array(designSemiSetInputSchema)).default([]),
 });

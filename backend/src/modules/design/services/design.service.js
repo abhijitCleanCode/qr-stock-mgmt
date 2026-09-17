@@ -6,6 +6,8 @@ import { db } from "../../../database/index.js";
 import designRepository, { normalizeDesignCode } from "../repositories/design.repository.js";
 import colorVariantRepository, { normalizeColorName } from "../repositories/colorVariant.repository.js";
 import designSizeRepository from "../repositories/designSize.repository.js";
+import designSemiSetRepository from "../repositories/designSemiSet.repository.js";
+import designSemiSetSizeRepository from "../repositories/designSemiSetSize.repository.js";
 import jobberRepository from "../repositories/jobber.repository.js";
 import qualityRepository from "../repositories/quality.repository.js";
 import patternRepository from "../repositories/pattern.repository.js";
@@ -19,13 +21,15 @@ class DesignService {
     _designRepository = designRepository;
     _colorVariantRepository = colorVariantRepository;
     _designSizeRepository = designSizeRepository;
+    _designSemiSetRepository = designSemiSetRepository;
+    _designSemiSetSizeRepository = designSemiSetSizeRepository;
     _jobberRepository = jobberRepository;
     _qualityRepository = qualityRepository;
     _patternRepository = patternRepository;
     _mediaUploadService = mediaUploadService;
 
     async registerDesign(data, files = []) {
-        const { colorVariants, designSizes = [], jobberId, jobberName, qualityId, quality, patternId, name, code, ...designData } = data;
+        const { colorVariants, designSizes = [], semiSets = [], jobberId, jobberName, qualityId, quality, patternId, name, code, ...designData } = data;
 
         if (colorVariants.length !== files.length) {
             throw new ApiError(
@@ -141,10 +145,52 @@ class DesignService {
                     ? await this._designSizeRepository.createMany(tx, sizes)
                     : [];
 
+                //todo: service knows the persistent structure of semi sets, same coupling as designSizes above
+                // Each semi set is created once per newly created variant, resolving its sizeLabels
+                // against that variant's just-created designSize rows (a semi set can't reference a
+                // size that isn't also part of the variant's own size list).
+                const createdSemiSets = [];
+                if (semiSets.length > 0 && createdVariants.length > 0) {
+                    const sizeIdByVariantAndLabel = new Map(
+                        createdSizes.map((size) => [`${size.variantId}:${size.sizeLabel}`, size.id])
+                    );
+                    // sizeLabels per (variantId, semi set label) — looked back up after insert since
+                    // designSemiSet rows don't carry sizeLabels themselves.
+                    const sizeLabelsByVariantAndLabel = new Map();
+                    for (const variant of createdVariants) {
+                        for (const semiSet of semiSets) {
+                            sizeLabelsByVariantAndLabel.set(`${variant.id}:${semiSet.label}`, semiSet.sizeLabels);
+                        }
+                    }
+
+                    const semiSetRows = createdVariants.flatMap((variant) =>
+                        semiSets.map((semiSet) => ({
+                            variantId: variant.id,
+                            label: semiSet.label,
+                            displayOrder: semiSet.displayOrder,
+                        }))
+                    );
+                    const insertedSemiSets = await this._designSemiSetRepository.createMany(tx, semiSetRows);
+
+                    const semiSetSizeRows = insertedSemiSets.flatMap((insertedSemiSet) => {
+                        const sizeLabels = sizeLabelsByVariantAndLabel.get(`${insertedSemiSet.variantId}:${insertedSemiSet.label}`) ?? [];
+                        return sizeLabels
+                            .map((sizeLabel) => sizeIdByVariantAndLabel.get(`${insertedSemiSet.variantId}:${sizeLabel}`))
+                            .filter(Boolean)
+                            .map((designSizeId) => ({ semiSetId: insertedSemiSet.id, designSizeId }));
+                    });
+                    if (semiSetSizeRows.length > 0) {
+                        await this._designSemiSetSizeRepository.createMany(tx, semiSetSizeRows);
+                    }
+
+                    createdSemiSets.push(...insertedSemiSets);
+                }
+
                 return {
                     design,
                     colorVariants: [...reusedVariants, ...createdVariants],
                     designSizes: createdSizes,
+                    semiSets: createdSemiSets,
                     isNewDesign: !existingDesign,
                 };
             });
@@ -307,6 +353,35 @@ class DesignService {
         }
 
         return this._designSizeRepository.findActiveByVariantId(db, colorVariantId);
+    }
+
+    // Named semi sets for a variant, each with its composing sizes resolved — Stock In's Set
+    // Matrix step uses this to offer "+ Add Semi Set" alongside the full set.
+    async getVariantSemiSets(colorVariantId) {
+        const variant = await this._colorVariantRepository.findActiveById(db, colorVariantId);
+        if (!variant) {
+            throw new ApiError(`Color variant ${colorVariantId} not found or inactive.`, 404, "VARIANT_NOT_FOUND");
+        }
+
+        const semiSets = await this._designSemiSetRepository.findByVariantId(db, colorVariantId);
+        if (semiSets.length === 0) return [];
+
+        const semiSetSizes = await this._designSemiSetSizeRepository.findBySemiSetIds(db, semiSets.map((semiSet) => semiSet.id));
+        const allSizes = await this._designSizeRepository.findActiveByVariantId(db, colorVariantId);
+        const sizeById = new Map(allSizes.map((size) => [size.id, size]));
+
+        const sizesBySemiSetId = new Map();
+        for (const semiSetSize of semiSetSizes) {
+            const size = sizeById.get(semiSetSize.designSizeId);
+            if (!size) continue;
+            if (!sizesBySemiSetId.has(semiSetSize.semiSetId)) sizesBySemiSetId.set(semiSetSize.semiSetId, []);
+            sizesBySemiSetId.get(semiSetSize.semiSetId).push(size);
+        }
+
+        return semiSets.map((semiSet) => ({
+            ...semiSet,
+            sizes: (sizesBySemiSetId.get(semiSet.id) ?? []).sort((a, b) => a.displayOrder - b.displayOrder),
+        }));
     }
 
     _groupVariantsByDesignId(variants) {
