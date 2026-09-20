@@ -17,6 +17,8 @@ import reprintRequestRepository from "../repositories/reprintRequest.repository.
 import recoveryEntryRepository from "../repositories/recoveryEntry.repository.js";
 import tagPresetRepository from "../repositories/tagPreset.repository.js";
 import stockGroupRepository from "../repositories/stockGroup.repository.js";
+import stockInBundlePieceRepository from "../repositories/stockInBundlePiece.repository.js";
+import stockPieceExpansionService from "./stockPieceExpansion.service.js";
 
 import designRepository from "../../design/repositories/design.repository.js";
 import designSizeRepository from "../../design/repositories/designSize.repository.js";
@@ -191,6 +193,8 @@ class QrCenterService {
     _recoveryEntryRepository = recoveryEntryRepository;
     _tagPresetRepository = tagPresetRepository;
     _stockGroupRepository = stockGroupRepository;
+    _stockInBundlePieceRepository = stockInBundlePieceRepository;
+    _stockPieceExpansionService = stockPieceExpansionService;
 
     _designRepository = designRepository;
     _designSizeRepository = designSizeRepository;
@@ -979,47 +983,27 @@ class QrCenterService {
                 throw new ApiError(`Color variant ${context.colorVariantId} has no sizes configured as part of a set.`, 400, "NO_SET_SIZES");
             }
 
-            const pieceGroup = await this._stockGroupRepository.findOrCreate(tx, { colorVariantId: context.colorVariantId, type: "PIECE" });
+            const sizeEntries = context.type === "SET"
+                ? setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize }))
+                : await this._buildBundleSizeEntries(tx, context, setSizes);
 
-            const createdItems = await this._stockItemRepository.createMany(tx, setSizes.map((size) => ({
-                stockGroupId: pieceGroup.id,
+            const created = await this._stockPieceExpansionService.createPiecesForComposition(tx, {
                 colorVariantId: context.colorVariantId,
-                designSizeId: size.id,
-                stockInTransactionId: null,
-                bundleId: null,
-                type: "PIECE",
-                status: "AVAILABLE",
+                sizeEntries,
                 originSetStockItemId: stockItemId,
-            })));
+                designCode: context.designCode,
+                designName: context.designName,
+                colorName: context.colorName,
+            });
 
-            const successors = [];
-            for (let i = 0; i < createdItems.length; i++) {
-                const item = createdItems[i];
-                const size = setSizes[i];
-                const shortCode = await generateUniqueShortCode((candidate) => this._stockItemQrRepository.existsActiveShortCode(tx, candidate));
-
-                await this._stockItemQrRepository.create(tx, {
-                    stockItemId: item.id,
-                    payload: this._stockQrService.buildPayload({
-                        designCode: context.designCode,
-                        designName: context.designName,
-                        colorName: context.colorName,
-                        stockItemId: item.id,
-                    }),
-                    shortCode,
-                    status: "ACTIVE",
-                    priceSnapshot: size.unsetPricePerSize,
-                });
-
-                successors.push({ shortCode, sizeLabel: size.sizeLabel, stockItemId: item.id });
-            }
+            const successors = created.map((row) => ({ shortCode: row.qr.shortCode, sizeLabel: row.sizeLabel, stockItemId: row.stockItem.id }));
 
             // Original SET's own `status` column is deliberately left AVAILABLE — CONSUMED is
             // reserved for assembly-consumption elsewhere; its QR going RETIRED is what makes it
             // inert for scanning (see stockItems.schema.js originSetStockItemId comment).
             await this._stockItemQrRepository.retireActiveByStockItemId(tx, stockItemId, { retiredReason: reasonCode });
 
-            const resultStockItemIds = createdItems.map((item) => item.id);
+            const resultStockItemIds = created.map((row) => row.stockItem.id);
             await this._stockHistoryService.record(tx, "SET_BROKEN", {
                 colorVariantId: context.colorVariantId,
                 resultStockItemId: null,
@@ -1028,6 +1012,22 @@ class QrCenterService {
             });
 
             return { retiredShortCode: activeQr.shortCode, successors };
+        });
+    }
+
+    // A BUNDLE stock item's own composition (semi-set aware) — falls back to the variant's
+    // full setSizes only if this BUNDLE has no stock_in_bundle_pieces row (defensive; every
+    // BUNDLE created via Stock-In always has one).
+    async _buildBundleSizeEntries(tx, context, setSizes) {
+        if (!context.bundleId) return setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize }));
+
+        const pieces = await this._stockInBundlePieceRepository.findByBundleId(tx, context.bundleId);
+        if (pieces.length === 0) return setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize }));
+
+        return pieces.flatMap((piece) => {
+            const size = setSizes.find((candidate) => candidate.id === piece.designSizeId);
+            const entry = { designSizeId: piece.designSizeId, sizeLabel: size?.sizeLabel ?? "", unsetPricePerSize: size?.unsetPricePerSize ?? null };
+            return Array(piece.quantity).fill(entry);
         });
     }
 
