@@ -85,18 +85,34 @@ const StockIn = () => {
   const [printStrategy, setPrintStrategy] = useState("parent");
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
   const [printer, setPrinter] = useState("TSC TE244 Thermal Roll (50x30mm) [Bluetooth]");
+  const [printOnConfirm, setPrintOnConfirm] = useState(false);
+  // TODO(follow-up, not in this plan's scope): PRINTERS in qrTagStudio.js is a static
+  // display list, not sourced from the printers table — there is currently no real
+  // printerId to send. Until a printer-selection API exists, printOnConfirm can only be
+  // sent as false; the UI still lets the user click "Send to printer" (matches the
+  // existing "honest frontend simulation" pattern noted in handleTestPrint below), but the
+  // request omits printerId and printOnConfirm to avoid the backend's mandatory
+  // printerId-when-printOnConfirm rule rejecting the request.
+  const printerId = undefined;
 
   const toggleVariantIncluded = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false };
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
       return { ...prev, [key]: { ...current, included: !current.included } };
     });
   };
 
   const toggleVariantChildTags = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false };
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
       return { ...prev, [key]: { ...current, childTags: !current.childTags } };
+    });
+  };
+
+  const toggleVariantTagLoosePieces = (key) => {
+    setQrPerVariantSettings((prev) => {
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
+      return { ...prev, [key]: { ...current, tagLoosePieces: !current.tagLoosePieces } };
     });
   };
 
@@ -131,6 +147,7 @@ const StockIn = () => {
     setQcRemarks("");
     setPrintStrategy("parent");
     setQrPerVariantSettings({});
+    setPrintOnConfirm(false);
   };
 
   const canAdvance = (step) => {
@@ -159,7 +176,14 @@ const StockIn = () => {
   const wizard = useStockInWizard(canAdvance);
 
   const handleConfirmInward = async () => {
-    const payload = buildStockInPayload(selectedVariants, configs, { deliveryDate: challanDate, challanNo });
+    const payload = buildStockInPayload(selectedVariants, configs, {
+      deliveryDate: challanDate,
+      challanNo,
+      printStrategy,
+      qrPerVariantSettings,
+      printOnConfirm: printOnConfirm && Boolean(printerId),
+      printerId,
+    });
 
     if (payload.designs.length === 0) {
       toast.error("Enter stock for at least one variant before registering.");
@@ -170,10 +194,11 @@ const StockIn = () => {
     const totalPassed = Object.values(qcByKey).reduce((sum, item) => sum + (Number(item.passed) || 0), 0);
 
     try {
-      await registerStockIn(payload);
-      toast.success(
-        `Stock Inward confirmed! Spooling ${totalSets} Parent & ${totalPassed} Child QR tags to ${printer.split(" [")[0]}...`
-      );
+      const result = await registerStockIn(payload);
+      const printedMessage = result?.data?.printJobId
+        ? ` Print job #${result.data.printJobId} queued to ${printer.split(" [")[0]}.`
+        : "";
+      toast.success(`Stock Inward confirmed! ${totalSets} Parent & ${totalPassed} Child QR tags generated.${printedMessage}`);
       localStorage.removeItem(STOCK_IN_DRAFT_KEY);
       resetAll();
       wizard.setActiveStep(0);
@@ -282,6 +307,7 @@ const StockIn = () => {
           <QrTagStudioStep
             selectedVariants={selectedVariants}
             variantTotals={variantTotals}
+            configs={configs}
             qcByKey={qcByKey}
             jobber={jobber}
             challanNo={challanNo}
@@ -292,9 +318,13 @@ const StockIn = () => {
             perVariantSettings={qrPerVariantSettings}
             onToggleVariantIncluded={toggleVariantIncluded}
             onToggleVariantChildTags={toggleVariantChildTags}
+            onToggleVariantTagLoosePieces={toggleVariantTagLoosePieces}
             printer={printer}
+            printerId={printerId}
             onPrinterChange={setPrinter}
             onTestPrint={handleTestPrint}
+            onSetPrintOnConfirm={setPrintOnConfirm}
+            onAdvance={wizard.next}
           />
         )}
 
