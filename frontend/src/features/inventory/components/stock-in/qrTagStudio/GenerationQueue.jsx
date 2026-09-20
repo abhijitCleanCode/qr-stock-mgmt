@@ -16,6 +16,7 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
             <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               <th className="whitespace-nowrap px-3.5 py-2.5 text-left">Variant</th>
               <th className="px-3.5 py-2.5 text-right">Sets</th>
+              <th className="px-3.5 py-2.5 text-right">Semi sets</th>
               <th className="px-3.5 py-2.5 text-right">Loose</th>
               <th className="px-3.5 py-2.5 text-right">Parent tags</th>
               <th className="px-3.5 py-2.5 text-right">Child tags</th>
@@ -36,10 +37,13 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
                     <span className="ml-1.5 font-mono text-[10.5px] text-slate-400">{row.variant.code}</span>
                   </td>
                   <td className="px-3.5 py-2.5 text-right font-mono tabular-nums text-slate-600">{row.variant.setsTotal}</td>
+                  <td className={`px-3.5 py-2.5 text-right font-mono tabular-nums ${row.semiSets ? "text-slate-600" : "text-slate-400"}`}>
+                    {row.semiSets || "—"}
+                  </td>
                   <td className={`px-3.5 py-2.5 text-right font-mono tabular-nums ${row.variant.looseTotal ? "text-slate-600" : "text-slate-400"}`}>
                     {row.variant.looseTotal}
                   </td>
-                  <td className="px-3.5 py-2.5 text-right font-mono tabular-nums text-slate-600">{row.sets}</td>
+                  <td className="px-3.5 py-2.5 text-right font-mono tabular-nums text-slate-600">{row.parentTags}</td>
                   <td className={`px-3.5 py-2.5 text-right font-mono tabular-nums ${row.child ? "text-slate-600" : "text-slate-400"}`}>
                     {row.child || "—"}
                   </td>
@@ -92,6 +96,7 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
             <tr className="border-t border-slate-200 bg-slate-50 font-semibold text-slate-900">
               <td className="px-3.5 py-2.5">Batch total</td>
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.sets}</td>
+              <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.semiSets || "—"}</td>
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.loose}</td>
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.parent}</td>
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.child || "—"}</td>

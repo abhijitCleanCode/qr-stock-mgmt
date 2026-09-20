@@ -71,9 +71,11 @@ export const defaultFieldState = () => {
 };
 
 // One row of the Generation Queue table for a single variant.
-// `sets`/`loose` come straight from Step 2; `qcPassed` from Step 3. Child tags only exist
-// when the chosen strategy actually breaks sets into pieces at inward; loose pieces always
-// get their own tag (they were never inside a sealed set to begin with). `child` is
+// `sets`/`semiSets`/`loose` come straight from Step 2; `qcPassed` from Step 3. Every SET and
+// every semi-set BUNDLE gets its own parent tag (see the mock's own countFor: `p += sets +
+// semi`), so `parentTags` is the two combined — never just `sets` alone. Child tags only
+// exist when the chosen strategy actually breaks sets into pieces at inward; loose pieces
+// always get their own tag (they were never inside a sealed set to begin with). `child` is
 // QC-passed minus loose, clamped at 0, so Parent+Child+Loose never double-counts a garment
 // against the real QC-approved total.
 export function computeVariantRow(variant, strategy, perVariantSettings) {
@@ -82,23 +84,26 @@ export function computeVariantRow(variant, strategy, perVariantSettings) {
   const childActive = strategy === "parentChild" || (strategy === "custom" && settings.childTags);
 
   const sets = included ? variant.setsTotal : 0;
+  const semiSets = included ? (variant.semiSetsTotal || 0) : 0;
   const loose = included ? variant.looseTotal : 0;
   const child = included && childActive ? Math.max(0, variant.qcPassed - variant.looseTotal) : 0;
-  const total = sets + child + loose;
+  const parentTags = sets + semiSets;
+  const total = parentTags + child + loose;
 
-  return { key: variant.key, variant, included, childActive, sets, loose, child, total };
+  return { key: variant.key, variant, included, childActive, sets, semiSets, parentTags, loose, child, total };
 }
 
 export function aggregateRows(rows) {
   return rows.reduce(
     (acc, row) => ({
       sets: acc.sets + row.sets,
+      semiSets: acc.semiSets + row.semiSets,
       loose: acc.loose + row.loose,
-      parent: acc.parent + row.sets,
+      parent: acc.parent + row.parentTags,
       child: acc.child + row.child,
       total: acc.total + row.total,
     }),
-    { sets: 0, loose: 0, parent: 0, child: 0, total: 0 }
+    { sets: 0, semiSets: 0, loose: 0, parent: 0, child: 0, total: 0 }
   );
 }
 

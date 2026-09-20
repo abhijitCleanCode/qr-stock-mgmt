@@ -78,6 +78,10 @@ const QrTagStudioStep = ({
         const key = getVariantKey(variant);
         const totals = variantTotals[key] ?? { setsTotal: 0, looseTotal: 0, piecesPerSet: 0, garmentsTotal: 0, sizeLabels: [], sizes: [] };
         const qc = qcByKey[key] ?? { passed: totals.garmentsTotal, defects: 0 };
+        // Physical semi-set bundle instances for this variant — every one gets its own
+        // parent tag alongside full sets (see computeVariantRow's parentTags), same as the
+        // mock's countFor: `p += sets + semi`.
+        const semiSetsTotal = (configs[key]?.bundles ?? []).reduce((sum, bundle) => sum + (Number(bundle.quantity) || 0), 0);
         return {
           key,
           designId: variant.designId,
@@ -88,6 +92,7 @@ const QrTagStudioStep = ({
           designName: variant.designName,
           sellingPricePerPiece: variant.sellingPricePerPiece,
           setsTotal: totals.setsTotal,
+          semiSetsTotal,
           looseTotal: totals.looseTotal,
           piecesPerSet: totals.piecesPerSet,
           sizeLabels: totals.sizeLabels,
@@ -96,7 +101,7 @@ const QrTagStudioStep = ({
           qcDefects: Number(qc.defects) || 0,
         };
       }),
-    [selectedVariants, variantTotals, qcByKey]
+    [selectedVariants, variantTotals, qcByKey, configs]
   );
 
   const rows = useMemo(() => variants.map((v) => computeVariantRow(v, printStrategy, perVariantSettings)), [
