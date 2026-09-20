@@ -51,6 +51,10 @@ const SetMatrixVariantCard = ({
       garmentsTotal,
       piecesPerSet,
       sizeLabels: sizes.map((size) => size.sizeLabel),
+      // Full id+label+includedInSet list — Tag Studio needs this to turn a bundle's
+      // {designSizeId: qty} composition (see useVariantStockConfigs.js) into real size
+      // labels for parent/semi tag copy, and to tell a full set apart from a semi set.
+      sizes: sizes.map((size) => ({ id: size.id, sizeLabel: size.sizeLabel, includedInSet: size.includedInSet })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, setsTotal, looseTotal, bundlesTotal, garmentsTotal, piecesPerSet, sizes.length]);
