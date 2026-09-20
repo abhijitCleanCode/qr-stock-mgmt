@@ -5,6 +5,7 @@ import stockInLoosePieceRepository from "../repositories/stockInLoosePiece.repos
 import stockInEntryRepository from "../repositories/stockInEntry.repository.js";
 import stockItemRepository from "../repositories/stockItem.repository.js";
 import stockGroupRepository from "../repositories/stockGroup.repository.js";
+import stockPieceExpansionService from "./stockPieceExpansion.service.js";
 
 function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
@@ -168,22 +169,102 @@ class stockInPersistence {
             }
         });
 
-        (variantInput.loosePieces ?? []).forEach((piece, index) => {
-            const group = loosePieceGroups[index];
-            for (let i = 0; i < piece.quantity; i++) {
-                rows.push({
-                    stockGroupId: group.id,
-                    colorVariantId,
-                    stockInTransactionId,
-                    bundleId: null,
-                    designSizeId: piece.designSizeId,
-                    type: "LOOSE_PIECE",
-                    status: "UNSET", // must set explicitly because default status is "AVAILABLE" and loose piece is UNSET
-                });
-            }
-        });
+        // When tagLoosePieces is set, createTaggedPieces (called by stockIn.service.js right
+        // after this method) creates an individually-tagged PIECE row for every one of these
+        // units instead — skip the LOOSE_PIECE pool rows here so the same physical piece is
+        // never represented by two stock_items rows at once (see design spec decision 4).
+        if (!variantInput.tagging?.tagLoosePieces) {
+            (variantInput.loosePieces ?? []).forEach((piece, index) => {
+                const group = loosePieceGroups[index];
+                for (let i = 0; i < piece.quantity; i++) {
+                    rows.push({
+                        stockGroupId: group.id,
+                        colorVariantId,
+                        stockInTransactionId,
+                        bundleId: null,
+                        designSizeId: piece.designSizeId,
+                        type: "LOOSE_PIECE",
+                        status: "UNSET", // must set explicitly because default status is "AVAILABLE" and loose piece is UNSET
+                    });
+                }
+            });
+        }
 
         return this._stockItemRepository.createMany(tx, rows);
+    }
+
+    // Called after createStockItems, once the caller has the created SET/BUNDLE rows AND the
+    // variant's active sizes (for SET fan-out) — creates individually-tagged PIECE stock items
+    // (with their own ACTIVE QR, via stockPieceExpansionService) for:
+    //   - every SET row, when tagging.strategy is "parentChild" (or "custom" with
+    //     childTagsEnabled) — one PIECE per full-set size (setSizes).
+    //   - every BUNDLE row, same condition — one PIECE per THAT BUNDLE's own composition
+    //     (composition-aware, unlike the legacy breakSet fan-out bug this plan also fixes).
+    //   - the tagged portion of loose pieces, when tagging.tagLoosePieces is true — one PIECE
+    //     per unit of `piece.quantity`, originSetStockItemId: null (the "LOOSE_RECEIVED"
+    //     origin path).
+    // Parent SET/BUNDLE QR is deliberately left ACTIVE — see design decision 3 in the spec.
+    async createTaggedPieces(tx, {
+        colorVariantId, variantInput, setSizes, createdSetItems, createdBundleItems,
+        loosePieceEntries, designCode, designName, colorName,
+    }) {
+        const tagging = variantInput.tagging ?? { strategy: "parent", childTagsEnabled: false, tagLoosePieces: false };
+        const childActive = tagging.strategy === "parentChild" || (tagging.strategy === "custom" && tagging.childTagsEnabled);
+
+        const created = [];
+
+        if (childActive) {
+            for (const setItem of createdSetItems) {
+                const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
+                    colorVariantId,
+                    sizeEntries: setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize })),
+                    originSetStockItemId: setItem.id,
+                    designCode, designName, colorName,
+                });
+                created.push(...rows);
+            }
+
+            for (const bundleItem of createdBundleItems) {
+                // The stock_in_bundle DB row carries no composition column (composition lives
+                // in stock_in_bundle_pieces, keyed by bundleId) — the actual per-size
+                // composition is only available on the original request: variantInput.bundles,
+                // in the same order _saveBundles built the DB rows from (bundleIndex is
+                // resolved by the caller — see stockIn.service.js).
+                const bundleDefinition = (variantInput.bundles ?? [])[bundleItem.bundleIndex];
+                const sizeEntries = (bundleDefinition?.composition ?? []).flatMap((piece) => {
+                    const size = setSizes.find((candidate) => candidate.id === piece.designSizeId);
+                    const entry = { designSizeId: piece.designSizeId, sizeLabel: size?.sizeLabel ?? "", unsetPricePerSize: size?.unsetPricePerSize ?? null };
+                    return Array(piece.quantity).fill(entry);
+                });
+                const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
+                    colorVariantId,
+                    sizeEntries,
+                    originSetStockItemId: bundleItem.id,
+                    designCode, designName, colorName,
+                });
+                created.push(...rows);
+            }
+        }
+
+        if (tagging.tagLoosePieces) {
+            for (const piece of loosePieceEntries) {
+                const size = setSizes.find((candidate) => candidate.id === piece.designSizeId);
+                const sizeEntries = Array(piece.quantity).fill({
+                    designSizeId: piece.designSizeId,
+                    sizeLabel: size?.sizeLabel ?? "",
+                    unsetPricePerSize: size?.unsetPricePerSize ?? null,
+                });
+                const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
+                    colorVariantId,
+                    sizeEntries,
+                    originSetStockItemId: null,
+                    designCode, designName, colorName,
+                });
+                created.push(...rows);
+            }
+        }
+
+        return created;
     }
 }
 
