@@ -79,10 +79,14 @@ const StockIn = () => {
   const [defectAction, setDefectAction] = useState("seconds");
   const [qcRemarks, setQcRemarks] = useState("");
 
-  // "parent" | "parentChild" | "custom" — QR Tag Studio's tagging strategy. Per-variant
-  // include/child-tag overrides only apply when strategy is "custom"; QrTagStudioStep
-  // defaults any variant missing from this map to { included: true, childTags: false }.
-  const [printStrategy, setPrintStrategy] = useState("parent");
+  // "parent" | "parentChild" | "custom" — QR Tag Studio's tagging strategy. Only
+  // "parentChild" and "parent" (shown to the user as "Loose pieces only") are reachable
+  // from the Strategy Cards UI — see StrategyCards.jsx. Defaults to "parentChild", matching
+  // the reference mock's own default. Per-variant include/child-tag overrides only apply
+  // when strategy is "custom" (unreachable from this UI, kept for backend/API compatibility);
+  // QrTagStudioStep defaults any variant missing from this map to
+  // { included: true, childTags: false }.
+  const [printStrategy, setPrintStrategy] = useState("parentChild");
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
   const [printer, setPrinter] = useState("TSC TE244 Thermal Roll (50x30mm) [Bluetooth]");
   const [printOnConfirm, setPrintOnConfirm] = useState(false);
@@ -145,7 +149,7 @@ const StockIn = () => {
     setChallanDate(todayAsIsoDate());
     setDefectAction("seconds");
     setQcRemarks("");
-    setPrintStrategy("parent");
+    setPrintStrategy("parentChild");
     setQrPerVariantSettings({});
     setPrintOnConfirm(false);
   };
