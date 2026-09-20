@@ -19,6 +19,19 @@ class TagPresetRepository {
             .innerJoin(design, eq(tagPreset.designId, design.id))
             .leftJoin(printer, eq(tagPreset.defaultPrinterId, printer.id));
     }
+
+    // Tag Studio's "Save as preset" — one preset per design (see tag_presets.design_id
+    // unique constraint), so a second save for the same design overwrites the first.
+    async upsertByDesignId(tx, designId, { presetName, mediaSize, defaultPrinterId, config }) {
+        const [result] = await tx.insert(tagPreset)
+            .values({ designId, presetName, mediaSize, defaultPrinterId, config })
+            .onConflictDoUpdate({
+                target: tagPreset.designId,
+                set: { presetName, mediaSize, defaultPrinterId, config },
+            })
+            .returning();
+        return result;
+    }
 }
 
 export default new TagPresetRepository();
