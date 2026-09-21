@@ -21,10 +21,10 @@ const Designs = () => {
         </div>
         <Button
           variant="link"
-          className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors"
+          className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white"
         >
           <Link to="/add-designs" className="flex items-center gap-1.5">
-            <Plus className="w-5 h-5" /> Designs
+            <Plus className="w-5 h-5" /> Add Design
           </Link>
         </Button>
       </div>

@@ -79,24 +79,44 @@ const StockIn = () => {
   const [defectAction, setDefectAction] = useState("seconds");
   const [qcRemarks, setQcRemarks] = useState("");
 
-  // "parent" | "parentChild" | "custom" — QR Tag Studio's tagging strategy. Per-variant
-  // include/child-tag overrides only apply when strategy is "custom"; QrTagStudioStep
-  // defaults any variant missing from this map to { included: true, childTags: false }.
-  const [printStrategy, setPrintStrategy] = useState("parent");
+  // "parent" | "parentChild" | "custom" — QR Tag Studio's tagging strategy. Only
+  // "parentChild" and "parent" (shown to the user as "Loose pieces only") are reachable
+  // from the Strategy Cards UI — see StrategyCards.jsx. Defaults to "parentChild", matching
+  // the reference mock's own default. Per-variant include/child-tag overrides only apply
+  // when strategy is "custom" (unreachable from this UI, kept for backend/API compatibility);
+  // QrTagStudioStep defaults any variant missing from this map to
+  // { included: true, childTags: false }.
+  const [printStrategy, setPrintStrategy] = useState("parentChild");
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
   const [printer, setPrinter] = useState("TSC TE244 Thermal Roll (50x30mm) [Bluetooth]");
+  const [printOnConfirm, setPrintOnConfirm] = useState(false);
+  // TODO(follow-up, not in this plan's scope): PRINTERS in qrTagStudio.js is a static
+  // display list, not sourced from the printers table — there is currently no real
+  // printerId to send. Until a printer-selection API exists, printOnConfirm can only be
+  // sent as false; the UI still lets the user click "Send to printer" (matches the
+  // existing "honest frontend simulation" pattern noted in handleTestPrint below), but the
+  // request omits printerId and printOnConfirm to avoid the backend's mandatory
+  // printerId-when-printOnConfirm rule rejecting the request.
+  const printerId = undefined;
 
   const toggleVariantIncluded = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false };
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
       return { ...prev, [key]: { ...current, included: !current.included } };
     });
   };
 
   const toggleVariantChildTags = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false };
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
       return { ...prev, [key]: { ...current, childTags: !current.childTags } };
+    });
+  };
+
+  const toggleVariantTagLoosePieces = (key) => {
+    setQrPerVariantSettings((prev) => {
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
+      return { ...prev, [key]: { ...current, tagLoosePieces: !current.tagLoosePieces } };
     });
   };
 
@@ -129,8 +149,9 @@ const StockIn = () => {
     setChallanDate(todayAsIsoDate());
     setDefectAction("seconds");
     setQcRemarks("");
-    setPrintStrategy("parent");
+    setPrintStrategy("parentChild");
     setQrPerVariantSettings({});
+    setPrintOnConfirm(false);
   };
 
   const canAdvance = (step) => {
@@ -159,7 +180,14 @@ const StockIn = () => {
   const wizard = useStockInWizard(canAdvance);
 
   const handleConfirmInward = async () => {
-    const payload = buildStockInPayload(selectedVariants, configs, { deliveryDate: challanDate, challanNo });
+    const payload = buildStockInPayload(selectedVariants, configs, {
+      deliveryDate: challanDate,
+      challanNo,
+      printStrategy,
+      qrPerVariantSettings,
+      printOnConfirm: printOnConfirm && Boolean(printerId),
+      printerId,
+    });
 
     if (payload.designs.length === 0) {
       toast.error("Enter stock for at least one variant before registering.");
@@ -170,10 +198,11 @@ const StockIn = () => {
     const totalPassed = Object.values(qcByKey).reduce((sum, item) => sum + (Number(item.passed) || 0), 0);
 
     try {
-      await registerStockIn(payload);
-      toast.success(
-        `Stock Inward confirmed! Spooling ${totalSets} Parent & ${totalPassed} Child QR tags to ${printer.split(" [")[0]}...`
-      );
+      const result = await registerStockIn(payload);
+      const printedMessage = result?.data?.printJobId
+        ? ` Print job #${result.data.printJobId} queued to ${printer.split(" [")[0]}.`
+        : "";
+      toast.success(`Stock Inward confirmed! ${totalSets} Parent & ${totalPassed} Child QR tags generated.${printedMessage}`);
       localStorage.removeItem(STOCK_IN_DRAFT_KEY);
       resetAll();
       wizard.setActiveStep(0);
@@ -222,7 +251,7 @@ const StockIn = () => {
   };
 
   return (
-    <div className="mx-auto flex min-h-[640px] w-full max-w-5xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8">
+    <div className="mx-auto flex min-h-[760px] w-full max-w-6xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8 lg:ml-2 lg:mr-[-72px] lg:w-[calc(100%+4rem)]">
       <div className="mb-6 space-y-5 border-b border-slate-100 pb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>
@@ -282,6 +311,7 @@ const StockIn = () => {
           <QrTagStudioStep
             selectedVariants={selectedVariants}
             variantTotals={variantTotals}
+            configs={configs}
             qcByKey={qcByKey}
             jobber={jobber}
             challanNo={challanNo}
@@ -292,9 +322,13 @@ const StockIn = () => {
             perVariantSettings={qrPerVariantSettings}
             onToggleVariantIncluded={toggleVariantIncluded}
             onToggleVariantChildTags={toggleVariantChildTags}
+            onToggleVariantTagLoosePieces={toggleVariantTagLoosePieces}
             printer={printer}
+            printerId={printerId}
             onPrinterChange={setPrinter}
             onTestPrint={handleTestPrint}
+            onSetPrintOnConfirm={setPrintOnConfirm}
+            onAdvance={wizard.next}
           />
         )}
 

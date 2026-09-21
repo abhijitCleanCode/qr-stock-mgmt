@@ -1,18 +1,26 @@
 import { useMemo, useState } from "react";
+import { toast } from "react-toastify";
 
 import StrategyCards from "../../components/stock-in/qrTagStudio/StrategyCards";
 import GenerationQueue from "../../components/stock-in/qrTagStudio/GenerationQueue";
 import TagContentConfig from "../../components/stock-in/qrTagStudio/TagContentConfig";
 import QrPayloadPanel from "../../components/stock-in/qrTagStudio/QrPayloadPanel";
 import PrintEngineConfig from "../../components/stock-in/qrTagStudio/PrintEngineConfig";
-import LabelPreview from "../../components/stock-in/qrTagStudio/LabelPreview";
+import TagRoll from "../../components/stock-in/qrTagStudio/TagRoll";
+import A4SheetPreview from "../../components/stock-in/qrTagStudio/A4SheetPreview";
+import PreviewFilterBar from "../../components/stock-in/qrTagStudio/PreviewFilterBar";
+import ActionBar from "../../components/stock-in/qrTagStudio/ActionBar";
+import QrTagPrintSheet from "../../components/stock-in/qrTagStudio/QrTagPrintSheet";
+import { useTagPresetApi } from "../../hooks/useTagPresetApi";
 import { getVariantKey } from "../../utils/variantKey";
 import { getVariantDisplayCode } from "../../utils/variantDisplay";
 import {
   aggregateRows,
+  buildTagList,
   computeVariantRow,
   defaultFieldState,
   fieldCapacity,
+  flagsForTag,
   labelDims,
 } from "../../utils/qrTagStudio";
 
@@ -27,6 +35,7 @@ const formatDdMmYy = (isoDate) => {
 const QrTagStudioStep = ({
   selectedVariants,
   variantTotals,
+  configs,
   qcByKey,
   jobber,
   challanNo,
@@ -37,9 +46,13 @@ const QrTagStudioStep = ({
   perVariantSettings,
   onToggleVariantIncluded,
   onToggleVariantChildTags,
+  onToggleVariantTagLoosePieces,
   printer,
+  printerId,
   onPrinterChange,
   onTestPrint,
+  onSetPrintOnConfirm,
+  onAdvance,
 }) => {
   const [activeTab, setActiveTab] = useState("parent");
   const [engine, setEngine] = useState("thermal");
@@ -49,6 +62,9 @@ const QrTagStudioStep = ({
   const [qrmm, setQrmm] = useState(17);
   const [typography, setTypography] = useState("standard");
   const [fields, setFields] = useState(defaultFieldState);
+  const [filter, setFilter] = useState("all");
+  const [zoom, setZoom] = useState(1);
+  const { mutateAsync: savePreset, isPending: isSavingPreset } = useTagPresetApi();
 
   const toggleField = (tab, key) => {
     setFields((prev) => ({ ...prev, [tab]: { ...prev[tab], [key]: !prev[tab][key] } }));
@@ -61,10 +77,15 @@ const QrTagStudioStep = ({
     () =>
       selectedVariants.map((variant) => {
         const key = getVariantKey(variant);
-        const totals = variantTotals[key] ?? { setsTotal: 0, looseTotal: 0, piecesPerSet: 0, garmentsTotal: 0, sizeLabels: [] };
+        const totals = variantTotals[key] ?? { setsTotal: 0, looseTotal: 0, piecesPerSet: 0, garmentsTotal: 0, sizeLabels: [], sizes: [] };
         const qc = qcByKey[key] ?? { passed: totals.garmentsTotal, defects: 0 };
+        // Physical semi-set bundle instances for this variant — every one gets its own
+        // parent tag alongside full sets (see computeVariantRow's parentTags), same as the
+        // mock's countFor: `p += sets + semi`.
+        const semiSetsTotal = (configs[key]?.bundles ?? []).reduce((sum, bundle) => sum + (Number(bundle.quantity) || 0), 0);
         return {
           key,
+          designId: variant.designId,
           colorName: variant.colorName,
           colorHex: variant.colorHex,
           code: getVariantDisplayCode(variant),
@@ -72,14 +93,16 @@ const QrTagStudioStep = ({
           designName: variant.designName,
           sellingPricePerPiece: variant.sellingPricePerPiece,
           setsTotal: totals.setsTotal,
+          semiSetsTotal,
           looseTotal: totals.looseTotal,
           piecesPerSet: totals.piecesPerSet,
           sizeLabels: totals.sizeLabels,
+          sizes: totals.sizes ?? [],
           qcPassed: Number(qc.passed) || 0,
           qcDefects: Number(qc.defects) || 0,
         };
       }),
-    [selectedVariants, variantTotals, qcByKey]
+    [selectedVariants, variantTotals, qcByKey, configs]
   );
 
   const rows = useMemo(() => variants.map((v) => computeVariantRow(v, printStrategy, perVariantSettings)), [
@@ -96,8 +119,51 @@ const QrTagStudioStep = ({
   const setSuffix = primaryVariant ? String(primaryVariant.setsTotal).padStart(3, "0") : "000";
   const parentSetId = primaryVariant ? `SET-${primaryVariant.code}-${setSuffix}` : "SET-NONE";
   const childId = primaryVariant ? `${primaryVariant.code}-${sampleSize}-01` : "—";
-  const looseId = primaryVariant ? `${primaryVariant.code}-${sampleSize}-L01` : "—";
-  const currentTagId = activeTab === "parent" ? parentSetId : activeTab === "child" ? childId : looseId;
+  const currentTagId = activeTab === "parent" ? parentSetId : activeTab === "child" ? childId : `LSE-${primaryVariant?.code ?? "NONE"}-0001`;
+
+  const capacity = fieldCapacity(engine, thermalPreset, a4Preset, typography);
+  const dims = labelDims(engine, thermalPreset, a4Preset);
+  const fieldsOnCount = (kind) => Object.values(fields[kind]).filter(Boolean).length;
+
+  // Every physical tag this batch will actually produce — real per-tag composition/size,
+  // never one sample repeated (see buildTagList's doc comment for how this can differ
+  // slightly from the QC-adjusted "child" total in the Generation Queue table above).
+  const allTags = useMemo(
+    () => buildTagList(variants, configs, printStrategy, perVariantSettings),
+    [variants, configs, printStrategy, perVariantSettings]
+  );
+
+  const taggedTags = useMemo(
+    () => allTags.map((tag) => ({ ...tag, flags: flagsForTag(engine, thermalPreset, a4Preset, typography, qrmm, fieldsOnCount(tag.kind)) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allTags, engine, thermalPreset, a4Preset, typography, qrmm, fields]
+  );
+
+  const filteredTags = useMemo(() => {
+    if (filter === "all") return taggedTags;
+    if (filter === "issues") return taggedTags.filter((tag) => tag.flags.length > 0);
+    return taggedTags.filter((tag) => tag.kind === filter);
+  }, [taggedTags, filter]);
+
+  const buildTagData = (tag) => {
+    const v = tag.variant;
+    return {
+      firm: FIRM_LABEL,
+      designCode: v.designCode,
+      designName: v.designName,
+      variantName: (v.colorName ?? "").toUpperCase(),
+      composition: (tag.composition ?? []).join(" · "),
+      piecesPerSet: tag.piecesPerSet ?? 0,
+      isSemiSet: Boolean(tag.isSemiSet),
+      jobber: jobber?.name ? `#${jobber.name.toUpperCase()}` : "UNASSIGNED",
+      bundlePrice: `₹ ${((v.sellingPricePerPiece ?? 0) * (tag.piecesPerSet ?? 0)).toLocaleString("en-IN")} (SET)`,
+      piecePrice: `₹ ${(v.sellingPricePerPiece ?? 0).toLocaleString("en-IN")}`,
+      date: formatDdMmYy(challanDate),
+      size: tag.size,
+      parentSetId: tag.parentId,
+      pieceId: tag.code,
+    };
+  };
 
   const tagData = {
     firm: FIRM_LABEL,
@@ -117,13 +183,32 @@ const QrTagStudioStep = ({
     childQrValue: childId,
   };
 
-  const capacity = fieldCapacity(engine, thermalPreset, a4Preset, typography);
-  const dims = labelDims(engine, thermalPreset, a4Preset);
-
   const mediaUsage =
     engine === "thermal"
       ? `${((totals.total * (dims.h + 3)) / 1000).toFixed(1)} m`
       : `${Math.ceil((totals.total + Number(a4StartAt || 0)) / (dims.c * dims.r))} sheets`;
+
+  const issueCount = taggedTags.filter((tag) => tag.flags.length > 0).length;
+
+  const handleSavePreset = async () => {
+    const designId = primaryVariant?.designId;
+    if (!designId) {
+      toast.error("Add at least one variant before saving a preset.");
+      return;
+    }
+    try {
+      await savePreset({
+        designId,
+        presetName: `${primaryVariant.designCode} — ${engine === "thermal" ? thermalPreset : `A4 ${a4Preset}`}`,
+        mediaSize: engine === "thermal" ? thermalPreset : `A4-${a4Preset}`,
+        defaultPrinterId: printerId ?? undefined,
+        config: { engine, thermalPreset, a4Preset, qrmm, typography, fields },
+      });
+      toast.success("Tag preset saved for this design.");
+    } catch (error) {
+      toast.error(error?.message ?? "Couldn't save the preset.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -144,10 +229,10 @@ const QrTagStudioStep = ({
             DECIDE FIRST
           </span>
         </div>
-        <p className="mb-3.5 max-w-[74ch] text-[13px] text-slate-500">
+        {/* <p className="mb-3.5 max-w-[74ch] text-[13px] text-slate-500">
           This choice sets how many labels get printed and how much hand-applying the godown has to do. Everything
           below reacts to it.
-        </p>
+        </p> */}
         {variants.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
             No variants added yet — go back to Inward Details and Set Matrix first.
@@ -172,6 +257,7 @@ const QrTagStudioStep = ({
               perVariantSettings={perVariantSettings}
               onToggleIncluded={onToggleVariantIncluded}
               onToggleChildTags={onToggleVariantChildTags}
+              onToggleTagLoosePieces={onToggleVariantTagLoosePieces}
               defectAction={defectAction}
             />
           </div>
@@ -216,13 +302,14 @@ const QrTagStudioStep = ({
             <div className="sticky top-4">
               <div className="overflow-hidden rounded-[10px] border border-slate-200 bg-white">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
-                  <h3 className="text-[12.5px] font-bold tracking-tight text-slate-900">Live preview</h3>
+                  <h3 className="text-[12.5px] font-bold tracking-tight text-slate-900">Live preview — every tag in the job</h3>
                   <span className="text-[11.5px] text-slate-500">
                     {tagData.printerShort} · {dims.w} × {dims.h} mm
                   </span>
                 </div>
+                <PreviewFilterBar tags={taggedTags} filter={filter} onFilterChange={setFilter} zoom={zoom} onZoomChange={setZoom} />
                 <div
-                  className="flex min-h-[300px] items-start justify-center p-6"
+                  className="max-h-[560px] overflow-y-auto"
                   style={{
                     backgroundColor: "#E2E8F0",
                     backgroundImage:
@@ -231,19 +318,21 @@ const QrTagStudioStep = ({
                     backgroundPosition: "0 0, 7px 7px",
                   }}
                 >
-                  <LabelPreview
-                    engine={engine}
-                    thermalPreset={thermalPreset}
-                    a4Preset={a4Preset}
-                    a4StartAt={a4StartAt}
-                    activeTab={activeTab}
-                    data={tagData}
-                    fields={fields}
-                    qrmm={qrmm}
-                    typography={typography}
-                    strategy={printStrategy}
-                    qrValue={currentTagId}
-                  />
+                  {engine === "thermal" ? (
+                    <TagRoll
+                      tags={filteredTags}
+                      buildTagData={buildTagData}
+                      fields={fields}
+                      qrmm={qrmm}
+                      typography={typography}
+                      zoom={zoom}
+                      printerShort={tagData.printerShort}
+                    />
+                  ) : (
+                    <div className="p-4">
+                      <A4SheetPreview tags={filteredTags} a4Preset={a4Preset} startAt={a4StartAt} buildTagData={buildTagData} qrmm={qrmm} />
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap justify-between gap-3 border-t border-slate-200 bg-slate-50 px-4 py-2.5 text-[11.5px] text-slate-500">
                   <span>
@@ -253,7 +342,7 @@ const QrTagStudioStep = ({
                     QR <b className="font-mono font-bold text-slate-900">{qrmm} mm</b>
                   </span>
                   <span>
-                    Fields <b className="font-mono font-bold text-slate-900">{Object.values(fields[activeTab]).filter(Boolean).length}</b>
+                    Fields <b className="font-mono font-bold text-slate-900">{fieldsOnCount(activeTab)}</b>
                   </span>
                   <span
                     className={`font-semibold ${
@@ -265,22 +354,36 @@ const QrTagStudioStep = ({
                 </div>
               </div>
               <p className="mt-3 max-w-[78ch] text-[12.3px] text-slate-500">
-                <b className="text-slate-900">Preview is size-accurate.</b> The scan-safety meter above is the guard
-                rail that matters — anything under 15 mm starts failing on wrinkled poly bags.
+                <b className="text-slate-900">Preview is size-accurate.</b> Scroll the whole job before printing — every
+                tag above renders its own real content, not one sample repeated.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <div>
-              <div className="font-mono text-base font-bold tabular-nums text-slate-900">{totals.total}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tags queued</div>
-            </div>
-            <div>
-              <div className="font-mono text-base font-bold tabular-nums text-slate-900">{mediaUsage}</div>
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Media</div>
-            </div>
-          </div>
+          <ActionBar
+            totals={{
+              tagsQueued: totals.total,
+              media: mediaUsage,
+              applyTime: `~${Math.max(1, Math.round((totals.parent * 4 + totals.child * 7 + totals.loose * 7) / 60))} min`,
+              issues: issueCount,
+            }}
+            isSavingPreset={isSavingPreset}
+            onSavePreset={handleSavePreset}
+            onDownloadPdf={() => window.print()}
+            onSkip={() => { onSetPrintOnConfirm(false); onAdvance(); }}
+            onSendToPrinter={() => { onSetPrintOnConfirm(true); onAdvance(); }}
+          />
+
+          <QrTagPrintSheet
+            engine={engine}
+            tags={filteredTags}
+            a4Preset={a4Preset}
+            a4StartAt={a4StartAt}
+            fields={fields}
+            qrmm={qrmm}
+            typography={typography}
+            buildTagData={buildTagData}
+          />
         </>
       )}
     </div>

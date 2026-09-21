@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import {
     Empty,
     EmptyHeader,
-    EmptyMedia,
     EmptyTitle,
     EmptyDescription,
     EmptyContent,
@@ -40,10 +39,7 @@ const Variants = ({ control, existingDesignByCode }) => {
         return (
             <Empty>
                 <EmptyHeader>
-                    <EmptyMedia variant="icon" className="bg-[#DEE4DE]">
-                        <Plus />
-                    </EmptyMedia>
-                    <EmptyTitle>No Variants Yet</EmptyTitle>
+                    <EmptyTitle>No Variants Added Yet</EmptyTitle>
                     <EmptyDescription>
                         Add a variant available for this design.
                     </EmptyDescription>

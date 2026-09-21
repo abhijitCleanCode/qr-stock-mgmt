@@ -9,6 +9,8 @@ import stockInPersistence from "./stockInPersistence.service.js";
 import stockInResultMapper from "../mapper/stockInResultMapper.js";
 import stockQrService from "./stockQr.service.js";
 import stockHistoryService from "./stockHistory.service.js";
+import printJobRepository from "../repositories/printJob.repository.js";
+import printJobItemRepository from "../repositories/printJobItem.repository.js";
 
 function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
@@ -57,6 +59,8 @@ class StockInService {
     _stockInPersistence = stockInPersistence;
     _stockQrService = stockQrService;
     _stockHistoryService = stockHistoryService;
+    _printJobRepository = printJobRepository;
+    _printJobItemRepository = printJobItemRepository;
 
     _stockInResultMapper = stockInResultMapper;
 
@@ -74,9 +78,32 @@ class StockInService {
                 }
             }
 
+            // NEW: one print job for every QR issued across the whole request (SET/BUNDLE +
+            // any individually-tagged PIECEs), only when the caller asked to print immediately
+            // — see design spec decision 8 ("Send to printer" vs "Skip · send to QR Center").
+            let printJobId = null;
+            if (data.printOnConfirm) {
+                const allQrIds = variantResults.flatMap((result) => result.qrIds ?? []);
+                if (allQrIds.length > 0) {
+                    const job = await this._printJobRepository.create(tx, {
+                        printerId: data.printerId,
+                        jobType: "QR_GENERATE",
+                        status: "COMPLETED",
+                        totalCount: allQrIds.length,
+                    });
+                    await this._printJobItemRepository.createMany(tx, allQrIds.map((stockItemQrId, index) => ({
+                        printJobId: job.id,
+                        stockItemQrId,
+                        sequence: index + 1,
+                    })));
+                    printJobId = job.id;
+                }
+            }
+
             return {
                 transactionsCreated: variantResults.length,
                 variants: variantResults,
+                printJobId,
             };
         });
     }
@@ -110,7 +137,29 @@ class StockInService {
         });
 
         // 3.7 NEW: generate + persist QR history for every SET/BUNDLE stock item just created
-        await this._stockQrService.generateForStockItems(tx, stockItems, {
+        const generatedQr = await this._stockQrService.generateForStockItems(tx, stockItems, {
+            designCode: validateStockIn.variant.designCode,
+            designName: validateStockIn.variant.designName,
+            colorName: validateStockIn.variant.colorName,
+        });
+
+        // 3.8 NEW: individually-tagged PIECE stock items for Parent+Child / tag-loose-pieces —
+        // zips stockItems back with createdBundles by matching each BUNDLE row's own bundleId,
+        // since createStockItems doesn't stamp a bundle index onto the rows it returns.
+        const setSizes = validateStockIn.activeSizes.filter((size) => size.includedInSet);
+        const createdSetItems = stockItems.filter((item) => item.type === "SET");
+        const createdBundleItems = stockItems
+            .filter((item) => item.type === "BUNDLE")
+            .map((item) => ({ ...item, bundleIndex: createdBundles.findIndex((bundle) => bundle.id === item.bundleId) }));
+        const loosePieceEntries = variantInput.loosePieces ?? [];
+
+        const taggedPieces = await this._stockInPersistence.createTaggedPieces(tx, {
+            colorVariantId: validateStockIn.variant.id,
+            variantInput,
+            setSizes,
+            createdSetItems,
+            createdBundleItems,
+            loosePieceEntries,
             designCode: validateStockIn.variant.designCode,
             designName: validateStockIn.variant.designName,
             colorName: validateStockIn.variant.colorName,
@@ -133,21 +182,28 @@ class StockInService {
             colorVariantId: validateStockIn.variant.id,
             stockInTransactionId: stockInTransaction.id,
             quantity: totalQuantityAdded,
-            metadata: buildStockInHistoryMetadata({ delta, variantInput, createdBundles }),
+            metadata: { ...buildStockInHistoryMetadata({ delta, variantInput, createdBundles }), taggedPieceCount: taggedPieces.length },
         });
 
         // 6. build response
-        return this._stockInResultMapper.map({
-            designId,
-            variant: validateStockIn.variant,
-            transaction: stockInTransaction,
-            activeSizes: validateStockIn.activeSizes,
-            delta,
-            updatedInventory,
-            variantInput,
-            stockGroupId: setGroup?.id ?? null,
-            stockItems
-        });
+        return {
+            ...this._stockInResultMapper.map({
+                designId,
+                variant: validateStockIn.variant,
+                transaction: stockInTransaction,
+                activeSizes: validateStockIn.activeSizes,
+                delta,
+                updatedInventory,
+                variantInput,
+                stockGroupId: setGroup?.id ?? null,
+                stockItems
+            }),
+            // Every stock_item_qr id issued for this variant — SET/BUNDLE/LOOSE_PIECE's (via
+            // generateForStockItems) plus every individually-tagged PIECE's (via
+            // createTaggedPieces, which issues its own QR directly). registerStockIn (below)
+            // collects these across all variants to build one print job when printOnConfirm.
+            qrIds: [...generatedQr.map((row) => row.id), ...taggedPieces.map((row) => row.qr.id)],
+        };
     }
 }
 

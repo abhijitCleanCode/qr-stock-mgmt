@@ -16,12 +16,15 @@ const hasStock = (config) =>
 // deliveryDate/challanNo are entered once for the whole registration (see StockIn.jsx) and
 // applied identically to every variant entry — stockDate/challanNo are per-transaction fields
 // server-side (one stock_in_transaction per variant), so this is how one UI value becomes N.
-export function buildStockInPayload(selectedVariants, configs, { deliveryDate, challanNo }) {
+export function buildStockInPayload(selectedVariants, configs, { deliveryDate, challanNo, printStrategy, qrPerVariantSettings, printOnConfirm, printerId }) {
   const designs = new Map();
 
   for (const variant of selectedVariants) {
-    const config = configs[getVariantKey(variant)];
+    const key = getVariantKey(variant);
+    const config = configs[key];
     if (!config || !hasStock(config)) continue;
+
+    const perVariant = qrPerVariantSettings?.[key] ?? { included: true, childTags: false, tagLoosePieces: false };
 
     const variantEntry = {
       colorVariantId: config.colorVariantId,
@@ -36,6 +39,11 @@ export function buildStockInPayload(selectedVariants, configs, { deliveryDate, c
         }))
         .filter((bundle) => bundle.composition.length > 0),
       loosePieces: toCompositionArray(config.loosePieces),
+      tagging: {
+        strategy: printStrategy ?? "parent",
+        childTagsEnabled: Boolean(perVariant.childTags),
+        tagLoosePieces: Boolean(perVariant.tagLoosePieces),
+      },
     };
 
     if (!designs.has(config.designId)) {
@@ -44,5 +52,9 @@ export function buildStockInPayload(selectedVariants, configs, { deliveryDate, c
     designs.get(config.designId).push(variantEntry);
   }
 
-  return { designs: Array.from(designs, ([designId, variants]) => ({ designId, variants })) };
+  return {
+    designs: Array.from(designs, ([designId, variants]) => ({ designId, variants })),
+    printOnConfirm: Boolean(printOnConfirm),
+    ...(printerId ? { printerId } : {}),
+  };
 }

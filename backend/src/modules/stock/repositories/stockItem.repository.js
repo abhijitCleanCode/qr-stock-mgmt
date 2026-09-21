@@ -65,6 +65,7 @@ class StockItemRepository {
             status: stockItem.status,
             colorVariantId: stockItem.colorVariantId,
             designSizeId: stockItem.designSizeId,
+            bundleId: stockItem.bundleId,
             rackId: stockItem.rackId,
             binId: stockItem.binId,
             originSetStockItemId: stockItem.originSetStockItemId,

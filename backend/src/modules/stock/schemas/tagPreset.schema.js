@@ -1,4 +1,4 @@
-import { integer, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { integer, jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 
 import { design } from "../../design/schemas/design.schema.js";
 import { printer } from "./printer.schema.js";
@@ -13,6 +13,11 @@ export const tagPreset = pgTable("tag_presets", {
     mediaSize: varchar("media_size", { length: 50 }).notNull(),
 
     defaultPrinterId: integer("default_printer_id").references(() => printer.id, { onDelete: "set null" }),
+
+    // Tag Studio's field-toggle/typography/qrmm/engine/preset state for this design, saved via
+    // "Save as preset". Arbitrary shape (see qrTagStudio.js's ActionBar save handler) — a
+    // read-only passthrough on this side, never queried by column.
+    config: jsonb("config"),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });

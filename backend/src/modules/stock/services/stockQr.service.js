@@ -2,7 +2,11 @@ import stockItemQrRepository from "../repositories/stockItemQr.repository.js";
 import ApiError from "../../../core/apiError.js";
 import { generateUniqueShortCode } from "../utils/qrShortCode.util.js";
 
-const QR_ELIGIBLE_TYPES = new Set(["SET", "BUNDLE"]);
+// PIECE is included here for stock items tagged directly by this file's caller (Stock-In's
+// Parent+Child / tag-loose-pieces strategies) — every PIECE passed in has already been
+// individually created for exactly this purpose, so no extra filtering condition is needed
+// beyond "is this type ever meant to carry its own QR".
+const QR_ELIGIBLE_TYPES = new Set(["SET", "BUNDLE", "PIECE"]);
 
 class StockQrService {
     _stockItemQrRepository = stockItemQrRepository;
