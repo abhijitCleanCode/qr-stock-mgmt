@@ -1,4 +1,4 @@
-import { FileCheck, Info, Loader2Icon, X } from "lucide-react";
+import { FileCheck, Loader2Icon, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import DesignSearchInput from "../../components/DesignSearchInput";
@@ -56,7 +56,7 @@ const InwardDetailsStep = ({
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-slate-800" htmlFor="challanNo">
-            Jobber Delivery Challan No. 
+            Jobber Delivery Challan No.
           </label>
           <Input
             id="challanNo"
@@ -69,7 +69,7 @@ const InwardDetailsStep = ({
 
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-slate-800" htmlFor="challanDate">
-            Challan / Inward Date 
+            Challan / Inward Date
           </label>
           <Input
             id="challanDate"
