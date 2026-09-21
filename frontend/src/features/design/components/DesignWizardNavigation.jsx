@@ -19,15 +19,15 @@ const DesignWizardNavigation = ({
                 variant="outline"
                 disabled={isFirstStep}
                 onClick={onPrev}
-                className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors"
+                className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white"
             >
                 Prev
             </Button>
 
             {!isLastStep ? (
-                <Button type="button" onClick={onNext} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors">Next</Button>
+                <Button type="button" onClick={onNext} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white">Next</Button>
             ) : (
-                <Button type="submit" disabled={isSubmitting} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors">
+                <Button type="submit" disabled={isSubmitting} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white">
                     {isSubmitting ? <Loader2 className="animate-spin" /> : "Save"}
                 </Button>
             )}

@@ -9,6 +9,7 @@ import { stockOutRoutes } from '../../modules/stock/routes/stockOut.route.js';
 import { stockItemRoutes } from '../../modules/stock/routes/stockItem.route.js';
 import { qrCenterRoutes } from '../../modules/stock/routes/qrCenter.route.js';
 import { stockHistoryRoutes } from '../../modules/stock/routes/stockHistory.route.js';
+import { tagPresetRoutes } from '../../modules/stock/routes/tagPreset.route.js';
 import { currentStockRoutes } from '../../modules/inventory/routes/currentStock.route.js';
 import { orderFormRoutes } from '../../modules/order/routes/orderForm.route.js';
 
@@ -20,6 +21,7 @@ router.use('/stock-out', buildRouter(stockOutRoutes));
 router.use('/stock-items', buildRouter(stockItemRoutes));
 router.use('/qr-center', buildRouter(qrCenterRoutes));
 router.use('/stock-history', buildRouter(stockHistoryRoutes));
+router.use('/tag-presets', buildRouter(tagPresetRoutes));
 router.use('/current-stock', buildRouter(currentStockRoutes));
 router.use('/order-forms', buildRouter(orderFormRoutes));
 

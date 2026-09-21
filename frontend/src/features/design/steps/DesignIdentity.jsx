@@ -11,6 +11,27 @@ import { useExistingDesignByCode } from "../hooks/useExistingDesignByCode";
 
 const CODE_CHECK_DEBOUNCE_MS = 400;
 
+// Enforces "<letters> <digits>" (e.g. "KP 100"): letters accumulate until the first digit is
+// typed, at which point a space is auto-inserted and only digits are accepted from then on.
+// Anything else typed (hyphens, letters after a digit, extra spaces) is silently dropped.
+const formatDesignCode = (raw) => {
+  let letters = "";
+  let digits = "";
+  let seenDigit = false;
+
+  for (const char of raw) {
+    if (!seenDigit && /[a-zA-Z]/.test(char)) {
+      letters += char;
+    } else if (/[0-9]/.test(char)) {
+      seenDigit = true;
+      digits += char;
+    }
+  }
+
+  if (!letters) return digits;
+  return seenDigit ? `${letters} ${digits}` : letters;
+};
+
 const DesignIdentity = ({ control, setExistingDesignByCode }) => {
   const codeValue = useWatch({ control, name: "code" });
   const [debouncedCode, setDebouncedCode] = useState("");
@@ -46,6 +67,7 @@ const DesignIdentity = ({ control, setExistingDesignByCode }) => {
           name="code"
           label="Design Code"
           fieldType={FormFieldType.INPUT}
+          format={formatDesignCode}
         />
         {existingDesign && (
           <p className="mt-1 text-sm text-amber-600">
@@ -53,8 +75,8 @@ const DesignIdentity = ({ control, setExistingDesignByCode }) => {
           </p>
         )}
       </div>
-      <JobberSearchInput />
-      <PatternSearchInput />
+      <JobberSearchInput label="Jobber Name" />
+      <PatternSearchInput label="Pattern Name" />
       <QualitySearchInput />
       <CustomFormField
         control={control}

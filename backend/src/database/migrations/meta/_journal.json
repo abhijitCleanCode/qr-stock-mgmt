@@ -36,6 +36,13 @@
       "when": 1789629225132,
       "tag": "0004_add_design_semi_sets",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789889261954,
+      "tag": "0005_fancy_proudstar",
+      "breakpoints": true
     }
   ]
 }

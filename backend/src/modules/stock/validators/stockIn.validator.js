@@ -33,6 +33,16 @@ const loosePieceSchema = z.object({
     quantity: positiveInt,
 });
 
+const taggingSchema = z.object({
+    strategy: z.enum(["parent", "parentChild", "custom"]).default("parent"),
+    // Only meaningful when strategy === "custom" — mirrors the frontend's per-variant
+    // qrPerVariantSettings.childTags override (see qrTagStudio.js#computeVariantRow).
+    childTagsEnabled: z.boolean().default(false),
+    // Independent of strategy: tags the loose-piece quantity individually (PIECE, not
+    // LOOSE_PIECE) instead of leaving it in the untagged fungible pool.
+    tagLoosePieces: z.boolean().default(false),
+});
+
 // Challan No. is a free-form supplier/delivery reference — may contain letters, digits,
 // leading zeros, and separators like "/" or "-" (e.g. "CH-00125", "INV/2026/001", "001245").
 // Never coerced to a number, so leading zeros survive.
@@ -55,6 +65,7 @@ const variantEntrySchema = z
         totalSetsReceived: nonNegativeInt.default(0),
         bundles: z.array(bundleSchema).default([]),
         loosePieces: z.array(loosePieceSchema).default([]),
+        tagging: taggingSchema.default({ strategy: "parent", childTagsEnabled: false, tagLoosePieces: false }),
     })
     .superRefine((variant, ctx) => {
         const hasSets = variant.totalSetsReceived > 0;
@@ -91,8 +102,18 @@ const designGroupSchema = z.object({
 export const stockInSchema = z
     .object({
         designs: z.array(designGroupSchema).min(1),
+        printOnConfirm: z.boolean().default(false),
+        printerId: positiveInt.optional(),
     })
     .superRefine((data, ctx) => {
+        if (data.printOnConfirm && data.printerId === undefined) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["printerId"],
+                message: "printerId is required when printOnConfirm is true.",
+            });
+        }
+
         const seenDesignIds = new Set();
         data.designs.forEach((design, designIndex) => {
             if (seenDesignIds.has(design.designId)) {
