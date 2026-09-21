@@ -3,6 +3,8 @@ import { FormProvider, useForm } from "react-hook-form";
 
 import ActionModal from "@/components/shared/ActionModal";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import CustomFormField from "@/components/shared/form/CustomFormField";
 import SingleFileUpload from "@/components/shared/form/fields/SingleFileUpload";
 import { FormFieldType } from "@/config/FormFieldType";
@@ -63,12 +65,35 @@ const VariantModal = ({ onAdd, onClose }) => {
                             Color
                         </label>
                         <div className="flex items-center gap-3">
-                            <input
-                                type="color"
-                                value={HEX_COLOR_PATTERN.test(colorHex) ? colorHex : "#000000"}
-                                onChange={(e) => setValue("colorHex", e.target.value, { shouldValidate: true })}
-                                className="h-12 w-12 shrink-0 cursor-pointer rounded-lg border border-[#4C4A85] bg-transparent p-1"
-                            />
+                            <Popover>
+                                <PopoverTrigger
+                                    type="button"
+                                    aria-label="Choose color"
+                                    className="h-12 w-12 shrink-0 cursor-pointer rounded-lg border border-[#4C4A85] bg-transparent p-1"
+                                >
+                                    <span
+                                        className="block h-full w-full rounded-sm"
+                                        style={{ backgroundColor: HEX_COLOR_PATTERN.test(colorHex) ? colorHex : "#000000" }}
+                                    />
+                                </PopoverTrigger>
+                                {/* Pinned to the left of the swatch, and collisionAvoidance="shift" keeps
+                                    it there rather than letting it flip over to the right (which would
+                                    cover the "Variant Image" dropzone/preview) — on narrow screens it
+                                    slides along the left side instead, staying inside the viewport. */}
+                                <PopoverContent
+                                    side="left"
+                                    align="start"
+                                    sideOffset={12}
+                                    collisionPadding={16}
+                                    collisionAvoidance={{ side: "shift", align: "shift" }}
+                                    className="w-auto p-3"
+                                >
+                                    <ColorPicker
+                                        color={HEX_COLOR_PATTERN.test(colorHex) ? colorHex : "#000000"}
+                                        onChange={(hex) => setValue("colorHex", hex, { shouldValidate: true })}
+                                    />
+                                </PopoverContent>
+                            </Popover>
                             <input
                                 {...register("colorHex", {
                                     required: "Color hex is required",
@@ -89,6 +114,7 @@ const VariantModal = ({ onAdd, onClose }) => {
                         label="Variant Image"
                         accept={{ "image/*": [] }}
                         required
+                        onColorPick={(hex) => setValue("colorHex", hex, { shouldValidate: true })}
                     />
 
                     <Button

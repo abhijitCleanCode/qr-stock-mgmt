@@ -1,5 +1,5 @@
-import { FileText, Upload } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { FileText, Pipette, Upload } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Controller } from "react-hook-form";
 
@@ -17,8 +17,32 @@ const SingleFileUpload = ({
     },
     label = "Upload File",
     required = false,
+    onColorPick,
 }) => {
     const [previewUrl, setPreviewUrl] = useState(null);
+    const imgRef = useRef(null);
+    const canvasRef = useRef(null);
+
+    const pickColorFromImage = (e) => {
+        const img = imgRef.current;
+        if (!img) return;
+
+        if (!canvasRef.current) canvasRef.current = document.createElement("canvas");
+        const canvas = canvasRef.current;
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+
+        const rect = img.getBoundingClientRect();
+        const x = Math.floor(((e.clientX - rect.left) / rect.width) * img.naturalWidth);
+        const y = Math.floor(((e.clientY - rect.top) / rect.height) * img.naturalHeight);
+
+        const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+        const toHex = (n) => n.toString(16).padStart(2, "0");
+        onColorPick(`#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase());
+    };
 
     const generatePreview = (file) => {
         if (file.type.startsWith("image/") || file.type === "application/pdf") {
@@ -114,11 +138,21 @@ const SingleFileUpload = ({
                                 </p>
 
                                 {file.type.startsWith("image/") && previewUrl && (
-                                    <img
-                                        src={previewUrl}
-                                        alt="preview"
-                                        className="mt-2 h-24 object-contain rounded border"
-                                    />
+                                    <div className="mt-2 inline-block">
+                                        <img
+                                            ref={imgRef}
+                                            src={previewUrl}
+                                            alt="preview"
+                                            onClick={onColorPick ? pickColorFromImage : undefined}
+                                            className={`h-24 object-contain rounded border ${onColorPick ? "cursor-crosshair" : ""}`}
+                                        />
+                                        {onColorPick && (
+                                            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                                <Pipette className="size-3" />
+                                                Click the image to pick a color
+                                            </p>
+                                        )}
+                                    </div>
                                 )}
 
                                 {file.type === "application/pdf" && previewUrl && (

@@ -7,14 +7,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useModal } from "@/components/shared/ModalProvider";
 import SizeQuantityGrid from "../../components/SizeQuantityGrid";
 import { useColorVariantSizesApi } from "../../hooks/useColorVariantSizesApi";
 import { useVariantSemiSetsApi } from "../../hooks/useVariantSemiSetsApi";
 import { getBundleTotalPieces, getLoosePiecesTotal } from "../../utils/stockCalculations";
 import { getVariantKey } from "../../utils/variantKey";
 import { getVariantDisplayCode } from "../../utils/variantDisplay";
+import AddCustomSemiSetDialog from "./AddCustomSemiSetDialog";
 
 const SetMatrixVariantCard = ({
   index,
@@ -28,6 +31,7 @@ const SetMatrixVariantCard = ({
   onTotalsChange,
 }) => {
   const key = getVariantKey(variant);
+  const { openModal } = useModal();
   const { data: sizesResponse, isFetching, isError } = useColorVariantSizesApi({
     colorVariantId: variant.colorVariantId,
   });
@@ -64,6 +68,16 @@ const SetMatrixVariantCard = ({
     onAddBundle(key, { quantity: 1, composition, label: semiSet.label });
   };
 
+  // Semi Sets configured in Design Master are still offered above, but adding one there is
+  // no longer a prerequisite — the user can define a Semi Set for this transaction only.
+  // It never touches Design Master; onAddBundle stores it the same way as a configured one.
+  const handleAddCustomSemiSet = () => {
+    openModal(AddCustomSemiSetDialog, {
+      sizes,
+      onSubmit: (bundle) => onAddBundle(key, bundle),
+    });
+  };
+
   const handleBundleQuantityChange = (bundle, event) => {
     const raw = event.target.value;
     const parsed = raw === "" ? 0 : parseInt(raw, 10);
@@ -98,8 +112,8 @@ const SetMatrixVariantCard = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <label htmlFor={`sets-${key}`} className="whitespace-nowrap text-xs font-semibold text-slate-700">
-            Full Sets Received ({piecesPerSet || "…"} pcs each):
+          <label htmlFor={`sets-${key}`} className="whitespace-nowrap text-xs font-bold text-slate-700">
+            Sets Received
           </label>
           <Input
             id={`sets-${key}`}
@@ -108,39 +122,18 @@ const SetMatrixVariantCard = ({
             min={0}
             value={setsTotal || ""}
             onChange={handleSetInputChange}
-            className="h-[38px] w-24 rounded-lg border-slate-200 text-center text-sm font-bold text-slate-900 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/10"
+            className="h-[38px] w-24 rounded-lg border-2 border-slate-300 text-center text-sm font-bold text-slate-900 focus-visible:border-emerald-500 focus-visible:ring-emerald-500/10"
           />
         </div>
       </div>
 
       <div>
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          Extra Loose Pieces (Outside Complete Sets)
-        </p>
-
-        {isFetching && (
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
-            <Loader2Icon className="size-3.5 animate-spin" /> Loading active sizes...
-          </span>
-        )}
-        {!isFetching && isError && (
-          <span className="text-xs text-red-600">Failed to load active sizes for this variant.</span>
-        )}
-        {!isFetching && !isError && sizes.length === 0 && (
-          <span className="text-xs text-slate-400">No active sizes configured for this variant.</span>
-        )}
-        {!isFetching && !isError && sizes.length > 0 && (
-          <SizeQuantityGrid sizes={sizes} values={config.loosePieces} onChange={handleLooseChange} />
-        )}
-      </div>
-
-      <div className="mt-4 border-t border-slate-100 pt-3">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Semi Sets</p>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <Button type="button" variant="outline" size="sm" disabled={semiSets.length === 0}>
+                <Button type="button" variant="outline" size="sm">
                   <PlusIcon className="size-3.5" /> Add Semi Set
                 </Button>
               }
@@ -154,6 +147,10 @@ const SetMatrixVariantCard = ({
                   </span>
                 </DropdownMenuItem>
               ))}
+              {semiSets.length > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuItem onClick={handleAddCustomSemiSet}>
+                <PlusIcon className="size-3.5" /> Custom Semi Set…
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -191,6 +188,27 @@ const SetMatrixVariantCard = ({
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-slate-100 pt-3">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+          Loose Pieces
+        </p>
+
+        {isFetching && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+            <Loader2Icon className="size-3.5 animate-spin" /> Loading active sizes...
+          </span>
+        )}
+        {!isFetching && isError && (
+          <span className="text-xs text-red-600">Failed to load active sizes for this variant.</span>
+        )}
+        {!isFetching && !isError && sizes.length === 0 && (
+          <span className="text-xs text-slate-400">No active sizes configured for this variant.</span>
+        )}
+        {!isFetching && !isError && sizes.length > 0 && (
+          <SizeQuantityGrid sizes={sizes} values={config.loosePieces} onChange={handleLooseChange} />
         )}
       </div>
     </div>

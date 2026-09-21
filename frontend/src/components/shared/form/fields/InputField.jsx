@@ -6,12 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const InputField = ({ name, label, placeholder, inputType, field }) => {
+const InputField = ({ name, label, placeholder, inputType, field, format }) => {
     const { register, formState: { errors } } = useFormContext();
 
     const [showPassword, setShowPassword] = useState(false);
 
     const id = useId();
+
+    const handleChange = (e) => {
+        const rawValue = e.target.value;
+        field.onChange(format ? format(rawValue) : rawValue);
+    };
 
     return (
         <div className="space-y-1">
@@ -22,6 +27,7 @@ const InputField = ({ name, label, placeholder, inputType, field }) => {
                     type={showPassword ? "text" : inputType || "text"}
                     // {...register(name)}
                     {...field}
+                    onChange={handleChange}
                     placeholder={placeholder}
                     className="bg-transparent border border-[#4C4A85] text-gray-900 h-12 rounded-lg focus-visible:ring-2 focus-visible:ring-[#9A99BE] focus:border-[#4C4A85] w-full px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 />

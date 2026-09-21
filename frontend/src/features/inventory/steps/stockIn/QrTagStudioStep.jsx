@@ -10,6 +10,7 @@ import TagRoll from "../../components/stock-in/qrTagStudio/TagRoll";
 import A4SheetPreview from "../../components/stock-in/qrTagStudio/A4SheetPreview";
 import PreviewFilterBar from "../../components/stock-in/qrTagStudio/PreviewFilterBar";
 import ActionBar from "../../components/stock-in/qrTagStudio/ActionBar";
+import QrTagPrintSheet from "../../components/stock-in/qrTagStudio/QrTagPrintSheet";
 import { useTagPresetApi } from "../../hooks/useTagPresetApi";
 import { getVariantKey } from "../../utils/variantKey";
 import { getVariantDisplayCode } from "../../utils/variantDisplay";
@@ -228,10 +229,10 @@ const QrTagStudioStep = ({
             DECIDE FIRST
           </span>
         </div>
-        <p className="mb-3.5 max-w-[74ch] text-[13px] text-slate-500">
+        {/* <p className="mb-3.5 max-w-[74ch] text-[13px] text-slate-500">
           This choice sets how many labels get printed and how much hand-applying the godown has to do. Everything
           below reacts to it.
-        </p>
+        </p> */}
         {variants.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
             No variants added yet — go back to Inward Details and Set Matrix first.
@@ -371,6 +372,17 @@ const QrTagStudioStep = ({
             onDownloadPdf={() => window.print()}
             onSkip={() => { onSetPrintOnConfirm(false); onAdvance(); }}
             onSendToPrinter={() => { onSetPrintOnConfirm(true); onAdvance(); }}
+          />
+
+          <QrTagPrintSheet
+            engine={engine}
+            tags={filteredTags}
+            a4Preset={a4Preset}
+            a4StartAt={a4StartAt}
+            fields={fields}
+            qrmm={qrmm}
+            typography={typography}
+            buildTagData={buildTagData}
           />
         </>
       )}

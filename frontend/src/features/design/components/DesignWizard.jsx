@@ -25,6 +25,14 @@ const DesignWizard = () => {
     const onSubmit = async (data) => {
         const { colorVariants = [], sizes = [], semiSets = [], ...designData } = data;
 
+        // Caught here (on Save) rather than left to the backend's rejection, so the user gets
+        // immediate feedback without a round trip — Next never reaches this, since it only
+        // validates the current step's own fields.
+        if (colorVariants.length === 0) {
+            toast.error("At least one color variant is required.");
+            return;
+        }
+
         const designSizes = sizes.map((sizeLabel, index) => ({
             sizeLabel,
             displayOrder: index,

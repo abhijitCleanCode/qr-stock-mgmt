@@ -37,7 +37,7 @@ const A4SheetPreview = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
           <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[3.1px] text-slate-600">
             {tag.kind === "parent" ? `${tag.isSemiSet ? "SEMI" : "SET"} ${tag.piecesPerSet}-PC` : `SIZE ${tag.size}`}
           </div>
-          <div className="text-[3.4px] font-bold">₹ {tag.kind === "parent" ? data.bundlePrice : data.piecePrice}</div>
+          <div className="text-[3.4px] font-bold">{tag.kind === "parent" ? data.bundlePrice : data.piecePrice}</div>
         </div>
       </div>
     );

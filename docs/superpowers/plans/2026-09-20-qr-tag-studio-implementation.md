@@ -1673,7 +1673,7 @@ Replace the whole "Live preview" `.panel` block (currently the `<div className="
                   </span>
                 </div>
               </div>
-              <p className="mt-3 max-w-[78ch] text-[12.3px] text-slate-500">
+                <p className="mt-3 max-w-[78ch] text-[12.3px] text-slate-500">
                 <b className="text-slate-900">Preview is size-accurate.</b> Scroll the whole job before printing — every tag above renders its own real content, not one sample repeated.
               </p>
             </div>

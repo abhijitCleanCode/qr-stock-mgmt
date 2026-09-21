@@ -251,7 +251,7 @@ const StockIn = () => {
   };
 
   return (
-    <div className="mx-auto flex min-h-[640px] w-full max-w-5xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8">
+    <div className="mx-auto flex min-h-[760px] w-full max-w-6xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8 lg:ml-2 lg:mr-[-72px] lg:w-[calc(100%+4rem)]">
       <div className="mb-6 space-y-5 border-b border-slate-100 pb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>

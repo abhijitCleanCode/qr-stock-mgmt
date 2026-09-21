@@ -11,10 +11,10 @@ const ActionBar = ({ totals, onSavePreset, onDownloadPdf, onSkip, onSendToPrinte
         <div className="font-mono text-base font-bold tabular-nums text-slate-900">{totals.media}</div>
         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Media</div>
       </div>
-      <div>
+      {/* <div>
         <div className="font-mono text-base font-bold tabular-nums text-slate-900">{totals.applyTime}</div>
         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Est. apply time</div>
-      </div>
+      </div> */}
       <div>
         <div className={`font-mono text-base font-bold tabular-nums ${totals.issues ? "text-amber-600" : "text-slate-900"}`}>{totals.issues}</div>
         <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Need attention</div>

@@ -47,11 +47,12 @@ const SemiSetsField = ({ control, selectedSizes }) => (
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="lg"
               onClick={addSemiSet}
               disabled={selectedSizes.length === 0}
+              className="hover:!bg-[#00694C] hover:!text-white"
             >
-              <Plus className="size-3.5" /> Add Semi Set
+              <Plus className="size-4" /> Add Semi Set
             </Button>
           </div>
 

@@ -34,14 +34,23 @@ const TagContentConfig = ({ activeTab, onTabChange, fields, onToggleField, capac
         <div>
           {list.map((field) => (
             <div key={field.k} className="flex items-center gap-2.5 border-b border-slate-100 py-2 last:border-0">
-              <input
-                type="checkbox"
-                id={`f_${activeTab}_${field.k}`}
-                checked={Boolean(fields[activeTab][field.k])}
-                disabled={field.lock}
-                onChange={() => onToggleField(activeTab, field.k)}
-                className="size-4 shrink-0 accent-emerald-600"
-              />
+              <div className="relative flex size-4 shrink-0 items-center justify-center">
+                <input
+                  type="checkbox"
+                  id={`f_${activeTab}_${field.k}`}
+                  checked={Boolean(fields[activeTab][field.k])}
+                  disabled={field.lock}
+                  onChange={() => onToggleField(activeTab, field.k)}
+                  className="peer size-4 shrink-0 appearance-none rounded-[3px] border-2 border-slate-900 bg-white checked:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                />
+                <svg
+                  className="pointer-events-none absolute hidden size-2.5 stroke-slate-900 peer-checked:block"
+                  viewBox="0 0 12 10"
+                  fill="none"
+                >
+                  <path d="M1.5 5.2 4.4 8 10.5 1.5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
               <label htmlFor={`f_${activeTab}_${field.k}`} className="min-w-0 flex-1 cursor-pointer text-[13px] text-slate-900">
                 {field.n}
               </label>

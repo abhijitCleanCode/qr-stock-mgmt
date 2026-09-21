@@ -52,32 +52,32 @@ const StrategyCards = ({ variants, strategy, perVariantSettings, onStrategyChang
                   </div>
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tags</div>
                 </div>
-                <div>
+                {/* <div>
                   <div className={`font-mono text-sm font-bold tabular-nums ${on ? "text-emerald-700" : "text-slate-900"}`}>
                     ~{Math.max(1, preview.applyMinutes)} min
                   </div>
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">To apply</div>
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <div className={`font-mono text-sm font-bold tabular-nums ${on ? "text-emerald-700" : "text-slate-900"}`}>
                     ₹{Math.round(preview.total * 0.3)}
                   </div>
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Media</div>
-                </div>
+                </div> */}
               </div>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-3">
+      {/* <div className="mt-3">
         {strategy === "parentChild" ? (
           <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-[12.3px] leading-snug text-emerald-700">
-            <span>✓</span>
-            <div>
+             <span>✓</span>
+             <div>
               <b>Codes are issued now, printed now.</b> Every piece in this challan gets a tag carrying the id it will
-              keep for life — reprints later in QR Center reuse that same code, never a new one.
-            </div>
+               keep for life — reprints later in QR Center reuse that same code, never a new one.
+             </div>
           </div>
         ) : (
           <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[12.3px] leading-snug text-amber-700">
@@ -89,7 +89,7 @@ const StrategyCards = ({ variants, strategy, perVariantSettings, onStrategyChang
             </div>
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 };

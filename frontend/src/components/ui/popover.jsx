@@ -21,6 +21,8 @@ function PopoverContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
+  collisionPadding,
+  collisionAvoidance,
   ...props
 }) {
   return (
@@ -30,6 +32,8 @@ function PopoverContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
+        collisionAvoidance={collisionAvoidance}
         className="isolate z-50">
         <PopoverPrimitive.Popup
           data-slot="popover-content"
