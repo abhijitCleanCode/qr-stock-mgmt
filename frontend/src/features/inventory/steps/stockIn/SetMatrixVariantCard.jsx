@@ -42,6 +42,7 @@ const SetMatrixVariantCard = ({
 
   const setsTotal = config.totalSetsReceived || 0;
   const looseTotal = getLoosePiecesTotal(config.loosePieces);
+  const semiSetsTotal = config.bundles.reduce((sum, bundle) => sum + (Number(bundle.quantity) || 0), 0);
   const bundlesTotal = config.bundles.reduce((sum, bundle) => sum + getBundleTotalPieces(bundle), 0);
   const piecesPerSet = sizes.length;
   const garmentsTotal = setsTotal * piecesPerSet + looseTotal + bundlesTotal;
@@ -50,6 +51,7 @@ const SetMatrixVariantCard = ({
     onTotalsChange(key, {
       variant,
       setsTotal,
+      semiSetsTotal,
       looseTotal,
       bundlesTotal,
       garmentsTotal,
@@ -166,7 +168,9 @@ const SetMatrixVariantCard = ({
               >
                 <span className="text-xs font-semibold text-slate-800">
                   {bundle.label ?? "Semi Set"}{" "}
-                  <span className="font-normal text-slate-500">({Object.keys(bundle.composition).length} sizes)</span>
+                  <span className="font-normal text-slate-500">
+                    ({sizes.filter((size) => Number(bundle.composition?.[size.id]) > 0).map((size) => size.sizeLabel).join(", ")})
+                  </span>
                 </span>
                 <div className="flex items-center gap-2">
                   <Input

@@ -105,22 +105,6 @@ const QcDefectStep = ({
         </label>
 
         <div className="grid grid-cols-1 gap-3 text-xs md:grid-cols-2">
-          <label className="flex cursor-pointer items-start space-x-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-emerald-400">
-            <input
-              type="radio"
-              name="defectAction"
-              value="return"
-              checked={defectAction === "return"}
-              onChange={() => onDefectActionChange("return")}
-              className="mt-0.5 accent-emerald-600"
-            />
-            <div>
-              <span className="block font-bold text-slate-800">Return to Jobber</span>
-              <span className="mt-0.5 block text-[11px] text-slate-500">
-                Deducts stitching payable charges for defective pieces directly from the Jobber Ledger.
-              </span>
-            </div>
-          </label>
 
           <label className="flex cursor-pointer items-start space-x-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-emerald-400">
             <input
@@ -138,6 +122,29 @@ const QcDefectStep = ({
               </span>
             </div>
           </label>
+
+          
+
+
+          <label className="flex cursor-pointer items-start space-x-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-emerald-400">
+            <input
+              type="radio"
+              name="defectAction"
+              value="return"
+              checked={defectAction === "return"}
+              onChange={() => onDefectActionChange("return")}
+              className="mt-0.5 accent-emerald-600"
+            />
+            <div>
+              <span className="block font-bold text-slate-800">Return to Jobber</span>
+              <span className="mt-0.5 block text-[11px] text-slate-500">
+                Deducts stitching payable charges for defective pieces directly from the Jobber Ledger.
+              </span>
+            </div>
+          </label>
+
+
+
         </div>
 
         <div className="pt-2">
@@ -156,3 +163,9 @@ const QcDefectStep = ({
 };
 
 export default QcDefectStep;
+
+
+
+
+
+
