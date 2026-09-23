@@ -50,6 +50,7 @@ class StockInTransactionRepository {
 
         return tx.select({
             stockInTransactionId: stockInTransaction.id,
+            challanNo: stockInTransaction.challanNo,
             stockDate: stockInTransaction.stockDate,
             createdAt: stockInTransaction.createdAt,
             colorVariantId: colorVariant.id,

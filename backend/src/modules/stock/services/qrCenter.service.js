@@ -60,6 +60,7 @@ function toStockInRegistrationView(row) {
     return {
         registrationType: "STOCK_IN",
         registrationId: row.stockInTransactionId,
+        challanNo: row.challanNo,
         createdAt: row.createdAt,
         displayDate: row.stockDate,
         design: {
