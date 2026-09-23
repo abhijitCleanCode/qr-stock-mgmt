@@ -24,6 +24,7 @@ import {
     bulkGeneratorBodySchema,
     printCheckSchema,
     searchTagsQuerySchema,
+    printBatchQueueSchema,
 } from "../validators/qrCenter.validator.js";
 
 export const qrCenterRoutes = [
@@ -138,6 +139,11 @@ export const qrCenterRoutes = [
         path: "/:stockInTransactionId/queue",
         controller: { get: qrCenterController.getBatchQueue },
         validators: { get: validateRequest(getRegistrationDetailParamsSchema, "params") },
+    },
+    {
+        path: "/:stockInTransactionId/queue/print",
+        controller: { post: qrCenterController.printBatchQueue },
+        validators: { post: [validateRequest(getRegistrationDetailParamsSchema, "params"), validateRequest(printBatchQueueSchema)] },
     },
     {
         path: "/:stockInTransactionId",

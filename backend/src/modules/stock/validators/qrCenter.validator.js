@@ -11,6 +11,10 @@ export const listQrCenterQuerySchema = z.object({
     sort: z.enum(["new", "old"]).default("new"),
 });
 
+export const printBatchQueueSchema = z.object({
+    printerId: z.number().int().positive().optional(),
+});
+
 // --- QR Center: tag search ---------------------------------------------------
 
 export const searchTagsQuerySchema = z.object({

@@ -29,20 +29,8 @@ async function qrCenterRequest(path, { method = "GET", body, params } = {}) {
     return data;
 }
 
-export const getQrCenterListApi = async ({ page = 1, limit = 20, keyword } = {}) => {
-    const params = new URLSearchParams({ page, limit });
-    if (keyword) params.set("keyword", keyword);
-
-    const response = await fetch(`${baseURL}/qr-center?${params.toString()}`);
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data?.error?.message ?? "Failed to fetch QR center stock.");
-    }
-
-    return data;
-};
+export const getQrCenterListApi = async ({ page = 1, limit = 20, keyword, designId, colorVariantId, dateFrom, dateTo, sort } = {}) =>
+    qrCenterRequest("", { params: { page, limit, keyword, designId, colorVariantId, dateFrom, dateTo, sort } });
 
 // One registration detail endpoint per registration type — a Stock In transaction and a
 // transformation event use different route shapes on the backend (see qrCenter.route.js),
@@ -123,3 +111,6 @@ export const printCheckApi = ({ stockItemQrIds }) =>
     qrCenterRequest("/print-check", { method: "POST", body: { stockItemQrIds } });
 
 export const getQrCenterReferenceApi = () => qrCenterRequest("/reference");
+
+export const generateQrApi = (stockItemIds) =>
+    qrCenterRequest("/generate", { method: "POST", body: { stockItemIds } });

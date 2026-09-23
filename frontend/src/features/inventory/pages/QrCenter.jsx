@@ -1,49 +1,95 @@
 import { useState } from "react";
-import { toast } from "react-toastify";
+import { useNavigate } from "react-router";
 
-import "../qrCenter.theme.css";
-import { useQrCenterPrintGuards } from "../hooks/useQrCenterPrintGuards";
-import ResolverSection from "../components/qrCenter/resolver/ResolverSection";
-import HealthTiles from "../components/qrCenter/health/HealthTiles";
-import QueueTabs from "../components/qrCenter/queues/QueueTabs";
-import BulkGeneratorTiles from "../components/qrCenter/bulk/BulkGeneratorTiles";
-import LibraryAccordion from "../components/qrCenter/library/LibraryAccordion";
-import OfflineQueuePill from "../components/qrCenter/OfflineQueuePill";
-import DuplicatePrintGuardModal from "../components/qrCenter/modals/DuplicatePrintGuardModal";
-import VolumeConfirmModal from "../components/qrCenter/modals/VolumeConfirmModal";
+import "../qrCenter2.theme.css";
+import QrCenterHeader from "../components/qrCenter2/QrCenterHeader.jsx";
+import SearchBar from "../components/qrCenter2/search/SearchBar.jsx";
+import FilterBar from "../components/qrCenter2/search/FilterBar.jsx";
+import ResultList from "../components/qrCenter2/search/ResultList.jsx";
+import TagDetail from "../components/qrCenter2/search/TagDetail.jsx";
+import HistorySection from "../components/qrCenter2/history/HistorySection.jsx";
+import ReprintDrawer from "../components/qrCenter2/drawer/ReprintDrawer.jsx";
+import ConfigureBatchDrawer from "../components/qrCenter2/drawer/ConfigureBatchDrawer.jsx";
+import { useQrCenterSearchApi } from "../hooks/useQrCenterSearchApi.js";
+import { useQrCenterResolveApi } from "../hooks/useQrCenterResolveApi.js";
+import { useDesignListApi } from "../../design/hooks/useDesignListApi.js";
+
+const EMPTY_FILTERS = { designId: "", colorVariantId: "", type: "", days: "" };
 
 const QrCenter = () => {
-    const [activeTab, setActiveTab] = useState("totag");
-    const guards = useQrCenterPrintGuards();
+    const navigate = useNavigate();
+    const [query, setQuery] = useState("");
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [selectedCode, setSelectedCode] = useState(null);
+    const [reprintTargets, setReprintTargets] = useState(null);
+    const [configureBatchId, setConfigureBatchId] = useState(null);
 
-    // The health "Duplicate suspects" tile has no dedicated endpoint that names which code is
-    // in conflict (GET /qr-center/health only returns a count) — so rather than fabricating a
-    // demo code the way the mockup does, this nudges the operator toward the resolver instead.
-    const handleShowDuplicateFromHealth = () => {
-        toast.info("Scan or search the affected code in the resolver above to see the duplicate conflict.");
-        document.querySelector(".qrc-resolver-input")?.focus();
-    };
+    const { data: designsResponse } = useDesignListApi({ limit: 200 });
+    const designs = designsResponse?.data ?? [];
+
+    const hasQuery = Boolean(query || filters.designId || filters.colorVariantId || filters.type || filters.days);
+    const { data: searchResponse, isFetching } = useQrCenterSearchApi(
+        { keyword: query, ...filters, limit: 30 },
+        { enabled: hasQuery && !selectedCode },
+    );
+    const { data: resolveResponse } = useQrCenterResolveApi(selectedCode);
+
+    const handleSelectResult = (code) => setSelectedCode(code);
+    const handleBackFromDetail = (nextCode) => setSelectedCode(nextCode ?? null);
 
     return (
-        <div className="qr-center-scope min-h-full bg-[var(--qrc-page)] rounded-2xl">
-            <main className="max-w-[1360px] w-full mx-auto px-4 sm:px-6 py-6">
-                <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
-                    <div>
-                        <h1 className="text-[22px] font-extrabold text-[var(--qrc-ink)] tracking-tight">QR Center</h1>
-                        <p className="text-[13px] text-[var(--qrc-ink3)] mt-0.5">Resolve, reprint and recover every tag in the godown.</p>
-                    </div>
-                    <OfflineQueuePill />
-                </div>
+        <div className="qrc2-scope">
+            <QrCenterHeader />
 
-                <ResolverSection onGotoTab={setActiveTab} />
-                <HealthTiles activeTab={activeTab} onSelectTab={setActiveTab} onShowDuplicate={handleShowDuplicateFromHealth} duplicateShown={false} />
-                <QueueTabs activeTab={activeTab} onChangeTab={setActiveTab} guards={guards} />
-                <BulkGeneratorTiles guards={guards} />
-                <LibraryAccordion />
-            </main>
+            <div className="qrc2-sheet">
+                <SearchBar
+                    value={query}
+                    onChange={(v) => { setQuery(v); setSelectedCode(null); }}
+                    placeholder="Search by set ID, piece ID, design code or challan no."
+                />
+                <FilterBar
+                    designs={designs}
+                    filters={filters}
+                    onChange={(f) => { setFilters(f); setSelectedCode(null); }}
+                    onClear={() => setFilters(EMPTY_FILTERS)}
+                    resultCount={searchResponse?.meta?.total ?? 0}
+                    showCount={hasQuery && !selectedCode}
+                />
 
-            <DuplicatePrintGuardModal modal={guards.modal} onClose={guards.closeModal} onConfirm={guards.confirmModal} />
-            <VolumeConfirmModal modal={guards.modal} onClose={guards.closeModal} onConfirm={guards.confirmModal} />
+                {selectedCode ? (
+                    <TagDetail
+                        result={resolveResponse?.data}
+                        onBack={handleBackFromDetail}
+                        onRaiseReprint={(targets) => setReprintTargets(targets)}
+                    />
+                ) : (
+                    <ResultList
+                        tags={searchResponse?.data ?? []}
+                        onSelect={handleSelectResult}
+                        loading={isFetching}
+                        hasQuery={hasQuery}
+                    />
+                )}
+            </div>
+
+            <HistorySection
+                designs={designs}
+                onConfigure={(row) => setConfigureBatchId(row.registrationId)}
+                onView={(row) => navigate(`/qr-center/${row.registrationId}`)}
+            />
+
+            <ReprintDrawer
+                open={Boolean(reprintTargets)}
+                onClose={() => setReprintTargets(null)}
+                targets={reprintTargets}
+                onDone={() => setSelectedCode(null)}
+            />
+            <ConfigureBatchDrawer
+                open={Boolean(configureBatchId)}
+                onClose={() => setConfigureBatchId(null)}
+                stockInTransactionId={configureBatchId}
+                onDone={() => setConfigureBatchId(null)}
+            />
         </div>
     );
 };

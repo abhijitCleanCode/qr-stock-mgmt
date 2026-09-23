@@ -366,16 +366,18 @@ class QrCenterService {
     }
 
     // "Configure & print" drawer: for one Stock-In registration, how many of its SET/BUNDLE
-    // stock items still have no QR at all — plus the exact ids to pass straight into
-    // generateForStockItemIds when the drawer's Print button is clicked. Deliberately a flat
-    // count (not a per-size/semi-set breakdown) — stockPieceExpansion.service.js's only export
-    // builds PIECE stock items from an already-known composition, it doesn't compute "how many
-    // are still missing", so there's no richer breakdown to reuse here without a schema-level
-    // composition query this plan avoids adding. LOOSE_PIECE stock is reported as a count only
-    // (untaggedLooseCount) — a LOOSE_PIECE row is pooled/fungible and never individually
-    // QR-eligible (see stockItem.repository.js isQrEligible), so it's informational context on
-    // the drawer, not something untaggedStockItemIds can ever include or generateForStockItemIds
-    // can ever act on.
+    // stock items were never actually PRINTED — QR codes are minted in the same transaction as
+    // Stock In itself (see stockIn.service.js), so "skipped at stock-in" in practice almost
+    // always means the code was issued but no physical label was ever produced, not that no
+    // code exists at all (see _attachPrintStatus above, which this reuses the same
+    // findRecentByQrIds join pattern from). A true no-QR-at-all gap (pre-QR-Center legacy stock)
+    // is covered separately by the SET/BUNDLE ids this also surfaces — findByStockInTransactionId
+    // only returns rows that HAVE a QR, so any stock item with none simply has no entry in
+    // latestQrRowsByStockItemId and is reported via missingQrStockItemIds instead. LOOSE_PIECE
+    // stock is reported as a count only (untaggedLooseCount) — a LOOSE_PIECE row is
+    // pooled/fungible and never individually QR-eligible (see stockItem.repository.js
+    // isQrEligible), so it's informational context on the drawer, not something either
+    // action list can ever include.
     async getBatchQueue(stockInTransactionId) {
         const registration = await this._stockInTransactionRepository.findByIdWithContext(db, stockInTransactionId);
         if (!registration) {
@@ -384,10 +386,17 @@ class QrCenterService {
 
         const items = await this._stockItemRepository.findByStockInTransactionId(db, stockInTransactionId);
         const qrRows = await this._stockItemQrRepository.findByStockInTransactionId(db, stockInTransactionId);
-        const taggedIds = new Set(qrRows.map((row) => row.stockItemId));
+        const latestQrRowsByStockItemId = latestQrByStockItemId(qrRows);
 
-        const untaggedSets = items.filter((item) => (item.type === "SET" || item.type === "BUNDLE") && !taggedIds.has(item.id));
+        const setBundleItems = items.filter((item) => item.type === "SET" || item.type === "BUNDLE");
+        const withQr = setBundleItems.filter((item) => latestQrRowsByStockItemId.has(item.id));
+        const missingQrStockItemIds = setBundleItems.filter((item) => !latestQrRowsByStockItemId.has(item.id)).map((item) => item.id);
         const untaggedLooseCount = items.filter((item) => item.type === "LOOSE_PIECE").length;
+
+        const qrIds = withQr.map((item) => latestQrRowsByStockItemId.get(item.id).id);
+        const printed = qrIds.length ? await this._printJobItemRepository.findRecentByQrIds(db, qrIds, null) : [];
+        const printedQrIds = new Set(printed.map((row) => row.stockItemQrId));
+        const unprintedStockItemQrIds = qrIds.filter((id) => !printedQrIds.has(id));
 
         return {
             registration: {
@@ -397,10 +406,49 @@ class QrCenterService {
                 design: { id: registration.designId, code: registration.designCode, name: registration.designName },
                 variant: { id: registration.colorVariantId, colorName: registration.colorName, colorHex: registration.colorHex },
             },
-            untaggedSetCount: untaggedSets.length,
+            unprintedCount: unprintedStockItemQrIds.length,
+            missingQrCount: missingQrStockItemIds.length,
             untaggedLooseCount,
-            untaggedStockItemIds: untaggedSets.map((item) => item.id),
+            unprintedStockItemQrIds,
+            missingQrStockItemIds,
         };
+    }
+
+    // "Configure & print" drawer's Print button — creates a real print_jobs/print_job_items
+    // record for tags that already have a code (issued at Stock In) but were never physically
+    // printed, without minting new QR rows (a reprint mints a new row; this is each code's
+    // FIRST print, so the existing row is what gets marked printed). Any stock item that never
+    // got a QR at all is generated first via the existing generateForStockItemIds path, then
+    // included in the same print job — one button covers both gaps the drawer can show.
+    async printBatchQueue(stockInTransactionId, { printerId }) {
+        return db.transaction(async (tx) => {
+            const queue = await this.getBatchQueue(stockInTransactionId);
+            const generated = queue.missingQrStockItemIds.length
+                ? await this._generateQrRowsForStockItemIds(tx, queue.missingQrStockItemIds)
+                : [];
+
+            const qrIdsToPrint = [...queue.unprintedStockItemQrIds, ...generated.map((row) => row.id)];
+            if (qrIdsToPrint.length === 0) {
+                throw new ApiError(`Nothing to print for stock registration ${stockInTransactionId}.`, 400, "NOTHING_TO_PRINT");
+            }
+
+            const printJob = await this._printJobRepository.create(tx, {
+                printerId: printerId ?? null,
+                jobType: "QR_GENERATE",
+                status: "COMPLETED",
+                totalCount: qrIdsToPrint.length,
+                createdBy: null,
+            });
+
+            await this._printJobItemRepository.createMany(tx, qrIdsToPrint.map((stockItemQrId, index) => ({
+                printJobId: printJob.id,
+                stockItemQrId,
+                sequence: index + 1,
+                printedAt: new Date(),
+            })));
+
+            return { printJob, printedCount: qrIdsToPrint.length };
+        });
     }
 
     // Idempotent by design: a stock item that already has a QR is reported back as

@@ -64,6 +64,17 @@ class QrCenterController {
         }
     };
 
+    printBatchQueue = async (req, res, next) => {
+        const { stockInTransactionId } = req.params;
+
+        try {
+            const response = await this._qrCenterService.printBatchQueue(stockInTransactionId, req.body);
+            return res.status(200).json(new ApiResponse(200, response, "Batch tags printed."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
     generate = async (req, res, next) => {
         const { stockItemIds } = req.body;
 
