@@ -205,26 +205,58 @@ class QrCenterService {
     // queried independently (see stockInTransaction.repository.js's findRegistrationsWithQr and
     // stockHistory.repository.js's findAssemblyRegistrations) and merged/sorted/paginated here;
     // see REGISTRATION_SAFETY_CAP above for why this isn't a single cross-table SQL query.
-    async listRegistrations({ page, limit, keyword }) {
+    async listRegistrations({ page, limit, keyword, designId, colorVariantId, dateFrom, dateTo, sort }) {
         const [stockInRows, transformationRows, stockInTotal, transformationTotal] = await Promise.all([
-            this._stockInTransactionRepository.findRegistrationsWithQr(db, { limit: REGISTRATION_SAFETY_CAP, offset: 0, keyword }),
+            this._stockInTransactionRepository.findRegistrationsWithQr(db, { limit: REGISTRATION_SAFETY_CAP, offset: 0, keyword, designId, colorVariantId, dateFrom, dateTo }),
             this._stockHistoryRepository.findAssemblyRegistrations(db, { limit: REGISTRATION_SAFETY_CAP, keyword }),
-            this._stockInTransactionRepository.countRegistrationsWithQr(db, { keyword }),
+            this._stockInTransactionRepository.countRegistrationsWithQr(db, { keyword, designId, colorVariantId, dateFrom, dateTo }),
             this._stockHistoryRepository.countAssemblyRegistrations(db, { keyword }),
         ]);
 
         const merged = [
             ...stockInRows.map(toStockInRegistrationView),
             ...transformationRows.map(toTransformationRegistrationView),
-        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        ].sort((a, b) => sort === "old" ? new Date(a.createdAt) - new Date(b.createdAt) : new Date(b.createdAt) - new Date(a.createdAt));
 
         const total = stockInTotal + transformationTotal;
         const offset = (page - 1) * limit;
+        const pageRows = merged.slice(offset, offset + limit);
+        const withPrintStatus = await this._attachPrintStatus(pageRows);
 
         return {
-            data: merged.slice(offset, offset + limit),
+            data: withPrintStatus,
             meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
         };
+    }
+
+    // QR Center history's status pills/tabs (pending/partial/done) need "how many of this
+    // registration's tags have actually been PRINTED" — not tracked on the registration row
+    // itself, only derivable by checking print_job_items for each of its QRs. Only computed for
+    // the current page (not every matching registration) to avoid an unbounded fan-out of
+    // queries — see REGISTRATION_SAFETY_CAP's own comment for why in-memory merge/paginate is
+    // already the accepted tradeoff here.
+    async _attachPrintStatus(registrations) {
+        return Promise.all(registrations.map(async (r) => {
+            if (r.registrationType !== "STOCK_IN") {
+                // Transformation QR generation is always complete in the same transaction as the
+                // event itself (see toTransformationRegistrationView) — treated as fully printed.
+                return { ...r, printedCount: r.qrCount, totalCount: r.qrCount, printStatus: "done" };
+            }
+
+            const qrRows = await this._stockItemQrRepository.findByStockInTransactionId(db, r.registrationId);
+            const latestQrRowsByStockItemId = latestQrByStockItemId(qrRows);
+            const qrIds = [...latestQrRowsByStockItemId.values()].map((row) => row.id);
+            const totalCount = qrIds.length;
+
+            const printed = qrIds.length ? await this._printJobItemRepository.findRecentByQrIds(db, qrIds, null) : [];
+            const printedCount = new Set(printed.map((row) => row.stockItemQrId)).size;
+
+            const printStatus = totalCount === 0 || printedCount === 0
+                ? "pending"
+                : printedCount >= totalCount ? "done" : "partial";
+
+            return { ...r, printedCount, totalCount, printStatus };
+        }));
     }
 
     // QR Grid page: one registration's identity plus every QR generated under it. Read-only —
@@ -329,6 +361,44 @@ class QrCenterService {
                 totalQrCount: qrs.length,
             },
             qrs,
+        };
+    }
+
+    // "Configure & print" drawer: for one Stock-In registration, how many of its SET/BUNDLE
+    // stock items still have no QR at all — plus the exact ids to pass straight into
+    // generateForStockItemIds when the drawer's Print button is clicked. Deliberately a flat
+    // count (not a per-size/semi-set breakdown) — stockPieceExpansion.service.js's only export
+    // builds PIECE stock items from an already-known composition, it doesn't compute "how many
+    // are still missing", so there's no richer breakdown to reuse here without a schema-level
+    // composition query this plan avoids adding. LOOSE_PIECE stock is reported as a count only
+    // (untaggedLooseCount) — a LOOSE_PIECE row is pooled/fungible and never individually
+    // QR-eligible (see stockItem.repository.js isQrEligible), so it's informational context on
+    // the drawer, not something untaggedStockItemIds can ever include or generateForStockItemIds
+    // can ever act on.
+    async getBatchQueue(stockInTransactionId) {
+        const registration = await this._stockInTransactionRepository.findByIdWithContext(db, stockInTransactionId);
+        if (!registration) {
+            throw new ApiError(`Stock registration ${stockInTransactionId} not found.`, 404, "STOCK_REGISTRATION_NOT_FOUND");
+        }
+
+        const items = await this._stockItemRepository.findByStockInTransactionId(db, stockInTransactionId);
+        const qrRows = await this._stockItemQrRepository.findByStockInTransactionId(db, stockInTransactionId);
+        const taggedIds = new Set(qrRows.map((row) => row.stockItemId));
+
+        const untaggedSets = items.filter((item) => (item.type === "SET" || item.type === "BUNDLE") && !taggedIds.has(item.id));
+        const untaggedLooseCount = items.filter((item) => item.type === "LOOSE_PIECE").length;
+
+        return {
+            registration: {
+                stockInTransactionId: registration.stockInTransactionId,
+                challanNo: registration.challanNo,
+                stockDate: registration.stockDate,
+                design: { id: registration.designId, code: registration.designCode, name: registration.designName },
+                variant: { id: registration.colorVariantId, colorName: registration.colorName, colorHex: registration.colorHex },
+            },
+            untaggedSetCount: untaggedSets.length,
+            untaggedLooseCount,
+            untaggedStockItemIds: untaggedSets.map((item) => item.id),
         };
     }
 
@@ -515,6 +585,8 @@ class QrCenterService {
             return sum + perPiece;
         }, 0);
 
+        const { inwardBatch, inwardDate, timesPrinted, lastPrintedAt } = await this._resolveInwardAndPrintInfo(activeRow, context);
+
         return {
             state: "SET",
             set: {
@@ -527,7 +599,37 @@ class QrCenterService {
                 rack: context.rackId ? { id: context.rackId, code: context.rackCode } : null,
                 sealedDays: daysSince(activeRow.generatedAt),
                 mrp: toMoneyString(mrpValue),
+                inwardBatch,
+                inwardDate,
+                timesPrinted,
+                lastPrintedAt,
             },
+        };
+    }
+
+    // Shared by _resolveSetState/_resolvePieceState — the tag detail view's inward batch/date
+    // (from the stock item's own stock_in_transaction, when it has one — a Break Set/Recovery
+    // piece has none) and print history (times printed / last printed, same
+    // findRecentByQrIds join the DUPLICATE state already uses for the same purpose).
+    async _resolveInwardAndPrintInfo(activeRow, context) {
+        const [inward, printEvents] = await Promise.all([
+            context.stockInTransactionId
+                ? this._stockInTransactionRepository.findByIdWithContext(db, context.stockInTransactionId)
+                : Promise.resolve(null),
+            this._printJobItemRepository.findRecentByQrIds(db, [activeRow.id], null),
+        ]);
+
+        const lastPrinted = printEvents.reduce((latest, row) => {
+            if (!row.printedAt) return latest;
+            if (!latest || new Date(row.printedAt) > new Date(latest.printedAt)) return row;
+            return latest;
+        }, null);
+
+        return {
+            inwardBatch: inward?.challanNo ?? null,
+            inwardDate: inward?.stockDate ?? null,
+            timesPrinted: printEvents.length,
+            lastPrintedAt: lastPrinted?.printedAt ?? null,
         };
     }
 
@@ -546,6 +648,8 @@ class QrCenterService {
             }
         }
 
+        const { inwardBatch, inwardDate, timesPrinted, lastPrintedAt } = await this._resolveInwardAndPrintInfo(activeRow, context);
+
         return {
             state: "PIECE",
             piece: {
@@ -559,6 +663,10 @@ class QrCenterService {
                 origin,
                 originReason,
                 parent,
+                inwardBatch,
+                inwardDate,
+                timesPrinted,
+                lastPrintedAt,
             },
         };
     }
@@ -579,6 +687,37 @@ class QrCenterService {
                     sizeLabel: row.sizeLabel,
                 })),
             },
+        };
+    }
+
+    // === 1b. Tag search ======================================================================
+
+    // QR Center's main search box + filters: every ACTIVE tag matching a free-text keyword
+    // and/or design/variant/type/age, as a paginated multi-result list — the counterpart to
+    // resolve() above, which only ever returns a single exact-code match.
+    async searchTags({ keyword, designId, colorVariantId, type, days, page, limit }) {
+        const offset = (page - 1) * limit;
+        const [rows, total] = await Promise.all([
+            this._stockItemQrRepository.searchActive(db, { keyword, designId, colorVariantId, type, days, limit, offset }),
+            this._stockItemQrRepository.countActive(db, { keyword, designId, colorVariantId, type, days }),
+        ]);
+
+        return {
+            data: rows.map((row) => ({
+                shortCode: row.shortCode,
+                stockItemId: row.stockItemId,
+                stockItemQrId: row.id,
+                type: row.type,
+                design: { id: row.designId, code: row.designCode, name: row.designName },
+                variant: { id: row.colorVariantId, colorName: row.colorName, colorHex: row.colorHex },
+                sizeLabel: row.sizeLabel,
+                rack: row.rackId ? { id: row.rackId, code: row.rackCode } : null,
+                bin: row.binId ? { id: row.binId, code: row.binCode } : null,
+                challanNo: row.challanNo,
+                stockDate: row.stockDate,
+                generatedAt: row.generatedAt,
+            })),
+            meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
         };
     }
 
@@ -1240,9 +1379,10 @@ class QrCenterService {
     // === 11. Reference =======================================================================
 
     async getReference() {
-        const [printers, tagPresets] = await Promise.all([
+        const [printers, tagPresets, racks] = await Promise.all([
             this._printerRepository.findAllActive(db),
             this._tagPresetRepository.findAllWithContext(db),
+            this._rackRepository.findAll(db),
         ]);
 
         return {
@@ -1256,6 +1396,7 @@ class QrCenterService {
                 mediaSize: row.mediaSize,
                 defaultPrinter: row.defaultPrinterName ?? null,
             })),
+            racks: racks.map((row) => ({ id: row.id, code: row.code, label: row.label })),
         };
     }
 }

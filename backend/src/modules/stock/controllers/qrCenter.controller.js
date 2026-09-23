@@ -44,6 +44,26 @@ class QrCenterController {
         }
     };
 
+    searchTags = async (req, res, next) => {
+        try {
+            const response = await this._qrCenterService.searchTags(req.validatedQuery);
+            return res.status(200).json(new ApiResponse(200, response.data, "Tags fetched.", response.meta));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getBatchQueue = async (req, res, next) => {
+        const { stockInTransactionId } = req.params;
+
+        try {
+            const response = await this._qrCenterService.getBatchQueue(stockInTransactionId);
+            return res.status(200).json(new ApiResponse(200, response, "Batch tag queue fetched."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
     generate = async (req, res, next) => {
         const { stockItemIds } = req.body;
 

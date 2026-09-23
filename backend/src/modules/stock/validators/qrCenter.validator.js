@@ -4,6 +4,23 @@ export const listQrCenterQuerySchema = z.object({
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
     keyword: z.string().trim().min(2, "Search keyword must be at least 2 characters").optional(),
+    designId: z.coerce.number().int().positive().optional(),
+    colorVariantId: z.coerce.number().int().positive().optional(),
+    dateFrom: z.string().trim().optional(),
+    dateTo: z.string().trim().optional(),
+    sort: z.enum(["new", "old"]).default("new"),
+});
+
+// --- QR Center: tag search ---------------------------------------------------
+
+export const searchTagsQuerySchema = z.object({
+    keyword: z.string().trim().min(1).optional(),
+    designId: z.coerce.number().int().positive().optional(),
+    colorVariantId: z.coerce.number().int().positive().optional(),
+    type: z.enum(["SET", "BUNDLE", "PIECE", "LOOSE_PIECE"]).optional(),
+    days: z.coerce.number().int().positive().optional(),
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(30),
 });
 
 export const getRegistrationDetailParamsSchema = z.object({

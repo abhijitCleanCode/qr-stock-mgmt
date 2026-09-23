@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 
 import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
 import { stockItem } from "../schemas/stockItems.schema.js";
@@ -15,7 +15,19 @@ const QR_ELIGIBLE_TYPES = ["SET", "BUNDLE"];
 function registrationSearchCondition(keyword) {
     if (!keyword) return undefined;
 
-    return or(ilike(design.code, `%${keyword}%`), ilike(design.name, `%${keyword}%`), ilike(colorVariant.colorName, `%${keyword}%`));
+    return or(ilike(design.code, `%${keyword}%`), ilike(design.name, `%${keyword}%`), ilike(colorVariant.colorName, `%${keyword}%`), ilike(stockInTransaction.challanNo, `%${keyword}%`));
+}
+
+// designId/colorVariantId/dateFrom/dateTo are the QR Center history section's filter row —
+// each pushed as a condition only when present, same "push only if truthy" pattern as
+// registrationSearchCondition, so existing callers passing none of these behave identically.
+function registrationFilterConditions({ keyword, designId, colorVariantId, dateFrom, dateTo }) {
+    const conditions = [registrationSearchCondition(keyword)].filter(Boolean);
+    if (designId) conditions.push(eq(design.id, designId));
+    if (colorVariantId) conditions.push(eq(colorVariant.id, colorVariantId));
+    if (dateFrom) conditions.push(gte(stockInTransaction.stockDate, dateFrom));
+    if (dateTo) conditions.push(lte(stockInTransaction.stockDate, dateTo));
+    return conditions.length ? and(...conditions) : undefined;
 }
 
 class StockInTransactionRepository {
@@ -30,7 +42,7 @@ class StockInTransactionRepository {
     // QR to generate, so it's excluded via the HAVING clause below rather than shown empty.
     // Counts are DISTINCT because stock_item_qr can carry more than one history row per stock
     // item (see stockItemQr.schema.js) — a plain COUNT(qr.id) would double-count those.
-    async findRegistrationsWithQr(tx, { limit, offset, keyword }) {
+    async findRegistrationsWithQr(tx, { limit, offset, keyword, designId, colorVariantId, dateFrom, dateTo }) {
         const eligibleItemCount = sql`count(distinct ${stockItem.id})`.mapWith(Number);
         const setCount = sql`count(distinct ${stockItem.id}) filter (where ${stockItem.type} = 'SET')`.mapWith(Number);
         const bundleCount = sql`count(distinct ${stockItem.id}) filter (where ${stockItem.type} = 'BUNDLE')`.mapWith(Number);
@@ -56,7 +68,7 @@ class StockInTransactionRepository {
             .innerJoin(design, eq(colorVariant.designId, design.id))
             .innerJoin(stockItem, and(eq(stockItem.stockInTransactionId, stockInTransaction.id), inArray(stockItem.type, QR_ELIGIBLE_TYPES)))
             .leftJoin(stockItemQr, eq(stockItemQr.stockItemId, stockItem.id))
-            .where(registrationSearchCondition(keyword))
+            .where(registrationFilterConditions({ keyword, designId, colorVariantId, dateFrom, dateTo }))
             .groupBy(stockInTransaction.id, colorVariant.id, design.id)
             .having(sql`count(distinct ${stockItem.id}) > 0`)
             .orderBy(desc(stockInTransaction.createdAt))
@@ -67,13 +79,13 @@ class StockInTransactionRepository {
     // Same eligibility/grouping rule as findRegistrationsWithQr, collapsed to a row count for
     // pagination — a plain count() can't follow a GROUP BY/HAVING directly, so the grouped
     // query is used as a subquery here.
-    async countRegistrationsWithQr(tx, { keyword }) {
+    async countRegistrationsWithQr(tx, { keyword, designId, colorVariantId, dateFrom, dateTo }) {
         const grouped = tx.select({ id: stockInTransaction.id })
             .from(stockInTransaction)
             .innerJoin(colorVariant, eq(stockInTransaction.variantId, colorVariant.id))
             .innerJoin(design, eq(colorVariant.designId, design.id))
             .innerJoin(stockItem, and(eq(stockItem.stockInTransactionId, stockInTransaction.id), inArray(stockItem.type, QR_ELIGIBLE_TYPES)))
-            .where(registrationSearchCondition(keyword))
+            .where(registrationFilterConditions({ keyword, designId, colorVariantId, dateFrom, dateTo }))
             .groupBy(stockInTransaction.id)
             .as("registrations_with_qr");
 

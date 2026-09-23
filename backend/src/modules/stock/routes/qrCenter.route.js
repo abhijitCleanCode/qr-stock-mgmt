@@ -23,6 +23,7 @@ import {
     bulkKindParamsSchema,
     bulkGeneratorBodySchema,
     printCheckSchema,
+    searchTagsQuerySchema,
 } from "../validators/qrCenter.validator.js";
 
 export const qrCenterRoutes = [
@@ -40,6 +41,11 @@ export const qrCenterRoutes = [
     // --- QR Center (resolve/health/to-tag/reprints/stale/recovery/jobs/break-set/bulk/print-check/reference) ---
     // All fixed single-segment paths below MUST be registered before the legacy
     // "/:stockInTransactionId" catch-all further down, or Express would treat them as its param.
+    {
+        path: "/tags",
+        controller: { get: qrCenterController.searchTags },
+        validators: { get: validateRequest(searchTagsQuerySchema, "query") },
+    },
     {
         path: "/resolve",
         controller: { get: qrCenterController.resolve },
@@ -127,6 +133,11 @@ export const qrCenterRoutes = [
         path: "/transformation/:transformationId",
         controller: { get: qrCenterController.getTransformationDetail },
         validators: { get: validateRequest(getTransformationDetailParamsSchema, "params") },
+    },
+    {
+        path: "/:stockInTransactionId/queue",
+        controller: { get: qrCenterController.getBatchQueue },
+        validators: { get: validateRequest(getRegistrationDetailParamsSchema, "params") },
     },
     {
         path: "/:stockInTransactionId",
