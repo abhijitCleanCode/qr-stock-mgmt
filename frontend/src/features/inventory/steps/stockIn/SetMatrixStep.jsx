@@ -19,6 +19,7 @@ const SetMatrixStep = ({
 
   const totalsList = Object.values(variantTotals);
   const grandSets = totalsList.reduce((sum, item) => sum + item.setsTotal, 0);
+  const grandSemiSets = totalsList.reduce((sum, item) => sum + (item.semiSetsTotal || 0), 0);
   const grandLoose = totalsList.reduce((sum, item) => sum + item.looseTotal, 0);
   const grandBundles = totalsList.reduce((sum, item) => sum + (item.bundlesTotal || 0), 0);
   const grandGarments = totalsList.reduce((sum, item) => sum + item.garmentsTotal, 0);
@@ -93,6 +94,10 @@ const SetMatrixStep = ({
           <div>
             <span className="block font-medium text-emerald-700">Total Complete Sets:</span>
             <span className="text-base font-bold text-emerald-900">{grandSets} Sets</span>
+          </div>
+          <div className="border-l border-emerald-200 pl-6">
+            <span className="block font-medium text-emerald-700">Total Semi Set:</span>
+            <span className="text-base font-bold text-emerald-900">{grandSemiSets} Sets</span>
           </div>
           <div className="border-l border-emerald-200 pl-6">
             <span className="block font-medium text-emerald-700">Total Loose Pieces:</span>

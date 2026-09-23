@@ -69,6 +69,7 @@ class StockItemRepository {
             rackId: stockItem.rackId,
             binId: stockItem.binId,
             originSetStockItemId: stockItem.originSetStockItemId,
+            stockInTransactionId: stockItem.stockInTransactionId,
             createdAt: stockItem.createdAt,
             designId: design.id,
             designCode: design.code,

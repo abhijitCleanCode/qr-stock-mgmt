@@ -101,21 +101,21 @@ const StockIn = () => {
 
   const toggleVariantIncluded = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: true };
       return { ...prev, [key]: { ...current, included: !current.included } };
     });
   };
 
   const toggleVariantChildTags = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: true };
       return { ...prev, [key]: { ...current, childTags: !current.childTags } };
     });
   };
 
   const toggleVariantTagLoosePieces = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: false };
+      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: true };
       return { ...prev, [key]: { ...current, tagLoosePieces: !current.tagLoosePieces } };
     });
   };

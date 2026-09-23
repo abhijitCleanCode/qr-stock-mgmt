@@ -15,10 +15,6 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useDesignSearchApi, MIN_DESIGN_SEARCH_LENGTH } from "../hooks/useDesignSearchApi";
 
 const SEARCH_DEBOUNCE_MS = 250;
-const MAX_PREVIEW_DOTS = 5;
-
-const formatInr = (amount) =>
-  `₹${Number(amount ?? 0).toLocaleString("en-IN")}`;
 
 const flattenToVariantItems = (designs) =>
   designs.flatMap((design) =>
@@ -131,8 +127,8 @@ const DesignSearchInputSession = ({ onSelect, placeholder, disabled, id, inputCl
         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-400" />
       </ComboboxInput>
 
-      <ComboboxContent className="toolbar-neu min-w-(--anchor-width) rounded-[20px] bg-transparent shadow-none ring-0 mt-2">
-        <ComboboxList>
+      <ComboboxContent className="mt-2 min-w-(--anchor-width) rounded-xl border border-slate-200 bg-white p-0 shadow-lg shadow-slate-900/10 ring-0">
+        <ComboboxList className="max-h-[min(24rem,var(--available-height))] space-y-2 overflow-y-auto p-2">
           <ComboboxEmpty>
             {!shouldSearch && (
               <span className="inline-flex items-center gap-2">
@@ -151,34 +147,23 @@ const DesignSearchInputSession = ({ onSelect, placeholder, disabled, id, inputCl
           </ComboboxEmpty>
 
           {groups.map((group) => (
-            <ComboboxGroup key={group.designId}>
-              <ComboboxLabel className="flex items-center gap-2 py-1.5">
-                <div className="flex shrink-0 -space-x-1">
-                  {group.variants.slice(0, MAX_PREVIEW_DOTS).map((item) => (
-                    <span
-                      key={item.colorVariantId}
-                      className="size-3 shrink-0 rounded-full ring-2 ring-popover"
-                      style={{ backgroundColor: item.colorHex }}
-                    />
-                  ))}
-                </div>
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {group.designCode ? `${group.designCode} · ` : ""}
-                    {group.designName}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Set: {formatInr(group.sellingPricePerPiece)}
-                  </span>
-                </div>
+            <ComboboxGroup
+              key={group.designId}
+              className="rounded-lg border border-slate-200 bg-slate-50/60 p-3"
+            >
+              <ComboboxLabel className="min-w-0 p-0 pb-2 text-sm font-bold text-slate-900">
+                <span className="block truncate">
+                  {group.designCode ? `${group.designCode} · ` : ""}
+                  {group.designName}
+                </span>
               </ComboboxLabel>
 
-              <div className="flex flex-wrap gap-1 px-1.5 pb-1.5">
+              <div className="flex flex-wrap gap-2">
                 {group.variants.map((item) => (
                   <ComboboxItem
                     key={item.colorVariantId}
                     value={item}
-                    className="neu-button w-auto shrink-0 gap-1.5 rounded-full border-none py-1 pr-6 pl-2"
+                    className="w-auto shrink-0 gap-1.5 rounded-full border border-slate-200 bg-white py-1.5 pr-7 pl-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-100 data-highlighted:border-emerald-300 data-highlighted:bg-emerald-50 data-highlighted:text-emerald-900"
                   >
                     <span
                       className="size-2.5 shrink-0 rounded-full"

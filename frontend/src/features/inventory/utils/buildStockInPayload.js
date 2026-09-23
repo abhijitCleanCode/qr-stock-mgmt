@@ -24,7 +24,7 @@ export function buildStockInPayload(selectedVariants, configs, { deliveryDate, c
     const config = configs[key];
     if (!config || !hasStock(config)) continue;
 
-    const perVariant = qrPerVariantSettings?.[key] ?? { included: true, childTags: false, tagLoosePieces: false };
+    const perVariant = qrPerVariantSettings?.[key] ?? { included: true, childTags: false, tagLoosePieces: true };
 
     const variantEntry = {
       colorVariantId: config.colorVariantId,
