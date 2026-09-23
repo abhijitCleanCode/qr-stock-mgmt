@@ -42,17 +42,24 @@ const PreviewFilterBar = ({ tags, filter, onFilterChange, zoom, onZoomChange }) 
         {issueCount ? "⚠" : "✓"} Issues <b className="font-mono">{issueCount}</b>
       </button>
 
-      <span className="ml-auto inline-flex gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-[2.5px]">
-        {[1, 2].map((z) => (
-          <button
-            key={z}
-            type="button"
-            onClick={() => onZoomChange(z)}
-            className={`rounded-md px-2.5 py-1 font-mono text-[11.5px] font-bold ${zoom === z ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
-          >
-            {z}×
-          </button>
-        ))}
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11.8px] font-semibold text-slate-500">
+        <button
+          type="button"
+          onClick={() => onZoomChange(Math.max(1, Number((zoom - 0.1).toFixed(1))))}
+          disabled={zoom <= 1}
+          className="disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          -0.1×
+        </button>
+        <span className="text-slate-300">|</span>
+        <button
+          type="button"
+          onClick={() => onZoomChange(Math.min(2, Number((zoom + 0.1).toFixed(1))))}
+          disabled={zoom >= 2}
+          className="disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          +0.1×
+        </button>
       </span>
     </div>
   );

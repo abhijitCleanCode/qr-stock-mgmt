@@ -13,7 +13,7 @@ const OPTIONS = [
   },
   {
     k: "parent",
-    n: "Loose pieces only",
+    n: "Loose pieces ",
     d: "Only the odd pieces the jobber made outside a set. Use when the sets are already tagged, or when you are inwarding a loose-only challan.",
   },
 ];
@@ -70,7 +70,7 @@ const StrategyCards = ({ variants, strategy, perVariantSettings, onStrategyChang
         })}
       </div>
 
-      {/* <div className="mt-3">
+      <div className="mt-3">
         {strategy === "parentChild" ? (
           <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-[12.3px] leading-snug text-emerald-700">
              <span>✓</span>
@@ -89,7 +89,7 @@ const StrategyCards = ({ variants, strategy, perVariantSettings, onStrategyChang
             </div>
           </div>
         )}
-      </div> */}
+      </div>
     </div>
   );
 };

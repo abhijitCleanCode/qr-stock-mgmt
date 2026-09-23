@@ -29,20 +29,8 @@ async function qrCenterRequest(path, { method = "GET", body, params } = {}) {
     return data;
 }
 
-export const getQrCenterListApi = async ({ page = 1, limit = 20, keyword } = {}) => {
-    const params = new URLSearchParams({ page, limit });
-    if (keyword) params.set("keyword", keyword);
-
-    const response = await fetch(`${baseURL}/qr-center?${params.toString()}`);
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data?.error?.message ?? "Failed to fetch QR center stock.");
-    }
-
-    return data;
-};
+export const getQrCenterListApi = async ({ page = 1, limit = 20, keyword, designId, colorVariantId, dateFrom, dateTo, sort } = {}) =>
+    qrCenterRequest("", { params: { page, limit, keyword, designId, colorVariantId, dateFrom, dateTo, sort } });
 
 // One registration detail endpoint per registration type — a Stock In transaction and a
 // transformation event use different route shapes on the backend (see qrCenter.route.js),
@@ -64,19 +52,11 @@ export const getQrCenterRegistrationDetailApi = async ({ registrationType, regis
 };
 
 /* ------------------------------------------------------------------------
- * QR Center — resolver, health, queues, bulk generators, library
+ * QR Center — resolve, reprint, reference
  * ---------------------------------------------------------------------- */
 
 export const resolveQrCenterCodeApi = (code) =>
     qrCenterRequest("/resolve", { params: { code } });
-
-export const getQrCenterHealthApi = () => qrCenterRequest("/health");
-
-export const getQrCenterToTagApi = ({ page = 1, limit = 20 } = {}) =>
-    qrCenterRequest("/to-tag", { params: { page, limit } });
-
-export const getQrCenterReprintsApi = ({ status = "PENDING", page = 1, limit = 50 } = {}) =>
-    qrCenterRequest("/reprints", { params: { status, page, limit } });
 
 export const createQrCenterReprintApi = ({ stockItemId, reasonCode, raisedBy, rackId }) =>
     qrCenterRequest("/reprints", { method: "POST", body: { stockItemId, reasonCode, raisedBy, rackId } });
@@ -84,42 +64,10 @@ export const createQrCenterReprintApi = ({ stockItemId, reasonCode, raisedBy, ra
 export const bulkPrintReprintsApi = ({ reprintRequestIds, printerId }) =>
     qrCenterRequest("/reprints/bulk-print", { method: "POST", body: { reprintRequestIds, printerId } });
 
-export const getQrCenterStaleApi = () => qrCenterRequest("/stale");
-
-export const reprintStaleApi = ({ designId, scope }) =>
-    qrCenterRequest("/stale/reprint", { method: "POST", body: { designId, scope } });
-
-export const acceptStaleApi = ({ designId }) =>
-    qrCenterRequest("/stale/accept", { method: "POST", body: { designId } });
-
-export const getQrCenterRecoveryApi = ({ status = "PENDING" } = {}) =>
-    qrCenterRequest("/recovery", { params: { status } });
-
-export const createRecoveryEntryApi = ({ foundLocation, notes }) =>
-    qrCenterRequest("/recovery", { method: "POST", body: { foundLocation, notes } });
-
-export const assignRecoveryIdentityApi = ({ id, designId, colorVariantId, rackId, supervisorName, acknowledged, claimShortCode }) =>
-    qrCenterRequest(`/recovery/${id}/assign-identity`, {
-        method: "POST",
-        body: { designId, colorVariantId, rackId, supervisorName, acknowledged, claimShortCode },
-    });
-
-export const getQrCenterJobsApi = ({ status, page = 1, limit = 20 } = {}) =>
-    qrCenterRequest("/jobs", { params: { status, page, limit } });
-
-export const reprintJobRangeApi = ({ id, fromSeq, toSeq }) =>
-    qrCenterRequest(`/jobs/${id}/reprint-range`, { method: "POST", body: { fromSeq, toSeq } });
-
-export const verifyJobSampleApi = ({ id }) =>
-    qrCenterRequest(`/jobs/${id}/verify-sample`, { method: "POST" });
-
-export const breakSetApi = ({ stockItemId, reasonCode, note }) =>
-    qrCenterRequest("/break-set", { method: "POST", body: { stockItemId, reasonCode, note } });
-
-export const bulkGenerateApi = ({ kind, ...body }) =>
-    qrCenterRequest(`/bulk/${kind}`, { method: "POST", body });
-
 export const printCheckApi = ({ stockItemQrIds }) =>
     qrCenterRequest("/print-check", { method: "POST", body: { stockItemQrIds } });
 
 export const getQrCenterReferenceApi = () => qrCenterRequest("/reference");
+
+export const generateQrApi = (stockItemIds) =>
+    qrCenterRequest("/generate", { method: "POST", body: { stockItemIds } });

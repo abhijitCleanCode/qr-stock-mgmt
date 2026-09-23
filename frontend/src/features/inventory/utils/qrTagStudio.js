@@ -161,7 +161,7 @@ export function buildTagList(variants, configs, strategy, perVariantSettings) {
   let seq = 0;
 
   for (const variant of variants) {
-    const settings = perVariantSettings[variant.key] ?? { included: true, childTags: false };
+    const settings = perVariantSettings[variant.key] ?? { included: true, childTags: false, tagLoosePieces: true };
     if (settings.included === false) continue;
 
     const config = configs[variant.key];

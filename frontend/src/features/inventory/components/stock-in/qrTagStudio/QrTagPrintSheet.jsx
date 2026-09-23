@@ -59,17 +59,20 @@ const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
   const sheets = [];
   for (let s = 0; s < sheetCount; s++) {
     const cells = [];
-    for (let i = 0; i < perSheet; i++) {
-      const absoluteIndex = s * perSheet + i;
-      const tag = absoluteIndex >= skip ? tags[absoluteIndex - skip] : undefined;
-      if (!tag) {
-        cells.push(<div key={i} style={{ width: `${grid.w}mm`, height: `${grid.h}mm` }} />);
-        continue;
-      }
+    const pageStart = s * perSheet;
+    const leadingSlots = Math.max(0, Math.min(perSheet, skip - pageStart));
+    const firstTagIndex = Math.max(0, pageStart - skip);
+    const tagCount = Math.min(perSheet - leadingSlots, Math.max(0, tags.length - firstTagIndex));
+
+    for (let i = 0; i < leadingSlots; i++) {
+      cells.push(<div key={`skip-${i}`} aria-hidden="true" />);
+    }
+    for (let i = 0; i < tagCount; i++) {
+      const tag = tags[firstTagIndex + i];
       const data = buildTagData(tag);
       cells.push(
         <div
-          key={i}
+          key={`tag-${i}`}
           className="flex min-w-0 items-center overflow-hidden border border-slate-300 font-mono"
           style={{ width: `${grid.w}mm`, height: `${grid.h}mm`, padding: "1mm", gap: "1mm" }}
         >
@@ -97,6 +100,8 @@ const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
         className="grid"
         style={{
           gridTemplateColumns: `repeat(${grid.c}, ${grid.w}mm)`,
+          gridTemplateRows: `repeat(${grid.r}, ${grid.h}mm)`,
+          height: `${grid.r * grid.h}mm`,
           pageBreakAfter: s < sheetCount - 1 ? "always" : "auto",
         }}
       >

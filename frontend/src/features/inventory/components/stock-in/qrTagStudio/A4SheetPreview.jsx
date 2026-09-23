@@ -19,17 +19,20 @@ const A4SheetPreview = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
 
   const cellQrPx = Math.max(9, Math.round(qrmm * 0.55));
   const cells = [];
-  for (let i = 0; i < perSheet; i++) {
-    const absoluteIndex = sheet * perSheet + i;
-    const tag = absoluteIndex >= skip ? tags[absoluteIndex - skip] : undefined;
-    if (!tag) {
-      cells.push(<div key={i} className="border-[0.5px] border-dashed border-slate-300 bg-slate-100" />);
-      continue;
-    }
+  const pageStart = sheet * perSheet;
+  const leadingSlots = Math.max(0, Math.min(perSheet, skip - pageStart));
+  const firstTagIndex = Math.max(0, pageStart - skip);
+  const tagCount = Math.min(perSheet - leadingSlots, Math.max(0, tags.length - firstTagIndex));
+
+  for (let i = 0; i < leadingSlots; i++) {
+    cells.push(<div key={`skip-${i}`} aria-hidden="true" />);
+  }
+  for (let i = 0; i < tagCount; i++) {
+    const tag = tags[firstTagIndex + i];
     const data = buildTagData(tag);
     const bad = tag.flags?.some((flag) => flag.level === "bad");
     cells.push(
-      <div key={i} className={`flex min-w-0 items-center gap-[2.5px] overflow-hidden border-[0.5px] p-[2px] ${bad ? "border-red-400 bg-red-50" : "border-slate-300"}`}>
+      <div key={`tag-${i}`} className={`flex min-w-0 items-center gap-[2.5px] overflow-hidden border-[0.5px] p-[2px] ${bad ? "border-red-400 bg-red-50" : "border-slate-300"}`}>
         <QrCodeImage value={tag.code} size={cellQrPx} />
         <div className="min-w-0 overflow-hidden font-mono leading-tight">
           <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[3.6px] font-bold">{tag.code}</div>
@@ -54,12 +57,12 @@ const A4SheetPreview = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
           <ChevronRight className="size-4" />
         </button>
       </div>
-      <div className="mx-auto aspect-[210/297] w-full max-w-[370px] overflow-hidden border border-slate-400 bg-white p-2">
+      <div className="mx-auto flex aspect-[210/297] w-full max-w-[370px] flex-col overflow-hidden border border-slate-400 bg-white p-2">
         <div className="mb-1 flex justify-between border-b border-slate-300 pb-[3px] font-mono text-[5.4px] tracking-wide text-slate-500">
           <span>A4 DIE-CUT ({grid.c}×{grid.r} · {perSheet} LABELS)</span>
           <span>{sheet === 0 && skip > 0 ? `${skip} SKIPPED` : ""}</span>
         </div>
-        <div className="grid gap-[2.5px]" style={{ gridTemplateColumns: `repeat(${grid.c}, 1fr)` }}>
+        <div className="grid min-h-0 flex-1 gap-[2.5px]" style={{ gridTemplateColumns: `repeat(${grid.c}, 1fr)`, gridTemplateRows: `repeat(${grid.r}, minmax(0, 1fr))` }}>
           {cells}
         </div>
       </div>

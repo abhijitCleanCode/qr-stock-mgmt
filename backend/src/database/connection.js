@@ -9,8 +9,8 @@ export const pool = new Pool({
     max: env.DB_POOL_SIZE,
     // close idle connection after 10 sec to free resources
     idleTimeoutMillis: 30000,
-    // timeout connecting if DB is unresponsive (fail fast)
-    connectionTimeoutMillis: 10000,
+    // Neon can take longer than 10 seconds to wake from an idle state.
+    connectionTimeoutMillis: 30000,
     // keep the connection alive to prevent the network layer from dropping it
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000

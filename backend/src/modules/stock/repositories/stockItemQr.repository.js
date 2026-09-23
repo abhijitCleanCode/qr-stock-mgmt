@@ -1,9 +1,13 @@
-import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { stockItemQr } from "../schemas/stockItemQr.schema.js";
 import { stockItem } from "../schemas/stockItems.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
+import { designSize } from "../../design/schemas/designSize.schema.js";
+import { rack } from "../schemas/rack.schema.js";
+import { bin } from "../schemas/bin.schema.js";
+import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
 
 class StockItemQrRepository {
     async createMany(tx, rows) {
@@ -171,6 +175,7 @@ class StockItemQrRepository {
     // one QR per stock item just takes the first match.
     async findByStockInTransactionId(tx, stockInTransactionId) {
         return tx.select({
+            id: stockItemQr.id,
             stockItemId: stockItemQr.stockItemId,
             payload: stockItemQr.payload,
             generatedAt: stockItemQr.generatedAt,
@@ -179,6 +184,87 @@ class StockItemQrRepository {
             .innerJoin(stockItem, eq(stockItemQr.stockItemId, stockItem.id))
             .where(eq(stockItem.stockInTransactionId, stockInTransactionId))
             .orderBy(desc(stockItemQr.generatedAt));
+    }
+
+    // QR Center's main search box: every ACTIVE tag matching a free-text keyword and/or the
+    // design/variant/type/age filters — the multi-result counterpart to findByShortCode's
+    // single-code lookup. Joined out to inward batch info (stockInTransaction) since the
+    // reference search results show challan/inward date alongside each tag.
+    async searchActive(tx, { keyword, designId, colorVariantId, type, days, limit, offset }) {
+        const conditions = [eq(stockItemQr.status, "ACTIVE")];
+        if (keyword) {
+            conditions.push(
+                or(
+                    ilike(stockItemQr.shortCode, `%${keyword}%`),
+                    ilike(design.code, `%${keyword}%`),
+                    ilike(colorVariant.colorName, `%${keyword}%`),
+                    ilike(stockInTransaction.challanNo, `%${keyword}%`),
+                ),
+            );
+        }
+        if (designId) conditions.push(eq(design.id, designId));
+        if (colorVariantId) conditions.push(eq(colorVariant.id, colorVariantId));
+        if (type) conditions.push(eq(stockItem.type, type));
+        if (days) conditions.push(gte(stockItemQr.generatedAt, sql`now() - (${days} || ' days')::interval`));
+
+        return tx.select({
+            id: stockItemQr.id,
+            stockItemId: stockItemQr.stockItemId,
+            shortCode: stockItemQr.shortCode,
+            generatedAt: stockItemQr.generatedAt,
+            type: stockItem.type,
+            rackId: stockItem.rackId,
+            rackCode: rack.code,
+            binId: stockItem.binId,
+            binCode: bin.code,
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+            colorVariantId: colorVariant.id,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            sizeLabel: designSize.sizeLabel,
+            challanNo: stockInTransaction.challanNo,
+            stockDate: stockInTransaction.stockDate,
+        }).from(stockItemQr)
+            .innerJoin(stockItem, eq(stockItem.id, stockItemQr.stockItemId))
+            .innerJoin(colorVariant, eq(colorVariant.id, stockItem.colorVariantId))
+            .innerJoin(design, eq(design.id, colorVariant.designId))
+            .leftJoin(designSize, eq(designSize.id, stockItem.designSizeId))
+            .leftJoin(rack, eq(rack.id, stockItem.rackId))
+            .leftJoin(bin, eq(bin.id, stockItem.binId))
+            .leftJoin(stockInTransaction, eq(stockInTransaction.id, stockItem.stockInTransactionId))
+            .where(and(...conditions))
+            .orderBy(desc(stockItemQr.generatedAt))
+            .limit(limit)
+            .offset(offset);
+    }
+
+    async countActive(tx, { keyword, designId, colorVariantId, type, days }) {
+        const conditions = [eq(stockItemQr.status, "ACTIVE")];
+        if (keyword) {
+            conditions.push(
+                or(
+                    ilike(stockItemQr.shortCode, `%${keyword}%`),
+                    ilike(design.code, `%${keyword}%`),
+                    ilike(colorVariant.colorName, `%${keyword}%`),
+                    ilike(stockInTransaction.challanNo, `%${keyword}%`),
+                ),
+            );
+        }
+        if (designId) conditions.push(eq(design.id, designId));
+        if (colorVariantId) conditions.push(eq(colorVariant.id, colorVariantId));
+        if (type) conditions.push(eq(stockItem.type, type));
+        if (days) conditions.push(gte(stockItemQr.generatedAt, sql`now() - (${days} || ' days')::interval`));
+
+        const [result] = await tx.select({ value: sql`count(*)`.mapWith(Number) }).from(stockItemQr)
+            .innerJoin(stockItem, eq(stockItem.id, stockItemQr.stockItemId))
+            .innerJoin(colorVariant, eq(colorVariant.id, stockItem.colorVariantId))
+            .innerJoin(design, eq(design.id, colorVariant.designId))
+            .leftJoin(stockInTransaction, eq(stockInTransaction.id, stockItem.stockInTransactionId))
+            .where(and(...conditions));
+
+        return result.value;
     }
 }
 
