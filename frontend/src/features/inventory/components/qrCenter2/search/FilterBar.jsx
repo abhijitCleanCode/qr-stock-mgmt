@@ -1,3 +1,5 @@
+import DesignFilterCombobox from "./DesignFilterCombobox.jsx";
+
 const TYPES = [
     { value: "", label: "All tag types" },
     { value: "SET", label: "Parent set" },
@@ -13,17 +15,19 @@ const DATE_RANGES = [
     { value: "90", label: "Last 90 days" },
 ];
 
-export default function FilterBar({ designs, filters, onChange, onClear, resultCount, showCount }) {
+export default function FilterBar({ designs, filters, onChange, onClear, resultCount, showCount, searchKeyword }) {
     const selectedDesign = designs.find((d) => String(d.id) === String(filters.designId));
     const variants = selectedDesign?.colorVariants ?? [];
 
     return (
         <div className="qrc2-filters">
-            <span className="qrc2-fsel">
-                <select value={filters.designId} onChange={(e) => onChange({ ...filters, designId: e.target.value, colorVariantId: "" })}>
-                    <option value="">All designs</option>
-                    {designs.map((d) => <option key={d.id} value={d.id}>{d.code} · {d.name}</option>)}
-                </select>
+            <span className="qrc2-fcombo">
+                <DesignFilterCombobox
+                    designs={designs}
+                    value={filters.designId}
+                    onChange={(designId) => onChange({ ...filters, designId, colorVariantId: "" })}
+                    keywordHint={searchKeyword}
+                />
             </span>
             <span className="qrc2-fsel">
                 <select value={filters.colorVariantId} onChange={(e) => onChange({ ...filters, colorVariantId: e.target.value })} disabled={!selectedDesign}>

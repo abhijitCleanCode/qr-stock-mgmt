@@ -1,3 +1,5 @@
+import DesignFilterCombobox from "../search/DesignFilterCombobox.jsx";
+
 const STATUS_TABS = [
     { value: "all", label: "All" },
     { value: "pending", label: "Not printed" },
@@ -12,11 +14,12 @@ export default function HistoryFilterBar({ designs, filters, onChange, onClear, 
     return (
         <>
             <div className="qrc2-filters">
-                <span className="qrc2-fsel">
-                    <select value={filters.designId} onChange={(e) => onChange({ ...filters, designId: e.target.value, colorVariantId: "" })}>
-                        <option value="">All designs</option>
-                        {designs.map((d) => <option key={d.id} value={d.id}>{d.code} · {d.name}</option>)}
-                    </select>
+                <span className="qrc2-fcombo">
+                    <DesignFilterCombobox
+                        designs={designs}
+                        value={filters.designId}
+                        onChange={(designId) => onChange({ ...filters, designId, colorVariantId: "" })}
+                    />
                 </span>
                 <span className="qrc2-fsel">
                     <select value={filters.colorVariantId} onChange={(e) => onChange({ ...filters, colorVariantId: e.target.value })} disabled={!selectedDesign}>

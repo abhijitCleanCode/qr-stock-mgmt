@@ -24,7 +24,7 @@ const QrCenter = () => {
     const [reprintTargets, setReprintTargets] = useState(null);
     const [configureBatchId, setConfigureBatchId] = useState(null);
 
-    const { data: designsResponse } = useDesignListApi({ limit: 200 });
+    const { data: designsResponse } = useDesignListApi({ limit: 100 });
     const designs = designsResponse?.data ?? [];
 
     const hasQuery = Boolean(query || filters.designId || filters.colorVariantId || filters.type || filters.days);
@@ -54,6 +54,7 @@ const QrCenter = () => {
                     onClear={() => setFilters(EMPTY_FILTERS)}
                     resultCount={searchResponse?.meta?.total ?? 0}
                     showCount={hasQuery && !selectedCode}
+                    searchKeyword={query}
                 />
 
                 {selectedCode ? (

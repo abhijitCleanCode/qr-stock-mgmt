@@ -74,6 +74,7 @@
 
 .qrc2-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 13px; }
 .qrc2-fsel { position: relative; }
+.qrc2-fcombo { position: relative; }
 .qrc2-fsel select {
   appearance: none; border: 1px solid var(--qrc2-line-2); background: #fff; border-radius: 9px;
   padding: 9px 32px 9px 13px; font-size: 13.3px; color: var(--qrc2-ink-2); cursor: pointer;
