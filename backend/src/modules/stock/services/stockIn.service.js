@@ -11,6 +11,7 @@ import stockQrService from "./stockQr.service.js";
 import stockHistoryService from "./stockHistory.service.js";
 import printJobRepository from "../repositories/printJob.repository.js";
 import printJobItemRepository from "../repositories/printJobItem.repository.js";
+import stockInDraftRepository from "../repositories/stockInDraft.repository.js";
 
 function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
@@ -61,6 +62,7 @@ class StockInService {
     _stockHistoryService = stockHistoryService;
     _printJobRepository = printJobRepository;
     _printJobItemRepository = printJobItemRepository;
+    _stockInDraftRepository = stockInDraftRepository;
 
     _stockInResultMapper = stockInResultMapper;
 
@@ -98,6 +100,13 @@ class StockInService {
                     })));
                     printJobId = job.id;
                 }
+            }
+
+            // The wizard draft this inward was resumed from (if any) is now fully registered —
+            // removed in the same transaction so it can't linger on the dashboard, and restored
+            // if registration rolls back. A draft already discarded elsewhere is not an error.
+            if (data.draftId) {
+                await this._stockInDraftRepository.deleteById(tx, data.draftId);
             }
 
             return {

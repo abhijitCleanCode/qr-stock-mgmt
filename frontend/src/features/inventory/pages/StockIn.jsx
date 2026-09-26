@@ -1,11 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "react-toastify";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 import StockInStepper from "../components/stock-in/StockInStepper";
 import StockInWizardNavigation from "../components/stock-in/StockInWizardNavigation";
 import { useStockInWizard } from "../hooks/useStockInWizard";
 import { useVariantStockConfigs } from "../hooks/useVariantStockConfigs";
 import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
+import { useSaveStockInDraftApi, useStockInDraftApi } from "../hooks/useStockInDraftsApi";
 import { buildStockInPayload } from "../utils/buildStockInPayload";
 import { getVariantKey } from "../utils/variantKey";
 import InwardDetailsStep from "../steps/stockIn/InwardDetailsStep";
@@ -13,8 +16,6 @@ import SetMatrixStep from "../steps/stockIn/SetMatrixStep";
 import QcDefectStep from "../steps/stockIn/QcDefectStep";
 import QrTagStudioStep from "../steps/stockIn/QrTagStudioStep";
 import SummaryStep from "../steps/stockIn/SummaryStep";
-
-const STOCK_IN_DRAFT_KEY = "stockIn.draft.v1";
 
 // "YYYY-MM-DD" in the user's own local calendar day — never via `new Date().toISOString()`,
 // which reads UTC and can report yesterday's/tomorrow's date depending on the local offset.
@@ -26,7 +27,13 @@ function todayAsIsoDate() {
   return `${year}-${month}-${day}`;
 }
 
+// Mounted at /stock-in/new (fresh inward) and /stock-in/drafts/:draftId (resuming a draft saved
+// server-side — see the Stock In dashboard). Every successful "Next Step" autosaves the draft at
+// the step just reached, so the dashboard can list it and resume it at that exact step.
 const StockIn = () => {
+  const navigate = useNavigate();
+  const { draftId: routeDraftId } = useParams();
+
   const [jobber, setJobber] = useState({ id: null, name: "" });
   const [challanNo, setChallanNo] = useState("");
   const [challanDate, setChallanDate] = useState(todayAsIsoDate);
@@ -45,6 +52,7 @@ const StockIn = () => {
     updateBundle,
     removeBundle,
     reset: resetConfigs,
+    hydrate: hydrateConfigs,
   } = useVariantStockConfigs();
 
   // Per-variant derived totals (sets/loose/garments), reported up by each SetMatrixVariantCard
@@ -179,6 +187,80 @@ const StockIn = () => {
 
   const wizard = useStockInWizard(canAdvance);
 
+  // --- Server-side draft (create on first save, update after) ---
+  // draftIdRef is what saves/confirm read (always current inside async callbacks);
+  // hydratedDraftId is the draft this wizard's state currently reflects, for rendering.
+  const draftIdRef = useRef(null);
+  const saveChainRef = useRef(Promise.resolve());
+  const [hydratedDraftId, setHydratedDraftId] = useState(null);
+  const draftQuery = useStockInDraftApi(routeDraftId);
+  const { mutateAsync: saveDraft, isPending: isSavingDraft } = useSaveStockInDraftApi();
+
+  // Resume: copy the saved wizard state in once per draft — adjusted during render (not in an
+  // effect) so the steps never flash empty before the draft's own state appears.
+  const loadedDraft = draftQuery.data?.data;
+  if (routeDraftId && loadedDraft && String(loadedDraft.id) === routeDraftId && hydratedDraftId !== routeDraftId) {
+    const saved = loadedDraft.state ?? {};
+    setHydratedDraftId(routeDraftId);
+    setJobber(saved.jobber ?? { id: null, name: "" });
+    setChallanNo(saved.challanNo ?? "");
+    setChallanDate(saved.challanDate || todayAsIsoDate());
+    setSelectedVariants(saved.selectedVariants ?? []);
+    hydrateConfigs(saved.configs ?? {});
+    setVariantTotals(saved.variantTotals ?? {});
+    setQcOverridesByKey(saved.qcOverridesByKey ?? {});
+    setDefectAction(saved.defectAction ?? "seconds");
+    setQcRemarks(saved.qcRemarks ?? "");
+    setPrintStrategy(saved.printStrategy ?? "parentChild");
+    setQrPerVariantSettings(saved.qrPerVariantSettings ?? {});
+    if (saved.printer) setPrinter(saved.printer);
+    wizard.setActiveStep(loadedDraft.currentStep ?? 0);
+  }
+  const isHydratingDraft = Boolean(routeDraftId) && hydratedDraftId !== routeDraftId && !draftQuery.isError;
+
+  const buildDraftState = () => ({
+    jobber,
+    challanNo,
+    challanDate,
+    selectedVariants,
+    configs,
+    // Persisted so a draft resumed past Step 2 still has its totals — SetMatrixVariantCard only
+    // reports them while Step 2 is mounted.
+    variantTotals,
+    qcOverridesByKey,
+    defectAction,
+    qcRemarks,
+    printStrategy,
+    qrPerVariantSettings,
+    printer,
+  });
+
+  // Saves are chained so a quick double "Next" can never POST two drafts for one inward.
+  const persistDraft = (currentStep, { silent }) => {
+    const state = buildDraftState();
+    const run = saveChainRef.current.then(async () => {
+      const existingId = draftIdRef.current ?? (hydratedDraftId ? Number(hydratedDraftId) : null);
+      try {
+        const result = await saveDraft({ draftId: existingId, currentStep, state });
+        const savedId = result?.data?.id;
+        if (savedId && !existingId) {
+          draftIdRef.current = savedId;
+          setHydratedDraftId(String(savedId));
+          navigate(`/stock-in/drafts/${savedId}`, { replace: true });
+        }
+        if (!silent) toast.success("Draft saved — resume it any time from the Stock In dashboard.");
+      } catch (error) {
+        toast.error(
+          silent
+            ? `Couldn't autosave this draft: ${error?.message ?? "unknown error"}`
+            : (error?.message ?? "Couldn't save draft. Please try again."),
+        );
+      }
+    });
+    saveChainRef.current = run;
+    return run;
+  };
+
   const handleConfirmInward = async () => {
     const payload = buildStockInPayload(selectedVariants, configs, {
       deliveryDate: challanDate,
@@ -198,14 +280,16 @@ const StockIn = () => {
     const totalPassed = Object.values(qcByKey).reduce((sum, item) => sum + (Number(item.passed) || 0), 0);
 
     try {
-      const result = await registerStockIn(payload);
+      // Let any in-flight autosave finish first so its draft id is known and removed on confirm.
+      await saveChainRef.current;
+      const draftId = draftIdRef.current ?? (hydratedDraftId ? Number(hydratedDraftId) : null);
+      const result = await registerStockIn(draftId ? { ...payload, draftId } : payload);
       const printedMessage = result?.data?.printJobId
         ? ` Print job #${result.data.printJobId} queued to ${printer.split(" [")[0]}.`
         : "";
       toast.success(`Stock Inward confirmed! ${totalSets} Parent & ${totalPassed} Child QR tags generated.${printedMessage}`);
-      localStorage.removeItem(STOCK_IN_DRAFT_KEY);
       resetAll();
-      wizard.setActiveStep(0);
+      navigate("/stock-in");
     } catch (error) {
       toast.error(error?.message ?? "Couldn't register stock. Please try again.");
     }
@@ -216,31 +300,11 @@ const StockIn = () => {
       handleConfirmInward();
       return;
     }
-    wizard.next();
+    const nextStep = wizard.next();
+    if (nextStep !== null) persistDraft(nextStep, { silent: true });
   };
 
-  const handleSaveDraft = () => {
-    try {
-      const draft = {
-        jobber,
-        challanNo,
-        challanDate,
-        selectedVariants,
-        configs,
-        qcOverridesByKey,
-        defectAction,
-        qcRemarks,
-        printStrategy,
-        qrPerVariantSettings,
-        printer,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(STOCK_IN_DRAFT_KEY, JSON.stringify(draft));
-      toast.success("Stock inward batch draft saved on this device.");
-    } catch {
-      toast.error("Couldn't save draft — your browser may be blocking local storage.");
-    }
-  };
+  const handleSaveDraft = () => persistDraft(wizard.activeStep, { silent: false });
 
   // No physical printer/driver integration exists yet — this is an honest frontend
   // simulation (toast only), not a real call to hardware. See useStockInRegisterApi for the
@@ -254,6 +318,13 @@ const StockIn = () => {
     <div className="mx-auto flex min-h-[760px] w-full max-w-6xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8 lg:ml-2 lg:mr-[-72px] lg:w-[calc(100%+4rem)]">
       <div className="mb-6 space-y-5 border-b border-slate-100 pb-6">
         <div>
+          <Link
+            to="/stock-in"
+            className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900"
+          >
+            <ArrowLeft className="size-3.5" />
+            Stock In dashboard
+          </Link>
           <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>
           <p className="mt-0.5 text-xs text-slate-500 md:text-sm">
             Log received stock from Jobbers &amp; generate inventory QR tags.
@@ -263,6 +334,19 @@ const StockIn = () => {
         <StockInStepper activeStep={wizard.activeStep} setActiveStep={wizard.setActiveStep} />
       </div>
 
+      {draftQuery.isError ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-sm text-slate-500">
+          <p>{draftQuery.error?.message ?? "Couldn't load this draft."}</p>
+          <Link to="/stock-in" className="font-semibold text-emerald-700 hover:text-emerald-800">
+            Back to Stock In dashboard
+          </Link>
+        </div>
+      ) : isHydratingDraft ? (
+        <div className="flex flex-1 items-center justify-center gap-2 text-sm text-slate-500">
+          <Loader2 className="size-4 animate-spin" /> Loading draft…
+        </div>
+      ) : (
+      <>
       <div className="flex-1">
         {wizard.activeStep === 0 && (
           <InwardDetailsStep
@@ -350,7 +434,10 @@ const StockIn = () => {
         onNext={handleNext}
         onSaveDraft={handleSaveDraft}
         isSubmitting={isPending}
+        isSavingDraft={isSavingDraft}
       />
+      </>
+      )}
     </div>
   );
 };

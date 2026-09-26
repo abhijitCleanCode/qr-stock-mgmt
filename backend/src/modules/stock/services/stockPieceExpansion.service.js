@@ -12,7 +12,9 @@ import { generateUniqueShortCode } from "../utils/qrShortCode.util.js";
 // `sizeEntries`: [{ designSizeId, sizeLabel, unsetPricePerSize }, ...] — one entry PER
 // PHYSICAL PIECE, already expanded by quantity (a 2-of-this-size bundle passes that size
 // twice). `originSetStockItemId`: the SET/BUNDLE stock item this piece came from, or `null`
-// for a piece tagged directly from loose stock (no parent to point back to).
+// for a piece tagged directly from loose stock (no parent to point back to). `insideParent`:
+// true when the piece is a child tag that stays INSIDE that set (Stock In Parent+Child tagging),
+// false when the set is being broken and the piece becomes loose.
 class StockPieceExpansionService {
     _stockGroupRepository = stockGroupRepository;
     _stockItemRepository = stockItemRepository;
@@ -23,6 +25,7 @@ class StockPieceExpansionService {
         colorVariantId,
         sizeEntries,
         originSetStockItemId,
+        insideParent = false,
         stockInTransactionId = null,
         designCode,
         designName,
@@ -41,6 +44,7 @@ class StockPieceExpansionService {
             type: "PIECE",
             status: "AVAILABLE",
             originSetStockItemId,
+            parentStockItemId: insideParent ? originSetStockItemId : null,
         })));
 
         const results = [];

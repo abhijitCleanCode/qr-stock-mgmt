@@ -104,6 +104,8 @@ export const stockInSchema = z
         designs: z.array(designGroupSchema).min(1),
         printOnConfirm: z.boolean().default(false),
         printerId: positiveInt.optional(),
+        // Stock In draft this registration was completed from — deleted on success.
+        draftId: positiveInt.optional(),
     })
     .superRefine((data, ctx) => {
         if (data.printOnConfirm && data.printerId === undefined) {
@@ -141,3 +143,16 @@ export const stockInSchema = z
             });
         });
     });
+
+// --- Stock In drafts ---
+
+export const stockInDraftIdParamsSchema = z.object({
+    id: z.coerce.number().int().positive(),
+});
+
+// `state` is the wizard's own client-side snapshot — only its outer shape is checked here;
+// nothing in it is trusted for registration, which re-validates via stockInSchema on confirm.
+export const stockInDraftSchema = z.object({
+    currentStep: z.number().int().min(0).max(4).default(0),
+    state: z.record(z.string(), z.unknown()),
+});

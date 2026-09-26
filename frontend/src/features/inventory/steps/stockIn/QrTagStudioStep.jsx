@@ -309,7 +309,7 @@ const QrTagStudioStep = ({
                 </div>
                 <PreviewFilterBar tags={taggedTags} filter={filter} onFilterChange={setFilter} zoom={zoom} onZoomChange={setZoom} />
                 <div
-                  className="max-h-[560px] overflow-y-auto"
+                  className="theme-light max-h-[560px] overflow-y-auto"
                   style={{
                     backgroundColor: "#E2E8F0",
                     backgroundImage:

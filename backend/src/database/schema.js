@@ -13,6 +13,7 @@ export * from "../modules/stock/schemas/stockInEntry.schema.js";
 export * from "../modules/stock/schemas/stockInBundle.schema.js";
 export * from "../modules/stock/schemas/stockInBundlePiece.schema.js";
 export * from "../modules/stock/schemas/stockInLoosePiece.schema.js";
+export * from "../modules/stock/schemas/stockInDraft.schema.js";
 export * from "../modules/stock/schemas/stockOutTransaction.schema.js";
 export * from "../modules/stock/schemas/stockOutEntry.schema.js";
 export * from "../modules/stock/schemas/stockGroup.schema.js";
@@ -25,6 +26,8 @@ export * from "../modules/inventory/schemas/variantStatusTransaction.schema.js";
 export * from "../modules/stock/schemas/stockItemQr.schema.js";
 
 export * from "../modules/stock/schemas/stockHistory.schema.js";
+export * from "../modules/stock/schemas/stockAdjustment.schema.js";
+export * from "../modules/stock/schemas/stockTransformation.schema.js";
 
 export * from "../modules/stock/schemas/rack.schema.js";
 export * from "../modules/stock/schemas/bin.schema.js";

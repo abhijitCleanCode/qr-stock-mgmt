@@ -112,8 +112,7 @@ const SingleFileUpload = ({
                             <Upload
                                 size={24}
                                 strokeWidth={2}
-                                color="#1E293B"
-                                className="mx-auto mb-2"
+                                className="mx-auto mb-2 text-[#1E293B]"
                             />
 
                             <input {...getInputProps()} />

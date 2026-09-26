@@ -1,8 +1,10 @@
 import designService from "../services/design.service.js";
+import designMasterService from "../services/designMaster.service.js";
 import { ApiResponse } from "../../../core/apiResponse.js";
 
 class DesignController {
     _designService = designService;
+    _designMasterService = designMasterService;
 
     RegisterDesign = async (req, res, next) => {
         const files = req.files ?? [];
@@ -22,9 +24,28 @@ class DesignController {
 
     getAllDesigns = async (req, res, next) => {
         try {
-            const response = await this._designService.getAllDesigns(req.validatedQuery);
+            // Design Master dashboard list: search/sort + jobber name (a superset of the old shape).
+            const response = await this._designMasterService.listDesigns(req.validatedQuery);
 
             return res.status(200).json(new ApiResponse(200, response.data, "Designs fetched successfully.", response.meta));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getDesign = async (req, res, next) => {
+        try {
+            const response = await this._designMasterService.getDesign(req.params.id);
+            return res.status(200).json(new ApiResponse(200, response, "Design fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    updateDesign = async (req, res, next) => {
+        try {
+            const response = await this._designMasterService.updateDesign(req.params.id, req.body, req.files ?? []);
+            return res.status(200).json(new ApiResponse(200, response, "Design updated successfully."));
         } catch (error) {
             next(error);
         }

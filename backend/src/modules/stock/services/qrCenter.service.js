@@ -19,6 +19,7 @@ import tagPresetRepository from "../repositories/tagPreset.repository.js";
 import stockGroupRepository from "../repositories/stockGroup.repository.js";
 import stockInBundlePieceRepository from "../repositories/stockInBundlePiece.repository.js";
 import stockPieceExpansionService from "./stockPieceExpansion.service.js";
+import stockTransformationService from "./stockTransformation.service.js";
 
 import designRepository from "../../design/repositories/design.repository.js";
 import designSizeRepository from "../../design/repositories/designSize.repository.js";
@@ -1154,53 +1155,15 @@ class QrCenterService {
 
     // === 8. Break set ========================================================================
 
+    // Same break as Stock Transformation's "Break a set" (one implementation, so both screens
+    // agree on what a broken set means), with every piece going back to stock: the set leaves
+    // stock, its parent tag is retired, and its pieces become loose, individually-tagged stock.
     async breakSet({ stockItemId, reasonCode, note }) {
-        return db.transaction(async (tx) => {
-            const context = await this._stockItemRepository.findWithContextById(tx, stockItemId);
-            if (!context) throw new ApiError(`Stock item ${stockItemId} not found.`, 404, "STOCK_ITEM_NOT_FOUND");
-            if (context.type !== "SET" && context.type !== "BUNDLE") {
-                throw new ApiError(`Stock item ${stockItemId} is not a SET/BUNDLE and cannot be broken.`, 400, "NOT_BREAKABLE");
-            }
-
-            const activeQr = await this._stockItemQrRepository.findLatestActiveByStockItemId(tx, stockItemId);
-            if (!activeQr) throw new ApiError(`Stock item ${stockItemId} has no active QR to break.`, 400, "NO_ACTIVE_QR");
-
-            const activeSizes = await this._designSizeRepository.findActiveByVariantId(tx, context.colorVariantId);
-            const setSizes = activeSizes.filter((size) => size.includedInSet);
-            if (setSizes.length === 0) {
-                throw new ApiError(`Color variant ${context.colorVariantId} has no sizes configured as part of a set.`, 400, "NO_SET_SIZES");
-            }
-
-            const sizeEntries = context.type === "SET"
-                ? setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize }))
-                : await this._buildBundleSizeEntries(tx, context, setSizes);
-
-            const created = await this._stockPieceExpansionService.createPiecesForComposition(tx, {
-                colorVariantId: context.colorVariantId,
-                sizeEntries,
-                originSetStockItemId: stockItemId,
-                designCode: context.designCode,
-                designName: context.designName,
-                colorName: context.colorName,
-            });
-
-            const successors = created.map((row) => ({ shortCode: row.qr.shortCode, sizeLabel: row.sizeLabel, stockItemId: row.stockItem.id }));
-
-            // Original SET's own `status` column is deliberately left AVAILABLE — CONSUMED is
-            // reserved for assembly-consumption elsewhere; its QR going RETIRED is what makes it
-            // inert for scanning (see stockItems.schema.js originSetStockItemId comment).
-            await this._stockItemQrRepository.retireActiveByStockItemId(tx, stockItemId, { retiredReason: reasonCode });
-
-            const resultStockItemIds = created.map((row) => row.stockItem.id);
-            await this._stockHistoryService.record(tx, "SET_BROKEN", {
-                colorVariantId: context.colorVariantId,
-                resultStockItemId: null,
-                quantity: resultStockItemIds.length,
-                metadata: { sourceStockItemId: stockItemId, resultStockItemIds, reasonCode, note: note ?? null },
-            });
-
-            return { retiredShortCode: activeQr.shortCode, successors };
-        });
+        const result = await stockTransformationService.breakUnit({ unitStockItemId: stockItemId, destinations: null, reason: reasonCode, note });
+        return {
+            retiredShortCode: result.retiredShortCode,
+            successors: result.pieces.map((piece) => ({ shortCode: piece.code, sizeLabel: piece.size, stockItemId: piece.stockItemId })),
+        };
     }
 
     // A BUNDLE stock item's own composition (semi-set aware) — falls back to the variant's

@@ -1,7 +1,7 @@
 import { db } from "../../../database/index.js";
 import stockHistoryRepository from "../repositories/stockHistory.repository.js";
 
-const EVENT_TYPES = new Set(["STOCK_IN", "SET_ASSEMBLED", "BUNDLE_ASSEMBLED", "STOCK_OUT", "SET_BROKEN"]);
+const EVENT_TYPES = new Set(["STOCK_IN", "SET_ASSEMBLED", "BUNDLE_ASSEMBLED", "STOCK_OUT", "SET_BROKEN", "STOCK_ADJUSTED_IN", "STOCK_ADJUSTED_OUT"]);
 
 function toHistoryView(row) {
     return {

@@ -22,6 +22,11 @@ export const colorVariant = pgTable("color_variants", {
 
     isActive: boolean("is_active").default(true).notNull(),
 
+    // Current Stock marks this variant "Low" once its pieces in stock fall to this number or
+    // below (but above 0). Edited from the Current Stock drawer; every change is logged as a
+    // LEVEL stock_adjustments row so it can be reversed.
+    lowStockLevel: integer("low_stock_level").default(5).notNull(),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
 
     updatedAt: timestamp("updated_at")

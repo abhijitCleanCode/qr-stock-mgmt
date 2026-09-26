@@ -4,6 +4,8 @@ import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
 import { stockItem } from "../schemas/stockItems.schema.js";
 import { stockItemQr } from "../schemas/stockItemQr.schema.js";
 import { stockInLoosePiece } from "../schemas/stockInLoosePiece.schema.js";
+import { stockInEntry } from "../schemas/stockInEntry.schema.js";
+import { printJobItem } from "../schemas/printJobItem.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
 
@@ -11,6 +13,18 @@ import { design } from "../../design/schemas/design.schema.js";
 // stockQr.service.js's QR_ELIGIBLE_TYPES — so a registration's QR-bearing items are
 // scoped to those two types here too.
 const QR_ELIGIBLE_TYPES = ["SET", "BUNDLE"];
+
+// Start of the current calendar month, as a date — Stock In dashboard stats are scoped by the
+// transaction's own stockDate (the challan/inward date the user entered), not createdAt.
+const currentMonthStart = sql`date_trunc('month', current_date)::date`;
+
+// Correlated per-transaction counts for the Stock In dashboard. A transaction's QR labels are
+// the ACTIVE stock_item_qr rows of its own stock items; a label counts as printed once any
+// print job has included it (print_job_items), whichever path queued that job — Stock In's
+// "Send to printer" or QR Center's batch queue.
+const piecesAddedSql = sql`coalesce((select sum(${stockInEntry.quantityAdded}) from ${stockInEntry} where ${stockInEntry.stockInTransactionId} = ${stockInTransaction.id}), 0)`;
+const activeQrCountSql = sql`(select count(distinct ${stockItemQr.id}) from ${stockItemQr} inner join ${stockItem} on ${stockItem.id} = ${stockItemQr.stockItemId} where ${stockItem.stockInTransactionId} = ${stockInTransaction.id} and ${stockItemQr.status} = 'ACTIVE')`;
+const printedQrCountSql = sql`(select count(distinct ${stockItemQr.id}) from ${stockItemQr} inner join ${stockItem} on ${stockItem.id} = ${stockItemQr.stockItemId} inner join ${printJobItem} on ${printJobItem.stockItemQrId} = ${stockItemQr.id} where ${stockItem.stockInTransactionId} = ${stockInTransaction.id} and ${stockItemQr.status} = 'ACTIVE')`;
 
 function registrationSearchCondition(keyword) {
     if (!keyword) return undefined;
@@ -143,6 +157,53 @@ class StockInTransactionRepository {
 
         const [result] = await tx.select({ value: sql`count(*)`.mapWith(Number) }).from(grouped);
         return result.value;
+    }
+
+    // Stock In dashboard's "this month" strip: how many registrations were inwarded this
+    // calendar month and how many physical pieces they added in total.
+    async getCurrentMonthTotals(tx) {
+        const [batches] = await tx.select({ value: sql`count(*)`.mapWith(Number) })
+            .from(stockInTransaction)
+            .where(gte(stockInTransaction.stockDate, currentMonthStart));
+
+        const [pieces] = await tx.select({ value: sql`coalesce(sum(${stockInEntry.quantityAdded}), 0)`.mapWith(Number) })
+            .from(stockInEntry)
+            .innerJoin(stockInTransaction, eq(stockInEntry.stockInTransactionId, stockInTransaction.id))
+            .where(gte(stockInTransaction.stockDate, currentMonthStart));
+
+        return { batchCount: batches.value, pieceCount: pieces.value };
+    }
+
+    // Registrations that still have at least one ACTIVE QR label no print job has included yet.
+    async countWithUnprintedQr(tx) {
+        const [result] = await tx.select({ value: sql`count(*)`.mapWith(Number) })
+            .from(stockInTransaction)
+            .where(sql`${activeQrCountSql} > ${printedQrCountSql}`);
+        return result.value;
+    }
+
+    // Stock In dashboard's "Recently completed" list — newest registrations first, each with
+    // its design/variant identity, pieces added and QR print progress.
+    async findRecentWithPrintStatus(tx, { limit }) {
+        return tx.select({
+            stockInTransactionId: stockInTransaction.id,
+            challanNo: stockInTransaction.challanNo,
+            stockDate: stockInTransaction.stockDate,
+            createdAt: stockInTransaction.createdAt,
+            colorVariantId: colorVariant.id,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+            pieceCount: piecesAddedSql.mapWith(Number),
+            qrCount: activeQrCountSql.mapWith(Number),
+            printedCount: printedQrCountSql.mapWith(Number),
+        }).from(stockInTransaction)
+            .innerJoin(colorVariant, eq(stockInTransaction.variantId, colorVariant.id))
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .orderBy(desc(stockInTransaction.createdAt), desc(stockInTransaction.id))
+            .limit(limit);
     }
 
     // Stock Registration identity + design/variant context for the QR Grid page header —

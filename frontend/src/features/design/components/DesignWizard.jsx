@@ -1,21 +1,29 @@
 import { useState } from "react";
 import { FormProvider } from "react-hook-form";
+import { useNavigate } from "react-router";
 import { toast } from "react-toastify";
 
 import { useDesignForm } from "../hooks/useDesignForm";
 import { useDesignWizard } from "../hooks/useDesignWizard";
 import { useDesignRegisterApi } from "../hooks/useDesignRegisterApi";
+import { useDesignUpdateApi } from "../hooks/useDesignDetailApi";
 import DesignStepper from "./DesignStepper";
 import StepRenderer from "./StepRenderer";
 import DesignWizardNavigation from "./DesignWizardNavigation";
 import { DESIGN_STEPS } from "../steps/DesignSteps";
 
-const DesignWizard = () => {
-    const form = useDesignForm();
+// Register a new design, or — with `editDesign` (the GET /designs/:id payload) and matching
+// `initialValues` — edit an existing one through the same three steps.
+const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
+    const form = useDesignForm(initialValues);
+    const navigate = useNavigate();
+    const isEdit = Boolean(editDesign);
 
     const wizard = useDesignWizard(form);
 
-    const { mutateAsync, isPending } = useDesignRegisterApi();
+    const { mutateAsync, isPending: isRegistering } = useDesignRegisterApi();
+    const { mutateAsync: updateDesign, isPending: isUpdating } = useDesignUpdateApi();
+    const isPending = isRegistering || isUpdating;
 
     // Populated by DesignIdentity (Step 1) once the typed Design Code matches an existing
     // design; consumed here (final duplicate gate) and by Variants (Step 3, to block adding a
@@ -47,6 +55,34 @@ const DesignWizard = () => {
                 displayOrder: index,
                 sizeLabels: semiSet.sizeLabels,
             }));
+
+        if (isEdit) {
+            try {
+                const response = await updateDesign({
+                    id: editDesign.id,
+                    ...designData,
+                    colorVariants: colorVariants.map((variant) => ({
+                        ...(variant.id ? { id: variant.id } : {}),
+                        colorName: variant.colorName,
+                        colorHex: variant.colorHex,
+                        replaceImage: Boolean(variant.id && variant.imageFile),
+                    })),
+                    designSizes,
+                    semiSets: semiSetsPayload,
+                    // One file per new or re-photographed variant, in list order (see updateDesignApi).
+                    images: colorVariants.filter((variant) => variant.imageFile).map((variant) => variant.imageFile),
+                });
+                const converted = response?.data?.changes?.convertedSets ?? [];
+                toast.success("Design updated.");
+                converted.forEach((item) =>
+                    toast.info(`${item.colorName}: ${item.sets} existing complete set${item.sets === 1 ? "" : "s"} became semi sets (they don't include the new size).`),
+                );
+                navigate("/designs");
+            } catch (error) {
+                toast.error(error?.message ?? "Couldn't update design. Please try again.");
+            }
+            return;
+        }
 
         // Last-resort client-side gate: if every submitted colour already exists on the matched
         // design, this submission has nothing new in it — the backend would reject it as a full
@@ -94,6 +130,7 @@ const DesignWizard = () => {
                     control={form.control}
                     existingDesignByCode={existingDesignByCode}
                     setExistingDesignByCode={setExistingDesignByCode}
+                    editDesign={editDesign}
                 />
 
                 <DesignWizardNavigation

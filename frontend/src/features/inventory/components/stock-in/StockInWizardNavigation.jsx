@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { STOCK_IN_STEPS } from "../../hooks/useStockInWizard";
 
-const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSubmitting }) => {
+const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSubmitting, isSavingDraft }) => {
   const isFirstStep = activeStep === 0;
   const isLastStep = activeStep === STOCK_IN_STEPS.length - 1;
 
@@ -25,8 +25,10 @@ const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSu
           type="button"
           variant="outline"
           onClick={onSaveDraft}
-          className="rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          disabled={isSavingDraft || isSubmitting}
+          className="gap-2 rounded-lg border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
+          {isSavingDraft && <Loader2 className="size-3.5 animate-spin" />}
           Save as Draft
         </Button>
 

@@ -1,8 +1,9 @@
 import { useForm } from "react-hook-form";
 
-export const useDesignForm = () => {
+// `defaultValues` pre-fills the wizard when editing an existing design.
+export const useDesignForm = (defaultValues = {}) => {
     return useForm({
         mode: "onChange",
-        defaultValues: {},
+        defaultValues,
     });
 };
