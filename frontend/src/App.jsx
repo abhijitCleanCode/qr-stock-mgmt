@@ -15,7 +15,13 @@ import StockTransformation from "./features/inventory/pages/StockTransformation"
 import StockOutLayout from "./features/sales/layouts/StockOutLayout";
 import Overview from "./features/sales/pages/Overview";
 import Parties from "./features/sales/pages/Parties";
-import SlicePlaceholder from "./features/sales/pages/SlicePlaceholder";
+import OrderForms from "./features/sales/pages/OrderForms";
+import OrderFormEditor from "./features/sales/pages/OrderFormEditor";
+import OrderFormDetail from "./features/sales/pages/OrderFormDetail";
+import Invoices from "./features/sales/pages/Invoices";
+import InvoiceEditor from "./features/sales/pages/InvoiceEditor";
+import InvoiceDetail from "./features/sales/pages/InvoiceDetail";
+import Gallery from "./features/sales/pages/Gallery";
 
 const App = () => {
   return (
@@ -27,20 +33,14 @@ const App = () => {
           <Route path="/stock-in" element={<StockIn />} />
           <Route path="/stock-out" element={<StockOutLayout />}>
             <Route index element={<Overview />} />
-            <Route
-              path="orders"
-              element={<SlicePlaceholder
-                title="Order Forms are coming in the next slice"
-                description="Party Master had to land first, because every order form is filled from it. Order Forms is the next piece of work."
-              />}
-            />
-            <Route
-              path="invoices"
-              element={<SlicePlaceholder
-                title="Invoices follow Order Forms"
-                description="An invoice is built by scanning stock against an order form, so it depends on Order Forms being in place first."
-              />}
-            />
+            <Route path="orders" element={<OrderForms />} />
+            <Route path="orders/new" element={<OrderFormEditor />} />
+            <Route path="orders/:id" element={<OrderFormDetail />} />
+            <Route path="orders/:id/edit" element={<OrderFormEditor />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="invoices/new" element={<InvoiceEditor />} />
+            <Route path="invoices/:id" element={<InvoiceDetail />} />
+            <Route path="invoices/:id/edit" element={<InvoiceEditor />} />
             <Route path="parties" element={<Parties />} />
           </Route>
           <Route path="/qr-center" element={<QrCenter />} />
@@ -50,6 +50,7 @@ const App = () => {
           <Route path="/current-stock/:colorVariantId" element={<CurrentStockDetail />} />
           <Route path="/stock-history" element={<StockHistory />} />
           <Route path="/stock-transformation" element={<StockTransformation />} />
+          <Route path="/gallery" element={<Gallery />} />
         </Route>
 
       </Routes>

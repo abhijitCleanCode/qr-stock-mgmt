@@ -1,4 +1,4 @@
-import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box, RefreshCw, ArrowUpRight } from "lucide-react";
+import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box, RefreshCw, ArrowUpRight, Images } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
     return [
@@ -59,6 +59,18 @@ export const getMenuList = ({ pathname }) => {
                     active: pathname.startsWith("/stock-transformation"),
                     submenus: [],
                 }
+            ],
+        },
+        {
+            groupLabel: "Sales",
+            menus: [
+                {
+                    href: "/gallery",
+                    label: "Gallery",
+                    icon: Images,
+                    active: pathname.startsWith("/gallery"),
+                    submenus: [],
+                },
             ],
         },
     ];

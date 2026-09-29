@@ -11,6 +11,9 @@ import { stockHistoryRoutes } from '../../modules/stock/routes/stockHistory.rout
 import { tagPresetRoutes } from '../../modules/stock/routes/tagPreset.route.js';
 import { currentStockRoutes } from '../../modules/inventory/routes/currentStock.route.js';
 import { partyRoutes } from '../../modules/sales/routes/party.route.js';
+import { orderFormRoutes } from '../../modules/sales/routes/orderForm.route.js';
+import { invoiceRoutes } from '../../modules/sales/routes/invoice.route.js';
+import { salesRoutes } from '../../modules/sales/routes/sales.route.js';
 
 const router = Router();
 
@@ -22,5 +25,8 @@ router.use('/stock-history', buildRouter(stockHistoryRoutes));
 router.use('/tag-presets', buildRouter(tagPresetRoutes));
 router.use('/current-stock', buildRouter(currentStockRoutes));
 router.use('/parties', buildRouter(partyRoutes));
+router.use('/order-forms', buildRouter(orderFormRoutes));
+router.use('/invoices', buildRouter(invoiceRoutes));
+router.use('/sales', buildRouter(salesRoutes));
 
 export default router;

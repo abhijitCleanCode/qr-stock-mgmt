@@ -63,6 +63,7 @@ class StockItemRepository {
             stockItemId: stockItem.id,
             type: stockItem.type,
             status: stockItem.status,
+            stockGroupId: stockItem.stockGroupId,
             colorVariantId: stockItem.colorVariantId,
             designSizeId: stockItem.designSizeId,
             bundleId: stockItem.bundleId,
@@ -183,6 +184,18 @@ class StockItemRepository {
         if (ids.length === 0) return [];
 
         return tx.update(stockItem).set({ status: "CONSUMED" }).where(inArray(stockItem.id, ids)).returning();
+    }
+
+    // The inverse, used when an owner edits an invoice and a scanned tag is taken off it: the
+    // garment was never dispatched, so it goes back on the shelf. Scoped to CONSUMED rows so it
+    // can never resurrect an item retired through some other path.
+    async markAvailable(tx, ids) {
+        if (ids.length === 0) return [];
+
+        return tx.update(stockItem)
+            .set({ status: "AVAILABLE" })
+            .where(and(inArray(stockItem.id, ids), eq(stockItem.status, "CONSUMED")))
+            .returning();
     }
 
     // QR Center listing: individual SET/BUNDLE stock items (one physical label each), joined

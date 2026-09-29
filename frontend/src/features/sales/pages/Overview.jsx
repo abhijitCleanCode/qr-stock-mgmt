@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
-import { ArrowRight, FileText, Receipt, Users } from "lucide-react";
-import { usePartySummaryApi } from "../hooks/usePartiesApi.js";
+import { ArrowRight, FileText, Receipt } from "lucide-react";
+import { useOverviewApi } from "../hooks/useSalesApi.js";
+import { inr, longDate } from "../utils/format.js";
 
 const STEPS = [
     "Customer shortlists at the counter",
@@ -11,14 +12,14 @@ const STEPS = [
 
 const ACTIONS = [
     {
-        to: "/stock-out/orders",
+        to: "/stock-out/orders/new",
         icon: FileText,
         tone: "bg-blue-50 text-blue-700",
         title: "New Order Form",
-        description: "Scan the hanging designs the customer shortlists and note pieces per variant. Doesn't touch stock.",
+        description: "Scan the hanging designs the customer shortlists and note pieces per colour. Doesn't touch stock.",
     },
     {
-        to: "/stock-out/invoices",
+        to: "/stock-out/invoices/new",
         icon: Receipt,
         tone: "bg-emerald-50 text-emerald-700",
         title: "New Invoice",
@@ -28,11 +29,18 @@ const ACTIONS = [
 
 const Overview = () => {
     const navigate = useNavigate();
-    const { data: summary } = usePartySummaryApi();
-    const partyCount = summary?.data?.partyCount;
+    const { data: response } = useOverviewApi();
+    const summary = response?.data;
+
+    const stats = [
+        { label: "Order forms waiting to invoice", value: summary?.openOrderForms, accent: "text-blue-700" },
+        { label: "Invoices this month", value: summary?.invoicesThisMonth },
+        { label: "Pieces dispatched this month", value: summary?.piecesThisMonth },
+        { label: "Invoiced this month", value: summary ? inr(summary.amountThisMonth) : undefined, accent: "text-[#00694C]" },
+    ];
 
     return (
-        <div className="flex h-full flex-col gap-5 overflow-y-auto pb-2">
+        <div className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
             <div className="glass-card rounded-[24px] p-6">
                 <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">Stock Out</h1>
                 <p className="mt-1 max-w-[72ch] text-sm text-[#1E1B4B]/60">
@@ -75,23 +83,84 @@ const Overview = () => {
                     ))}
                 </div>
 
-                <div className="mt-5 flex items-center gap-4 rounded-2xl border border-white/50 bg-white/40 px-5 py-4">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/70 text-[#1E1B4B]/70">
-                        <Users className="h-5 w-5" />
-                    </span>
-                    <div>
-                        <div className="font-mono text-xl font-bold text-[#1E1B4B]">{partyCount ?? "—"}</div>
-                        <div className="text-xs text-[#1E1B4B]/60">Parties in Party Master</div>
-                    </div>
+                <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/50 bg-white/30 lg:grid-cols-4">
+                    {stats.map((stat) => (
+                        <div key={stat.label} className="bg-white/50 px-5 py-4">
+                            <div className={`font-mono text-xl font-bold ${stat.accent ?? "text-[#1E1B4B]"}`}>
+                                {stat.value ?? "—"}
+                            </div>
+                            <div className="mt-0.5 text-[11px] text-[#1E1B4B]/55">{stat.label}</div>
+                        </div>
+                    ))}
                 </div>
+            </div>
 
-                <p className="mt-4 text-xs text-[#1E1B4B]/50">
-                    Counts for open order forms, invoices this month, pieces dispatched and value invoiced arrive with
-                    the Order Forms and Invoices slices.
-                </p>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <RecentPanel
+                    title="Recent order forms"
+                    emptyLabel="No order forms yet."
+                    onViewAll={() => navigate("/stock-out/orders")}
+                    rows={summary?.recentOrderForms?.map((form) => ({
+                        id: form.id,
+                        number: form.formNumber,
+                        date: form.formDate,
+                        party: form.partyName,
+                        badge: form.status === "INVOICED" ? "Invoiced" : form.status === "CANCELLED" ? "Cancelled" : "Open",
+                        to: `/stock-out/orders/${form.id}`,
+                    }))}
+                    navigate={navigate}
+                />
+
+                <RecentPanel
+                    title="Recent invoices"
+                    emptyLabel="No invoices yet."
+                    onViewAll={() => navigate("/stock-out/invoices")}
+                    rows={summary?.recentInvoices?.map((invoice) => ({
+                        id: invoice.id,
+                        number: invoice.invoiceNumber,
+                        date: invoice.invoiceDate,
+                        party: invoice.partyName,
+                        badge: invoice.orderFormNumber,
+                        to: `/stock-out/invoices/${invoice.id}`,
+                    }))}
+                    navigate={navigate}
+                />
             </div>
         </div>
     );
 };
+
+const RecentPanel = ({ title, rows, emptyLabel, onViewAll, navigate }) => (
+    <div className="glass-card rounded-[24px] p-5">
+        <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-bold text-[#1E1B4B]">{title}</h2>
+            <button type="button" onClick={onViewAll} className="text-xs font-semibold text-[#1E1B4B]/55 hover:text-[#1E1B4B]">
+                View all &rarr;
+            </button>
+        </div>
+
+        {!rows || rows.length === 0 ? (
+            <p className="py-6 text-center text-sm text-[#1E1B4B]/45">{emptyLabel}</p>
+        ) : (
+            <div className="space-y-1.5">
+                {rows.map((row) => (
+                    <button
+                        key={row.id}
+                        type="button"
+                        onClick={() => navigate(row.to)}
+                        className="flex w-full items-center gap-3 rounded-xl bg-white/60 px-3 py-2.5 text-left transition-colors hover:bg-white"
+                    >
+                        <span className="font-mono text-xs font-bold text-[#1E1B4B]">{row.number}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-[#1E1B4B]/75">{row.party}</span>
+                        <span className="text-[11px] text-[#1E1B4B]/40">{longDate(row.date)}</span>
+                        <span className="rounded-full bg-[#1E1B4B]/8 px-2 py-0.5 text-[10.5px] font-semibold text-[#1E1B4B]/65">
+                            {row.badge}
+                        </span>
+                    </button>
+                ))}
+            </div>
+        )}
+    </div>
+);
 
 export default Overview;

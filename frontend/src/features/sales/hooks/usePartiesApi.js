@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getPartiesApi, getPartySummaryApi } from "../services/party.api.js";
+import { getPartiesApi } from "../services/party.api.js";
 
 export function usePartiesApi({ page = 1, limit = 50, q = "", includeInactive = false } = {}) {
     return useQuery({
@@ -11,9 +11,3 @@ export function usePartiesApi({ page = 1, limit = 50, q = "", includeInactive = 
     });
 }
 
-export function usePartySummaryApi() {
-    return useQuery({
-        queryKey: ["parties", "summary"],
-        queryFn: getPartySummaryApi,
-    });
-}
