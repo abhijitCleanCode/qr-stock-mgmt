@@ -7,6 +7,7 @@ import { traceMiddleware } from "./app/middlewares/trace.middleware.js";
 import requestTiming from "./app/middlewares/requestTiming.middleware.js";
 import notFoundHandler from "./app/middlewares/notFound.middleware.js";
 import errorHandler from "./app/middlewares/error.middleware.js";
+import { attachRole } from "./app/middlewares/role.middleware.js";
 import router from "./app/routes/index.js";
 
 const app = express();
@@ -37,6 +38,8 @@ app.use(traceMiddleware);
 app.use(requestTiming);
 
 app.get("/health", (req, res) => { res.json({ status: "User service running" }) });
+
+app.use(attachRole);
 
 // application routes
 app.use("/api/v1", router);
