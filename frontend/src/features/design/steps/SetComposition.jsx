@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
 import { Check, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -114,8 +114,11 @@ const SemiSetsField = ({ control, selectedSizes }) => (
   />
 );
 
-const SetComposition = ({ control }) => {
-  const [customSizes, setCustomSizes] = useState([]);
+const SetCompositionFields = ({ control }) => {
+  const { getValues } = useFormContext();
+  // When editing, a design may already use sizes outside the defaults (e.g. "Free Size") —
+  // they have to be listed to stay selected.
+  const [customSizes, setCustomSizes] = useState(() => (getValues("sizes") ?? []).filter((size) => !DEFAULT_SIZES.includes(size)));
   const [isAddingCustomSize, setIsAddingCustomSize] = useState(false);
   const [customSizeValue, setCustomSizeValue] = useState("");
 
@@ -260,6 +263,30 @@ const SetComposition = ({ control }) => {
         );
       }}
     />
+  );
+};
+
+// While editing, say which sizes still hold stock: those can't be removed until they're empty,
+// and adding a set size turns existing complete sets into semi sets.
+const SetComposition = ({ control, editDesign }) => {
+  const stocked = (editDesign?.sizes ?? []).filter((size) => size.piecesInStock > 0);
+  const hasSets = (editDesign?.colorVariants ?? []).some((variant) => variant.completeSets > 0);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {editDesign && (stocked.length > 0 || hasSets) && (
+        <div className="rounded-[11px] border border-amber-200 bg-amber-50 px-4 py-3 text-[12.6px] leading-relaxed text-amber-800">
+          {stocked.length > 0 && (
+            <div>
+              <b>In stock now:</b> {stocked.map((size) => `${size.sizeLabel} ${size.piecesInStock} pcs`).join(" · ")} — a size can only be removed once none
+              of it is left (loose or inside sets).
+            </div>
+          )}
+          {hasSets && <div>Adding a new size turns this design&apos;s existing complete sets into semi sets, since they don&apos;t contain it.</div>}
+        </div>
+      )}
+      <SetCompositionFields control={control} />
+    </div>
   );
 };
 

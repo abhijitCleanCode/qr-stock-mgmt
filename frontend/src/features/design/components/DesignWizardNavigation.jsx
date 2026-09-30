@@ -24,10 +24,12 @@ const DesignWizardNavigation = ({
                 Prev
             </Button>
 
+            {/* Distinct keys: without them React reuses the clicked "Next" <button> as "Save" and
+                flips it to type="submit" during the click, so the browser submits the form. */}
             {!isLastStep ? (
-                <Button type="button" onClick={onNext} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white">Next</Button>
+                <Button key="next" type="button" onClick={onNext} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white">Next</Button>
             ) : (
-                <Button type="submit" disabled={isSubmitting} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white">
+                <Button key="save" type="submit" disabled={isSubmitting} className="text-[#1E1B4B] p-4 neu-button rounded-full transition-colors hover:!bg-[#00694C] hover:!text-white">
                     {isSubmitting ? <Loader2 className="animate-spin" /> : "Save"}
                 </Button>
             )}

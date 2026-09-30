@@ -71,6 +71,9 @@ export function useVariantStockConfigs() {
 
   const reset = useCallback(() => setConfigs({}), []);
 
+  // Replaces every config at once — used when resuming a saved Stock In draft.
+  const hydrate = useCallback((nextConfigs) => setConfigs(nextConfigs ?? {}), []);
+
   return {
     configs,
     ensureConfig,
@@ -80,5 +83,6 @@ export function useVariantStockConfigs() {
     removeBundle,
     setLoosePieces,
     reset,
+    hydrate,
   };
 }

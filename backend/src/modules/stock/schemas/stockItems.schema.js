@@ -1,4 +1,4 @@
-import { index, integer, pgEnum, pgTable, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, pgEnum, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 
 import { stockGroup, stockGroupTypeEnum } from "./stockGroup.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
@@ -10,6 +10,11 @@ import { bin } from "./bin.schema.js";
 
 // CONSUMED - Ye physical stock item kisi naye stock item ko create karne ke liye consume ho chuka hai. We are not deleting the stock item for maintaining lineage
 export const stockItemStatusEnum = pgEnum("stock_item_status", ["AVAILABLE", "UNSET", "CONSUMED"]);
+
+// Where a loose, individually-tagged piece physically is right now. Only STOCK pieces are on the
+// shelf (can be formed into sets); the rest are still owned stock, just out with someone —
+// see Stock Transformation's "Pieces out" board.
+export const stockItemCustodyEnum = pgEnum("stock_item_custody", ["STOCK", "DISPLAY", "SALESPERSON", "SAMPLE", "ALTERATION"]);
 
 export const stockItem = pgTable("stock_items", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -45,6 +50,17 @@ export const stockItem = pgTable("stock_items", {
     // pieces — this plain FK on the many side has no such constraint.
     originSetStockItemId: integer("origin_set_stock_item_id").references(() => stockItem.id, { onDelete: "set null" }),
 
+    // The SET/BUNDLE a PIECE is physically inside RIGHT NOW (null = loose). Distinct from
+    // originSetStockItemId, which never changes and records the set a piece was born in (so a
+    // broken set can be recognised as "restorable" when all its pieces come back together).
+    // A piece inside a unit is counted as part of that unit, never on its own.
+    parentStockItemId: integer("parent_stock_item_id").references(() => stockItem.id, { onDelete: "set null" }),
+
+    custodyType: stockItemCustodyEnum("custody_type").default("STOCK").notNull(),
+    // Salesperson / customer / tailor holding the piece — free text (no people master exists).
+    custodyHolder: varchar("custody_holder", { length: 150 }),
+    custodySince: timestamp("custody_since"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
 },
 
@@ -58,6 +74,8 @@ export const stockItem = pgTable("stock_items", {
         index("stock_items_rack_id_idx").on(table.rackId),
 
         index("stock_items_origin_set_stock_item_id_idx").on(table.originSetStockItemId),
+
+        index("stock_items_parent_stock_item_id_idx").on(table.parentStockItemId),
     ]
 );
 

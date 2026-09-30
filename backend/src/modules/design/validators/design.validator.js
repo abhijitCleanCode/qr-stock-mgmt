@@ -39,6 +39,13 @@ const designSemiSetInputSchema = z.object({
 export const listDesignsQuerySchema = z.object({
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
+    // Design Master dashboard search/sort — optional, so older callers behave as before.
+    keyword: z.string().trim().max(100).optional().transform((value) => value || undefined),
+    sort: z.enum(["new", "old", "price_asc", "price_desc", "code"]).default("new"),
+});
+
+export const designIdParamsSchema = z.object({
+    id: z.coerce.number().int().positive(),
 });
 
 export const searchDesignsQuerySchema = z.object({
@@ -91,5 +98,30 @@ export const registerDesignSchema = z.object({
     // service layer, since multer's file count isn't part of req.body and can't be checked here
     colorVariants: jsonField(z.array(colorVariantInputSchema).min(1, "At least one color variant is required")),
     designSizes: jsonField(z.array(designSizeInputSchema)).default([]),
+    semiSets: jsonField(z.array(designSemiSetInputSchema)).default([]),
+});
+
+// Design Master edit (multipart, like register). colorVariants lists every variant the design
+// should have afterwards: an entry with `id` keeps/edits that variant (replaceImage: true means a
+// new photo is attached for it), an entry without `id` is a new variant (photo required), and any
+// existing variant left out is removed (refused while it has stock — see DesignMasterService).
+const editVariantInputSchema = colorVariantInputSchema.extend({
+    id: z.number().int().positive().optional(),
+    replaceImage: z.boolean().optional(),
+});
+
+export const updateDesignSchema = z.object({
+    name: z.string().trim().min(1, "Pattern is required.").max(255),
+    patternId: z.coerce.number().int().positive().optional(),
+    code: z.string().trim().optional(),
+    itemName: z.string().trim().min(1, "Item Name is required."),
+    quality: z.string().trim().min(1, "Quality is required.").max(255),
+    qualityId: z.coerce.number().int().positive().optional(),
+    defaultSellingPricePerPiece: z.coerce.number().int().nonnegative(),
+    notes: z.string().trim().optional(),
+    jobberId: z.coerce.number().int().positive().optional(),
+    jobberName: z.string().trim().min(1, "Jobber name cannot be blank.").max(255).optional(),
+    colorVariants: jsonField(z.array(editVariantInputSchema).min(1, "At least one color variant is required")),
+    designSizes: jsonField(z.array(designSizeInputSchema).min(1, "Select at least one size")),
     semiSets: jsonField(z.array(designSemiSetInputSchema)).default([]),
 });

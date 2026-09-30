@@ -32,7 +32,7 @@ const formatDesignCode = (raw) => {
   return seenDigit ? `${letters} ${digits}` : letters;
 };
 
-const DesignIdentity = ({ control, setExistingDesignByCode }) => {
+const DesignIdentity = ({ control, setExistingDesignByCode, editDesign }) => {
   const codeValue = useWatch({ control, name: "code" });
   const [debouncedCode, setDebouncedCode] = useState("");
   const lastWarnedCode = useRef(null);
@@ -42,7 +42,9 @@ const DesignIdentity = ({ control, setExistingDesignByCode }) => {
     return () => clearTimeout(timeout);
   }, [codeValue]);
 
-  const { data: existingDesign } = useExistingDesignByCode(debouncedCode);
+  const { data: matchedDesign } = useExistingDesignByCode(debouncedCode);
+  // While editing, the design's own code is not a duplicate.
+  const existingDesign = matchedDesign && matchedDesign.id !== editDesign?.id ? matchedDesign : null;
 
   useEffect(() => {
     setExistingDesignByCode?.(existingDesign ?? null);

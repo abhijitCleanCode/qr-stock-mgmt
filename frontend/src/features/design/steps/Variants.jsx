@@ -13,8 +13,11 @@ import {
 } from "@/components/ui/empty";
 import { useModal } from "@/components/shared/ModalProvider";
 import VariantModal from "./VariantModal";
+import EditableVariants from "./EditableVariants";
 
-const Variants = ({ control, existingDesignByCode }) => {
+const Variants = (props) => (props.editDesign ? <EditableVariants control={props.control} /> : <RegisterVariants {...props} />);
+
+const RegisterVariants = ({ control, existingDesignByCode }) => {
     const { openModal } = useModal();
     const { fields, append, remove } = useFieldArray({ control, name: "colorVariants" });
 
