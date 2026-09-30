@@ -5,6 +5,9 @@ export const EVENT_TYPE_LABELS = {
     SET_ASSEMBLED: "Set Assembled",
     BUNDLE_ASSEMBLED: "Bundle Assembled",
     STOCK_OUT: "Stock Out",
+    SET_BROKEN: "Set Broken",
+    STOCK_ADJUSTED_IN: "Stock Added (Adjustment)",
+    STOCK_ADJUSTED_OUT: "Written Off (Adjustment)",
 };
 
 export const getEventTypeLabel = (eventType) => EVENT_TYPE_LABELS[eventType] ?? eventType;
@@ -17,6 +20,8 @@ export const EVENT_TYPE_BADGE_VARIANT = {
     SET_ASSEMBLED: "outline",
     BUNDLE_ASSEMBLED: "outline",
     STOCK_OUT: "destructive",
+    STOCK_ADJUSTED_IN: "secondary",
+    STOCK_ADJUSTED_OUT: "destructive",
 };
 
 export const getEventTypeBadgeVariant = (eventType) => EVENT_TYPE_BADGE_VARIANT[eventType] ?? "outline";

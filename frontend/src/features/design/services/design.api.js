@@ -29,8 +29,10 @@ export const registerDesignApi = async ({ colorVariants, designSizes, semiSets =
     return data;
 };
 
-export const getAllDesignsApi = async ({ page = 1, limit = 20 } = {}) => {
+export const getAllDesignsApi = async ({ page = 1, limit = 20, keyword, sort } = {}) => {
     const params = new URLSearchParams({ page, limit });
+    if (keyword?.trim()) params.set("keyword", keyword.trim());
+    if (sort) params.set("sort", sort);
 
     const response = await fetch(`${baseURL}/designs?${params.toString()}`);
 
@@ -118,6 +120,50 @@ export const getVariantSemiSetsApi = async (colorVariantId) => {
 
     if (!response.ok) {
         throw new Error(data?.error?.message ?? "Failed to fetch semi sets.");
+    }
+
+    return data;
+};
+
+export const getDesignApi = async (id) => {
+    const response = await fetch(`${baseURL}/designs/${id}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to fetch design.");
+    }
+
+    return data;
+};
+
+// Same multipart contract as register: colorVariants lists every variant the design should have
+// after the edit (with `id` = existing, without = new; replaceImage flags a new photo), and
+// `images` holds one file per new-or-replaced variant, in that same order.
+export const updateDesignApi = async ({ id, colorVariants, designSizes, semiSets = [], images, ...designData }) => {
+    const formData = new FormData();
+
+    Object.entries(designData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+            formData.append(key, value);
+        }
+    });
+
+    formData.append("colorVariants", JSON.stringify(colorVariants));
+    formData.append("designSizes", JSON.stringify(designSizes));
+    formData.append("semiSets", JSON.stringify(semiSets));
+
+    images.forEach((image) => formData.append("images", image));
+
+    const response = await fetch(`${baseURL}/designs/${id}`, {
+        method: "PUT",
+        body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to update design.");
     }
 
     return data;

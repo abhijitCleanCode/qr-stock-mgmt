@@ -5,7 +5,9 @@ import "react-toastify/dist/ReactToastify.css";
 import MainLayout from "./layouts/MainLayout";
 import Designs from "./features/design/pages/Designs";
 import CreateDesign from "./features/design/pages/CreateDesign";
+import EditDesign from "./features/design/pages/EditDesign";
 import StockIn from "./features/inventory/pages/StockIn";
+import StockInDashboard from "./features/inventory/pages/StockInDashboard";
 import QrCenter from "./features/inventory/pages/QrCenter";
 import QrGrid from "./features/inventory/pages/QrGrid";
 import CurrentStock from "./features/inventory/pages/CurrentStock";
@@ -30,7 +32,10 @@ const App = () => {
         <Route element={<MainLayout />}>
           <Route path="/designs" element={<Designs />} />
           <Route path="/add-designs" element={<CreateDesign />} />
-          <Route path="/stock-in" element={<StockIn />} />
+          <Route path="/designs/:id/edit" element={<EditDesign />} />
+          <Route path="/stock-in" element={<StockInDashboard />} />
+          <Route path="/stock-in/new" element={<StockIn />} />
+          <Route path="/stock-in/drafts/:draftId" element={<StockIn />} />
           <Route path="/stock-out" element={<StockOutLayout />}>
             <Route index element={<Overview />} />
             <Route path="orders" element={<OrderForms />} />

@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import UserProfile from "./UserProfile";
+import ThemeToggle from "./ThemeToggle";
 
 // import { springfieldLogo } from "@/assets"
 // import UserProfile from "../UserProfile"
@@ -16,7 +17,10 @@ const Navbar = () => {
                 </div>
             </div>
 
-            <UserProfile />
+            <div className="flex items-center gap-3">
+                <ThemeToggle />
+                <UserProfile />
+            </div>
         </nav>
     )
 }

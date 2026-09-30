@@ -1,386 +1,290 @@
-import { useMemo, useState } from "react";
-import { Loader2Icon, PrinterIcon } from "lucide-react";
-import { toast } from "react-toastify";
-import { flushSync } from "react-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Merge, MoveRight, Sparkles, Split, X } from "lucide-react";
 
-import DataTable from "@/components/shared/table/DataTable";
 import { Button } from "@/components/ui/button";
-import { useModal } from "@/components/shared/ModalProvider";
-import DesignSearchInput from "../components/DesignSearchInput";
-import TransformSummaryDialog from "../components/TransformSummaryDialog";
-import QrPrintSheet, { QrLabelCard } from "../components/qr-center/QrPrintSheet";
-import { useLooseAvailabilityApi } from "../hooks/useLooseAvailabilityApi";
-import { useAssembleSetApi } from "../hooks/useAssembleSetApi";
-import { useAssembleBundleApi } from "../hooks/useAssembleBundleApi";
-import { columns } from "../table/LooseAvailabilityColumns";
-import { bundleColumns } from "../table/BundleAvailabilityColumns";
+import { cn } from "@/lib/utils";
+import { useTransformationOverviewApi } from "../hooks/useStockTransformationsApi";
+import { isFormable, suggestionKey } from "../utils/stockTransformation";
+import { Sheet } from "../components/current-stock/primitives";
+import FormationTab from "../components/stock-transformation/FormationTab";
+import BrokenSetsTab from "../components/stock-transformation/BrokenSetsTab";
+import PiecesOutTab from "../components/stock-transformation/PiecesOutTab";
+import LogTab from "../components/stock-transformation/LogTab";
+import BreakFlow from "../components/stock-transformation/BreakFlow";
+import FormFlow from "../components/stock-transformation/FormFlow";
+import MoveFlow from "../components/stock-transformation/MoveFlow";
 
-const MetricTile = ({ label, value, emphasize }) => (
-  <div className="neu-button flex flex-col gap-1 rounded-xl px-4 py-3">
-    <span className="text-xs font-medium text-muted-foreground">{label}</span>
-    <span className={emphasize ? "text-2xl font-bold text-[#1E1B4B]" : "text-lg font-semibold text-foreground"}>
-      {value}
-    </span>
+const Stat = ({ value, label, className }) => (
+  <div className="flex-1 basis-1/2 border-b border-slate-200 px-5 py-3.5 md:basis-0 md:border-b-0 md:border-r md:last:border-r-0">
+    <div className={cn("font-mono text-xl font-bold text-slate-900", className)}>{value}</div>
+    <div className="mt-0.5 text-[11.3px] text-slate-500">{label}</div>
   </div>
 );
 
-const describeComposition = (composition) => composition.map((piece) => `${piece.size} × ${piece.quantity}`).join(", ");
+const ActionCard = ({ icon: Icon, tone, title, text, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex w-full items-start gap-3.5 rounded-[14px] border-[1.5px] border-slate-200 bg-white px-4 py-4 text-left transition-[border-color,box-shadow] hover:border-emerald-500 hover:shadow-[0_6px_18px_rgba(5,150,105,0.08)]"
+  >
+    <span className={cn("grid size-10 flex-none place-items-center rounded-[11px]", tone)}>
+      <Icon className="size-5" />
+    </span>
+    <span>
+      <span className="block text-[14.5px] font-bold text-slate-900">{title}</span>
+      <span className="mt-0.5 block text-[12.3px] leading-snug text-slate-500">{text}</span>
+    </span>
+  </button>
+);
+
+const TabButton = ({ active, count, onClick, children }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      "-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-[13.5px] font-semibold transition-colors",
+      active ? "border-emerald-600 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800",
+    )}
+  >
+    {children}
+    <span className="ml-1.5 font-mono text-[11px] text-slate-400">{count}</span>
+  </button>
+);
+
+// Suggestion → FormFlow preset (which pieces go in which size position).
+const presetFrom = (suggestion) => ({
+  colorVariantId: suggestion.colorVariantId,
+  kind: suggestion.formKind,
+  slots: suggestion.slots.filter((slot) => slot.piece).map((slot) => ({ designSizeId: slot.designSizeId, size: slot.size, stockItemId: slot.piece.stockItemId })),
+});
 
 const StockTransformation = () => {
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [transformationType, setTransformationType] = useState("SET");
-  const [requestedSets, setRequestedSets] = useState(0);
-  const [selectedBundleGroupId, setSelectedBundleGroupId] = useState(null);
-  const [requestedBundles, setRequestedBundles] = useState(0);
-  const [lastResult, setLastResult] = useState(null);
-  const [printItems, setPrintItems] = useState([]);
+  const [tab, setTab] = useState("formation");
+  const [flow, setFlow] = useState(null); // { type: "break" | "form" | "move", ...preset }
+  const [popup, setPopup] = useState(null);
+  const overviewQuery = useTransformationOverviewApi();
+  const overview = overviewQuery.data?.data;
+  const suggestions = useMemo(() => overview?.suggestions ?? [], [overview]);
+  const holders = overview?.holders ?? {};
 
-  const { openModal, closeModal } = useModal();
+  // Auto-hide the smart popup after a while.
+  useEffect(() => {
+    if (!popup) return undefined;
+    const timer = setTimeout(() => setPopup(null), 15000);
+    return () => clearTimeout(timer);
+  }, [popup]);
 
-  const colorVariantId = selectedVariant?.colorVariantId;
-  const { data: response, isPending, isFetching, isError, error, refetch } = useLooseAvailabilityApi(colorVariantId);
-  const availability = response?.data;
-  const maxSets = availability?.maxSets ?? 0;
-  const bundleOptions = availability?.bundles ?? [];
+  const closeFlow = () => setFlow(null);
 
-  // A transformation just consumed loose pieces, so maxSets/maxBundles can drop out from under
-  // a value the user already picked — clamp at read time instead of syncing state back from a prop.
-  const setsToCreate = Math.min(requestedSets, maxSets);
-
-  // With exactly one existing bundle configuration there's nothing to choose between (§7 of the
-  // spec: don't invent a selection step the data model doesn't need) — it's used automatically.
-  const effectiveBundleGroupId = selectedBundleGroupId ?? (bundleOptions.length === 1 ? bundleOptions[0].stockGroupId : null);
-  const selectedBundle = bundleOptions.find((bundle) => bundle.stockGroupId === effectiveBundleGroupId) ?? null;
-  const maxBundles = selectedBundle?.maxBundles ?? 0;
-  const bundlesToCreate = Math.min(requestedBundles, maxBundles);
-
-  const { mutateAsync: assembleSet, isPending: isSubmittingSet } = useAssembleSetApi();
-  const { mutateAsync: assembleBundle, isPending: isSubmittingBundle } = useAssembleBundleApi();
-  const isSubmitting = isSubmittingSet || isSubmittingBundle;
-
-  const setRows = useMemo(() => {
-    if (!availability) return [];
-    return availability.sizes.map((size) => ({
-      ...size,
-      selectedToUse: setsToCreate,
-      remaining: size.loosePieces - setsToCreate,
-      maxSets,
-      onSelectedToUseChange: setRequestedSets,
-    }));
-  }, [availability, setsToCreate, maxSets]);
-
-  const bundleRows = useMemo(() => {
-    if (!selectedBundle) return [];
-    return selectedBundle.composition.map((piece) => {
-      const totalConsume = piece.quantity * bundlesToCreate;
-      return {
-        designSizeId: piece.designSizeId,
-        size: piece.size,
-        loosePieces: piece.loosePieces,
-        bundleQty: piece.quantity,
-        bundlesToCreate,
-        totalConsume,
-        remaining: piece.loosePieces - totalConsume,
-        maxBundles,
-        onBundlesToCreateChange: setRequestedBundles,
-      };
-    });
-  }, [selectedBundle, bundlesToCreate, maxBundles]);
-
-  const handleSelect = (variant) => {
-    setSelectedVariant(variant);
-    setLastResult(null);
-    setRequestedSets(0);
-    setRequestedBundles(0);
-    setSelectedBundleGroupId(null);
+  // After any action: refresh, and if it made a new set possible (e.g. a sample came back), say so.
+  const handleDone = async () => {
+    const before = new Set(suggestions.filter(isFormable).map(suggestionKey));
+    setFlow(null);
+    const { data } = await overviewQuery.refetch();
+    const fresh = (data?.data?.suggestions ?? []).filter((suggestion) => isFormable(suggestion) && !before.has(suggestionKey(suggestion)));
+    if (fresh.length) setPopup({ suggestion: fresh[0], more: fresh.length - 1 });
   };
 
-  const handleSelectType = (type) => {
-    setTransformationType(type);
-    setLastResult(null);
-  };
+  if (overviewQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-24 text-sm text-slate-500">
+        <Loader2 className="size-4 animate-spin" /> Loading stock transformation…
+      </div>
+    );
+  }
+  if (overviewQuery.isError) {
+    return (
+      <div className="mx-auto max-w-lg py-24 text-center text-sm">
+        <p className="text-red-600">{overviewQuery.error.message}</p>
+        <Button type="button" variant="outline" className="mt-3" onClick={() => overviewQuery.refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
 
-  const buildLabelItems = (unitType, generatedQrs) =>
-    generatedQrs.map((qr) => ({
-      stockItemId: qr.stockItemId,
-      type: unitType,
-      designCode: selectedVariant.designCode,
-      designName: selectedVariant.designName,
-      colorName: selectedVariant.colorName,
-      colorHex: selectedVariant.colorHex,
-      qr: { payload: qr.payload, generatedAt: qr.generatedAt },
-    }));
-
-  const handleConfirmSet = async () => {
-    try {
-      const result = await assembleSet({ colorVariantId, quantity: setsToCreate });
-      const { setsCreated, generatedQrs } = result.data;
-
-      toast.success(setsCreated === 1 ? "1 set created successfully." : `${setsCreated} sets created successfully.`);
-      setLastResult({ unitLabel: "Set", unitsCreated: setsCreated, labelItems: buildLabelItems("SET", generatedQrs) });
-      setRequestedSets(0);
-      await refetch();
-      return true;
-    } catch (submitError) {
-      toast.error(submitError?.message ?? "Couldn't transform loose pieces into sets. Please try again.");
-      return false;
-    }
-  };
-
-  const handleConfirmBundle = async () => {
-    try {
-      const result = await assembleBundle({ colorVariantId, stockGroupId: selectedBundle.stockGroupId, quantity: bundlesToCreate });
-      const { bundlesCreated, generatedQrs } = result.data;
-
-      toast.success(bundlesCreated === 1 ? "1 bundle created successfully." : `${bundlesCreated} bundles created successfully.`);
-      setLastResult({ unitLabel: "Bundle", unitsCreated: bundlesCreated, labelItems: buildLabelItems("BUNDLE", generatedQrs) });
-      setRequestedBundles(0);
-      await refetch();
-      return true;
-    } catch (submitError) {
-      toast.error(submitError?.message ?? "Couldn't transform loose pieces into bundles. Please try again.");
-      return false;
-    }
-  };
-
-  const handleOpenSummary = () => {
-    const isSet = transformationType === "SET";
-
-    openModal(TransformSummaryDialog, {
-      design: { code: selectedVariant.designCode, name: selectedVariant.designName },
-      variant: { colorName: selectedVariant.colorName, colorHex: selectedVariant.colorHex },
-      unitLabel: isSet ? "Set" : "Bundle",
-      bundleName: isSet ? undefined : describeComposition(selectedBundle.composition),
-      quantityToCreate: isSet ? setsToCreate : bundlesToCreate,
-      rows: isSet
-        ? setRows.map((row) => ({ designSizeId: row.designSizeId, size: row.size, consume: row.selectedToUse, remaining: row.remaining }))
-        : bundleRows.map((row) => ({ designSizeId: row.designSizeId, size: row.size, consume: row.totalConsume, remaining: row.remaining })),
-      isSubmitting,
-      onConfirm: isSet ? handleConfirmSet : handleConfirmBundle,
-      onClose: closeModal,
-    });
-  };
-
-  const handlePrint = (items) => {
-    flushSync(() => setPrintItems(items));
-    window.print();
-  };
-
-  const canTransform = transformationType === "SET"
-    ? maxSets > 0 && setsToCreate > 0
-    : Boolean(selectedBundle) && maxBundles > 0 && bundlesToCreate > 0;
+  const { stats } = overview;
+  const openMove = (pieces, destination = null, reason = "", after) =>
+    setFlow({ type: "move", pieces, destination, reason, after });
 
   return (
-    <div className="flex flex-col font-sans space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-[#1E1B4B] tracking-tight">Stock Transformation</h1>
-        <p className="text-sm text-muted-foreground">Convert loose pieces of a design variant into complete sets or bundles.</p>
-      </div>
-
-      <div className="flex flex-col gap-2.5">
-        <label className="text-sm font-medium" htmlFor="design-search">Design</label>
-        <DesignSearchInput id="design-search" onSelect={handleSelect} />
-      </div>
-
-      {!selectedVariant && (
-        <p className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
-          Search for a design and select a variant to see its available loose pieces.
+    <div className="mx-auto flex w-full max-w-[1340px] flex-col gap-5">
+      <Sheet>
+        <h1 className="text-[26px] font-bold tracking-tight text-slate-900">Stock Transformation</h1>
+        <p className="mt-1 max-w-[72ch] text-sm text-slate-500">
+          Break sets when pieces are needed elsewhere, track where every piece goes, and bring loose pieces back together as complete
+          sets — with a full log of every move.
         </p>
+        <div className="mt-5 flex flex-wrap overflow-hidden rounded-xl border border-slate-200 bg-slate-50 md:flex-nowrap">
+          <Stat value={stats.looseInStock} label="Loose pieces in stock" />
+          <Stat
+            value={
+              <>
+                {stats.piecesOut}
+                {stats.piecesOverdue > 0 && <span className="ml-1.5 text-xs text-red-600">{stats.piecesOverdue} overdue</span>}
+              </>
+            }
+            label="Pieces out of stock"
+          />
+          <Stat value={stats.setsFormable} label="Sets you can form now" className={stats.setsFormable ? "text-emerald-700" : undefined} />
+          <Stat value={stats.brokenTracked} label="Broken sets tracked" />
+        </div>
+      </Sheet>
+
+      {stats.setsFormable > 0 && (
+        <div className="flex flex-wrap items-center gap-3.5 rounded-[14px] border-[1.5px] border-emerald-200 bg-emerald-50 px-5 py-3.5">
+          <Sparkles className="size-5 flex-none text-emerald-600" />
+          <div className="flex-1 text-[13.3px] leading-relaxed text-emerald-800">
+            <b>
+              {stats.setsFormable} complete set{stats.setsFormable === 1 ? "" : "s"} can be formed from loose pieces right now
+            </b>
+            {stats.setsRestorable
+              ? ` — including ${stats.setsRestorable} original set${stats.setsRestorable === 1 ? "" : "s"} with every piece back.`
+              : "."}{" "}
+            Complete sets sell faster and keep stock tidy.
+          </div>
+          <Button type="button" size="sm" onClick={() => setTab("formation")} className="bg-emerald-600 text-white hover:bg-emerald-700">
+            Review suggestions
+          </Button>
+        </div>
       )}
 
-      {selectedVariant && (
-        <>
-          <div className="flex items-center gap-3 rounded-2xl p-3">
-            <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-muted">
-              {selectedVariant.imageUrl && (
-                <img src={selectedVariant.imageUrl} alt={selectedVariant.colorName} className="h-full w-full object-cover" />
-              )}
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate text-lg font-bold text-[#1E1B4B]">
-                {selectedVariant.designCode ? `${selectedVariant.designCode} · ` : ""}
-                {selectedVariant.designName}
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                <span
-                  className="size-2.5 shrink-0 rounded-full border border-black/10"
-                  style={{ backgroundColor: selectedVariant.colorHex }}
-                />
-                {selectedVariant.colorName}
-              </span>
-            </div>
-          </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <ActionCard
+          icon={Split}
+          tone="bg-amber-50 text-amber-700"
+          title="Break a set"
+          text="Scan a parent tag and choose where each piece goes — stock, display, salesperson, sample or alteration."
+          onClick={() => setFlow({ type: "break" })}
+        />
+        <ActionCard
+          icon={Merge}
+          tone="bg-emerald-50 text-emerald-700"
+          title="Form a set"
+          text="Bundle loose pieces into a complete set or semi set, with a new parent tag."
+          onClick={() => setFlow({ type: "form" })}
+        />
+        <ActionCard
+          icon={MoveRight}
+          tone="bg-violet-50 text-violet-700"
+          title="Move or return pieces"
+          text="Record a piece going out or coming back — returns can unlock new sets instantly."
+          onClick={() => openMove([])}
+        />
+      </div>
 
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-foreground">Transformation Type</span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={transformationType === "SET" ? "default" : "outline"}
-                className={transformationType === "SET" ? "bg-[#00694C]" : ""}
-                onClick={() => handleSelectType("SET")}
-              >
-                Set
-              </Button>
-              <Button
-                type="button"
-                variant={transformationType === "BUNDLE" ? "default" : "outline"}
-                className={transformationType === "BUNDLE" ? "bg-[#00694C]" : ""}
-                onClick={() => handleSelectType("BUNDLE")}
-              >
-                Bundle
-              </Button>
-            </div>
-          </div>
+      <Sheet>
+        <div className="-mt-1 mb-4 flex gap-0.5 overflow-x-auto border-b border-slate-200">
+          <TabButton active={tab === "formation"} count={suggestions.length} onClick={() => setTab("formation")}>
+            Set formation
+          </TabButton>
+          <TabButton active={tab === "broken"} count={stats.brokenTracked} onClick={() => setTab("broken")}>
+            Broken sets
+          </TabButton>
+          <TabButton active={tab === "out"} count={stats.piecesOut} onClick={() => setTab("out")}>
+            Pieces out
+          </TabButton>
+          <TabButton active={tab === "log"} count={stats.logEntries} onClick={() => setTab("log")}>
+            Transformation log
+          </TabButton>
+        </div>
 
-          {isPending && (
-            <p className="flex items-center justify-center gap-2 rounded-2xl border border-border py-16 text-sm text-muted-foreground">
-              <Loader2Icon className="size-4 animate-spin" />
-              Loading available loose pieces...
-            </p>
-          )}
+        {tab === "formation" && (
+          <FormationTab
+            suggestions={suggestions}
+            onForm={(suggestion) => setFlow({ type: "form", preset: presetFrom(suggestion) })}
+            onRecall={(suggestion) =>
+              openMove(suggestion.slots.filter((slot) => slot.recall).map((slot) => slot.piece), "STOCK", "Returned to complete a set")
+            }
+          />
+        )}
+        {tab === "broken" && (
+          <BrokenSetsTab
+            brokenSets={overview.brokenSets}
+            onRecall={(item) => openMove(item.pieces.filter((piece) => piece.state === "OUT"), "STOCK", "Returned to complete a set")}
+            onRestore={(item) =>
+              setFlow({
+                type: "form",
+                preset: {
+                  colorVariantId: item.colorVariantId,
+                  kind: item.unit.kind,
+                  slots: item.pieces.map((piece) => ({ designSizeId: piece.designSizeId, size: piece.size, stockItemId: piece.stockItemId })),
+                },
+              })
+            }
+            onFormWithReplacement={(item) => setFlow({ type: "form", preset: { colorVariantId: item.colorVariantId, kind: "SET", slots: [] } })}
+          />
+        )}
+        {tab === "out" && (
+          <PiecesOutTab
+            piecesOut={overview.piecesOut}
+            overdueDays={overview.overdueDays}
+            onMove={(pieces, after) => openMove(pieces, null, "", after)}
+            onReturn={(pieces, after) => openMove(pieces, "STOCK", "", after)}
+          />
+        )}
+        {tab === "log" && <LogTab />}
+      </Sheet>
 
-          {!isPending && isError && (
-            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
-              <p className="text-sm text-muted-foreground">
-                {error?.message ?? "Unable to load loose piece availability. Please try again."}
-              </p>
-              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
-                Try again
-              </Button>
-            </div>
-          )}
+      {flow?.type === "break" && <BreakFlow holders={holders} onClose={closeFlow} onDone={handleDone} />}
+      {flow?.type === "form" && (
+<FormFlow preset={flow.preset} onClose={closeFlow} onDone={handleDone} />
+      )}
+      {flow?.type === "move" && (
+        <MoveFlow
+          presetPieces={flow.pieces}
+          presetDestination={flow.destination}
+          presetReason={flow.reason}
+          holders={holders}
+          onClose={closeFlow}
+          onDone={() => {
+            flow.after?.();
+            handleDone();
+          }}
+        />
+      )}
 
-          {!isPending && !isError && availability && transformationType === "SET" && (
-            <>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <MetricTile label="Total Loose Pieces" value={availability.sizes.reduce((sum, s) => sum + s.loosePieces, 0)} />
-                <MetricTile label="Maximum Sets Possible" value={maxSets} emphasize />
-                <MetricTile label="Sets Selected" value={setsToCreate} />
+      {popup && (
+        <div role="status" aria-live="polite" className="fixed bottom-6 right-6 z-[85] w-[min(380px,calc(100%-32px))] rounded-2xl border-[1.5px] border-emerald-500 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.22)]">
+          <div className="flex items-start gap-3">
+            <span className="grid size-[34px] flex-none place-items-center rounded-[10px] bg-emerald-50 text-emerald-600">
+              <Sparkles className="size-[18px]" />
+            </span>
+            <div className="flex-1">
+              <div className="text-sm font-bold text-slate-900">{popup.suggestion.kind === "RESTORE" ? "Set can be restored" : "New set possible"}</div>
+              <div className="mt-0.5 text-[12.8px] text-slate-600">
+                {popup.suggestion.kind === "RESTORE" ? (
+                  <>
+                    Every piece of <b className="font-mono">{popup.suggestion.unit.code}</b> is back in stock.
+                  </>
+                ) : (
+                  `${popup.suggestion.design.code} ${popup.suggestion.variant.colorName}: loose pieces now cover all sizes${popup.suggestion.challans?.length > 1 ? " (mixed challans)" : ""}.`
+                )}
+                {popup.more > 0 && <span className="text-slate-400"> +{popup.more} more</span>}
               </div>
-
-              {availability.sizes.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  This variant has no sizes configured as part of a set.
-                </p>
-              ) : maxSets === 0 ? (
-                <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  No loose pieces are currently available for transformation into a set.
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    Maximum {maxSets} {maxSets === 1 ? "set" : "sets"} can be created from the available loose pieces.
-                    Use the stepper in the "Select to Use" column to choose how many sets to create.
-                  </p>
-
-                  <DataTable columns={columns} data={setRows} />
-
-                  <Button
-                    type="button"
-                    className="h-11 w-full bg-[#00694C] sm:w-auto sm:self-end"
-                    onClick={handleOpenSummary}
-                    disabled={!canTransform || isSubmitting || isFetching}
-                  >
-                    Transform to Sets
-                  </Button>
-                </>
-              )}
-            </>
-          )}
-
-          {!isPending && !isError && availability && transformationType === "BUNDLE" && (
-            <>
-              {bundleOptions.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  No bundle configurations exist for this variant yet. Bundles are defined the first time one is
-                  received or assembled for this variant.
-                </p>
-              ) : (
-                <>
-                  {bundleOptions.length > 1 && (
-                    <div className="flex flex-col gap-2">
-                      <span className="text-sm font-medium text-foreground">Bundle Configuration</span>
-                      <div className="flex flex-wrap gap-2">
-                        {bundleOptions.map((bundle) => (
-                          <button
-                            key={bundle.stockGroupId}
-                            type="button"
-                            onClick={() => { setSelectedBundleGroupId(bundle.stockGroupId); setRequestedBundles(0); }}
-                            className={`neu-button rounded-full border px-3 py-1.5 text-sm ${
-                              bundle.stockGroupId === effectiveBundleGroupId
-                                ? "border-[#00694C] font-semibold text-[#00694C]"
-                                : "border-transparent text-foreground"
-                            }`}
-                          >
-                            {describeComposition(bundle.composition)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedBundle && (
-                    <>
-                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <MetricTile label="Pieces per Bundle" value={selectedBundle.piecesPerBundle} />
-                        <MetricTile label="Maximum Bundles Possible" value={maxBundles} emphasize />
-                        <MetricTile label="Bundles Selected" value={bundlesToCreate} />
-                      </div>
-
-                      {maxBundles === 0 ? (
-                        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                          No loose pieces are currently available to assemble this bundle configuration.
-                        </p>
-                      ) : (
-                        <>
-                          <p className="text-xs text-muted-foreground">
-                            Maximum {maxBundles} {maxBundles === 1 ? "bundle" : "bundles"} can be created from the available loose pieces.
-                            Use the stepper in the "Create" column to choose how many bundles to create.
-                          </p>
-
-                          <DataTable columns={bundleColumns} data={bundleRows} />
-
-                          <Button
-                            type="button"
-                            className="h-11 w-full bg-[#00694C] sm:w-auto sm:self-end"
-                            onClick={handleOpenSummary}
-                            disabled={!canTransform || isSubmitting || isFetching}
-                          >
-                            Transform to Bundles
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-            </>
-          )}
-
-          {lastResult && (
-            <section className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {lastResult.unitsCreated} {lastResult.unitsCreated === 1 ? lastResult.unitLabel : `${lastResult.unitLabel}s`} Created — Generated QRs
-                </h2>
-                <Button type="button" size="sm" onClick={() => handlePrint(lastResult.labelItems)}>
-                  <PrinterIcon className="size-4" />
-                  Print All
+              <div className="mt-2.5 flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setFlow({ type: "form", preset: presetFrom(popup.suggestion) });
+                    setPopup(null);
+                  }}
+                  className="bg-emerald-600 text-xs text-white hover:bg-emerald-700"
+                >
+                  {popup.suggestion.kind === "RESTORE" ? "Restore now" : "Form now"}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setPopup(null)} className="text-xs">
+                  Later
                 </Button>
               </div>
-
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {lastResult.labelItems.map((item) => (
-                  <QrLabelCard key={item.stockItemId} item={item} className="bg-white" />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
+            </div>
+            <button type="button" aria-label="Dismiss" onClick={() => setPopup(null)} className="text-slate-400 hover:text-slate-700">
+              <X className="size-3.5" />
+            </button>
+          </div>
+        </div>
       )}
-
-      <QrPrintSheet items={printItems} />
     </div>
   );
 };

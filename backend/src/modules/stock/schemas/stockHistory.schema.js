@@ -15,6 +15,10 @@ export const stockHistoryEventTypeEnum = pgEnum("stock_history_event_type", [
     "BUNDLE_ASSEMBLED",
     "STOCK_OUT",
     "SET_BROKEN",
+    // Manual Current Stock adjustments (see stockAdjustment.schema.js) — pieces added outside
+    // Stock In (opening stock, returns, count corrections) or written off (damage, loss…).
+    "STOCK_ADJUSTED_IN",
+    "STOCK_ADJUSTED_OUT",
 ]);
 
 // Append-only log of stock movement events — what happened, and when, not current state.

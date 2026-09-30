@@ -15,9 +15,14 @@ export const STOCK_IN_STEPS = [
 export function useStockInWizard(canAdvance) {
   const [activeStep, setActiveStep] = useState(0);
 
+  // Returns the step index it advanced to, or null when it didn't move — lets the page react
+  // to a successful advance (e.g. autosaving the draft at the new step).
   const next = () => {
-    if (canAdvance && !canAdvance(activeStep)) return;
-    if (activeStep < STOCK_IN_STEPS.length - 1) setActiveStep((prev) => prev + 1);
+    if (canAdvance && !canAdvance(activeStep)) return null;
+    if (activeStep >= STOCK_IN_STEPS.length - 1) return null;
+    const nextStep = activeStep + 1;
+    setActiveStep(nextStep);
+    return nextStep;
   };
 
   const prev = () => {

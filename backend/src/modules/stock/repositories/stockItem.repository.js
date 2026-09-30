@@ -180,6 +180,16 @@ class StockItemRepository {
             .for("update", { skipLocked: true });
     }
 
+    // Turns a variant's complete SETs into semi sets (BUNDLE of the given group) — used when a
+    // new size joins the set composition: the existing physical sets don't contain it, so they are
+    // no longer complete sets. Their tags, child pieces and piece counts are unchanged.
+    async convertSetsToBundles(tx, colorVariantId, bundleGroupId) {
+        return tx.update(stockItem)
+            .set({ type: "BUNDLE", stockGroupId: bundleGroupId })
+            .where(and(eq(stockItem.colorVariantId, colorVariantId), eq(stockItem.type, "SET"), ne(stockItem.status, "CONSUMED")))
+            .returning({ id: stockItem.id });
+    }
+
     async markConsumed(tx, ids) {
         if (ids.length === 0) return [];
 

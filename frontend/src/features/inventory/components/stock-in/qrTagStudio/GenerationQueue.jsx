@@ -91,7 +91,7 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
                       className={`relative h-[19px] w-[34px] rounded-full transition-colors ${row.included ? "bg-emerald-500" : "bg-slate-300"}`}
                     >
                       <span
-                        className={`absolute top-[2px] size-[15px] rounded-full bg-white shadow transition-transform ${
+                        className={`absolute top-[2px] size-[15px] rounded-full bg-white shadow dark:bg-slate-900 transition-transform ${
                           row.included ? "translate-x-[17px]" : "translate-x-[2px]"
                         }`}
                       />

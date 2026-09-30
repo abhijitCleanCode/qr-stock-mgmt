@@ -219,6 +219,7 @@ class stockInPersistence {
                     colorVariantId,
                     sizeEntries: setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize })),
                     originSetStockItemId: setItem.id,
+                    insideParent: true,
                     designCode, designName, colorName,
                 });
                 created.push(...rows);
@@ -240,6 +241,7 @@ class stockInPersistence {
                     colorVariantId,
                     sizeEntries,
                     originSetStockItemId: bundleItem.id,
+                    insideParent: true,
                     designCode, designName, colorName,
                 });
                 created.push(...rows);
