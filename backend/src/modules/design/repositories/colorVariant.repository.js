@@ -60,6 +60,36 @@ class ColorVariantRepository {
             .where(and(eq(colorVariant.designId, designId), eq(colorVariant.isActive, true)));
     }
 
+    // Every active variant with its design identity, flat rather than grouped — the Gallery's
+    // "All designs" mode lists variants, not designs, because a photo belongs to a colourway.
+    async findAllActiveWithDesign(runner, { keyword, designId } = {}) {
+        const conditions = [eq(colorVariant.isActive, true)];
+
+        if (designId) conditions.push(eq(design.id, Number(designId)));
+
+        if (keyword) {
+            conditions.push(or(
+                ilike(design.code, `%${keyword}%`),
+                ilike(design.name, `%${keyword}%`),
+                ilike(colorVariant.colorName, `%${keyword}%`),
+            ));
+        }
+
+        return runner.select({
+            colorVariantId: colorVariant.id,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            imageUrl: colorVariant.imageUrl,
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+            unitPrice: design.defaultSellingPricePerPiece,
+        }).from(colorVariant)
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .where(and(...conditions))
+            .orderBy(design.code, colorVariant.colorName);
+    }
+
     async findByDesignIds(designIds) {
         if (designIds.length === 0) return [];
 

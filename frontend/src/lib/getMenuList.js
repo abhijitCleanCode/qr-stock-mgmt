@@ -1,4 +1,4 @@
-import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box, RefreshCw, ArrowUpRight, FileText } from "lucide-react";
+import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box, RefreshCw, ArrowUpRight, Images } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
     return [
@@ -65,10 +65,10 @@ export const getMenuList = ({ pathname }) => {
             groupLabel: "Sales",
             menus: [
                 {
-                    href: "/order-forms",
-                    label: "Order Forms",
-                    icon: FileText,
-                    active: pathname.startsWith("/order-forms"),
+                    href: "/gallery",
+                    label: "Gallery",
+                    icon: Images,
+                    active: pathname.startsWith("/gallery"),
                     submenus: [],
                 },
             ],

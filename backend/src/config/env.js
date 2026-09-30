@@ -4,7 +4,8 @@ import "dotenv/config.js";
 import { z } from "zod";
 
 const envSchema = z.object({
-    NODE_ENV: z.enum(['development', 'production']).default("development"),
+    // 'test' is what vitest sets; without it the whole suite exits 1 before a test runs.
+    NODE_ENV: z.enum(['development', 'production', 'test']).default("development"),
     PORT: z.string().default('8001').transform(Number),
 
     DATABASE_URL: z.string(),

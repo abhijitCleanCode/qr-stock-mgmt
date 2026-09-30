@@ -142,3 +142,4 @@ dist
 
 security/private.key
 *.key.DS_Store
+.env.test
