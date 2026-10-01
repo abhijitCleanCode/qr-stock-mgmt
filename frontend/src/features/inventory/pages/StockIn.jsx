@@ -5,9 +5,12 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 
 import StockInStepper from "../components/stock-in/StockInStepper";
 import StockInWizardNavigation from "../components/stock-in/StockInWizardNavigation";
+import ConfirmedA4QrPrintSheet from "../components/stock-in/qrTagStudio/ConfirmedA4QrPrintSheet";
 import { useStockInWizard } from "../hooks/useStockInWizard";
 import { useVariantStockConfigs } from "../hooks/useVariantStockConfigs";
 import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
+import { getQrCenterRegistrationDetailApi } from "../services/qrCenter.api.js";
+import { submitA4QrPrintJob } from "../services/localPrintAgent.api.js";
 import { useSaveStockInDraftApi, useStockInDraftApi } from "../hooks/useStockInDraftsApi";
 import { buildStockInPayload } from "../utils/buildStockInPayload";
 import { getVariantKey } from "../utils/variantKey";
@@ -96,15 +99,12 @@ const StockIn = () => {
   // { included: true, childTags: false }.
   const [printStrategy, setPrintStrategy] = useState("parentChild");
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
-  const [printer, setPrinter] = useState("TSC TE244 Thermal Roll (50x30mm) [Bluetooth]");
+  const [printer, setPrinter] = useState("A4 Laser Printer (4×10 · 40-Up)");
   const [printOnConfirm, setPrintOnConfirm] = useState(false);
-  // TODO(follow-up, not in this plan's scope): PRINTERS in qrTagStudio.js is a static
-  // display list, not sourced from the printers table — there is currently no real
-  // printerId to send. Until a printer-selection API exists, printOnConfirm can only be
-  // sent as false; the UI still lets the user click "Send to printer" (matches the
-  // existing "honest frontend simulation" pattern noted in handleTestPrint below), but the
-  // request omits printerId and printOnConfirm to avoid the backend's mandatory
-  // printerId-when-printOnConfirm rule rejecting the request.
+  const [printConfig, setPrintConfig] = useState({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
+  const [confirmedQrPrint, setConfirmedQrPrint] = useState(null);
+  // Physical dispatch is handled by the local print agent; the backend printer registry is
+  // intentionally not used because its printer IDs do not identify the tester's OS queue.
   const printerId = undefined;
 
   const toggleVariantIncluded = (key) => {
@@ -160,6 +160,7 @@ const StockIn = () => {
     setPrintStrategy("parentChild");
     setQrPerVariantSettings({});
     setPrintOnConfirm(false);
+    setPrintConfig({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   };
 
   const canAdvance = (step) => {
@@ -284,10 +285,75 @@ const StockIn = () => {
       await saveChainRef.current;
       const draftId = draftIdRef.current ?? (hydratedDraftId ? Number(hydratedDraftId) : null);
       const result = await registerStockIn(draftId ? { ...payload, draftId } : payload);
-      const printedMessage = result?.data?.printJobId
-        ? ` Print job #${result.data.printJobId} queued to ${printer.split(" [")[0]}.`
-        : "";
-      toast.success(`Stock Inward confirmed! ${totalSets} Parent & ${totalPassed} Child QR tags generated.${printedMessage}`);
+      if (printOnConfirm && printConfig.engine === "a4") {
+        try {
+          const registrationDetails = await Promise.all(
+            (result?.data?.variants ?? []).map((variant) =>
+              getQrCenterRegistrationDetailApi({
+                registrationType: "STOCK_IN",
+                registrationId: variant.stockInTransactionId,
+              }),
+            ),
+          );
+          const printItems = registrationDetails.flatMap((response) => {
+            const detail = response?.data;
+            const variantId = detail?.registration?.variant?.id;
+            const variantKey = Object.entries(configs).find(([, config]) => config.colorVariantId === variantId)?.[0];
+            const variantTotalsForPrint = variantKey ? variantTotals[variantKey] : null;
+            const composition = variantTotalsForPrint?.sizeLabels ?? [];
+            const sourceVariant = variantKey
+              ? selectedVariants.find((variant) => getVariantKey(variant) === variantKey)
+              : null;
+            const displayCodes = { parent: [], child: [], loose: [] };
+            for (const tag of printConfig.displayTags ?? []) {
+              if (tag.variantKey === variantKey) displayCodes[tag.kind]?.push(tag.code);
+            }
+            const displayIndexes = { parent: 0, child: 0, loose: 0 };
+            return (detail?.qrs ?? []).map((qr) => {
+              const kind = qr.type === "SET" || qr.type === "BUNDLE"
+                ? "parent"
+                : qr.parentStockItemId
+                  ? "child"
+                  : "loose";
+              const displayCode = displayCodes[kind]?.[displayIndexes[kind]++];
+              return {
+              ...qr,
+              design: detail.registration?.design,
+              variant: detail.registration?.variant,
+              composition,
+              piecesPerSet: variantTotalsForPrint?.piecesPerSet ?? composition.length,
+              sellingPricePerPiece: sourceVariant?.sellingPricePerPiece ?? 0,
+              displayCode: displayCode ?? String(qr.payload?.setId ?? qr.stockItemId),
+              };
+            });
+          });
+
+          if (printItems.length === 0) throw new Error("No saved QR labels were returned for this inward.");
+
+          try {
+            const printResult = await submitA4QrPrintJob({
+              items: printItems,
+              startAt: printConfig.a4StartAt,
+              content: printConfig,
+            });
+            const sheetCount = Math.ceil((printResult.count + Number(printConfig.a4StartAt || 1) - 1) / 40);
+            toast.success(`${printResult.count} QR labels across ${sheetCount} sheets submitted to ${printResult.printer}.`);
+            resetAll();
+            navigate("/stock-in");
+            return;
+          } catch (error) {
+            toast.warning(`${error.message} Opening the browser print dialog as a fallback.`);
+            setConfirmedQrPrint({ items: printItems, startAt: printConfig.a4StartAt, content: printConfig });
+            return;
+          }
+        } catch {
+          toast.error("Stock Inward confirmed, but the saved QR labels could not be loaded for printing.");
+          resetAll();
+          navigate("/stock-in");
+          return;
+        }
+      }
+      toast.success(`Stock Inward confirmed! ${totalSets} Parent & ${totalPassed} Child QR tags generated.`);
       resetAll();
       navigate("/stock-in");
     } catch (error) {
@@ -306,12 +372,16 @@ const StockIn = () => {
 
   const handleSaveDraft = () => persistDraft(wizard.activeStep, { silent: false });
 
-  // No physical printer/driver integration exists yet — this is an honest frontend
-  // simulation (toast only), not a real call to hardware. See useStockInRegisterApi for the
-  // one thing that IS real here: the QR short codes themselves are generated server-side on
-  // Confirm, so whatever eventually drives real printing has real codes to print.
+  // Test labels are sample IDs from the studio, not persisted QR payloads. Only confirmed
+  // inward jobs are sent to the local agent with their server-generated QR payloads.
   const handleTestPrint = (tagId) => {
-    toast.success(`Test label ${tagId ? `(${tagId}) ` : ""}sent to ${printer.split(" [")[0]}.`);
+    toast.info(`No test label was sent${tagId ? ` (${tagId})` : ""}; use a confirmed inward to print saved QR codes.`);
+  };
+
+  const handleConfirmedPrintComplete = () => {
+    setConfirmedQrPrint(null);
+    resetAll();
+    navigate("/stock-in");
   };
 
   return (
@@ -412,6 +482,7 @@ const StockIn = () => {
             onPrinterChange={setPrinter}
             onTestPrint={handleTestPrint}
             onSetPrintOnConfirm={setPrintOnConfirm}
+            onSetPrintConfig={setPrintConfig}
             onAdvance={wizard.next}
           />
         )}
@@ -437,6 +508,14 @@ const StockIn = () => {
         isSavingDraft={isSavingDraft}
       />
       </>
+      )}
+      {confirmedQrPrint && (
+        <ConfirmedA4QrPrintSheet
+          items={confirmedQrPrint.items}
+          startAt={confirmedQrPrint.startAt}
+          content={confirmedQrPrint.content}
+          onAfterPrint={handleConfirmedPrintComplete}
+        />
       )}
     </div>
   );

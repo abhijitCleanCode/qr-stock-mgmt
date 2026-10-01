@@ -5,7 +5,7 @@
 export const PRINTERS = [
   "TSC TE244 Thermal Roll (50x30mm) [Bluetooth]",
   "TVS LP 46 Neo Barcode Printer [USB]",
-  "A4 Laser Printer (Sticker Sheet 24-Up)",
+  "A4 Laser Printer (4×10 · 40-Up)",
 ];
 
 export const THERMAL_PRESETS = {
@@ -15,8 +15,6 @@ export const THERMAL_PRESETS = {
 };
 
 export const A4_PRESETS = {
-  30: { c: 2, r: 15, w: 105, h: 19.8, k: "30-UP" },
-  24: { c: 3, r: 8, w: 70, h: 37, k: "24-UP" },
   40: { c: 4, r: 10, w: 52.5, h: 29.7, k: "40-UP" },
 };
 

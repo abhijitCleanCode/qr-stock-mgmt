@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import QrCodeImage from "../../qr-center/QrCodeImage";
 import LabelTag from "./LabelTag";
 import { A4_PRESETS } from "../../../utils/qrTagStudio";
@@ -16,14 +17,17 @@ import { A4_PRESETS } from "../../../utils/qrTagStudio";
 const QrTagPrintSheet = ({ engine, tags, a4Preset, a4StartAt, fields, qrmm, typography, buildTagData }) => {
   if (tags.length === 0) return null;
 
-  return (
-    <div id="qr-tag-print-sheet" className="hidden print:block">
+  return createPortal(
+    <div id="qr-tag-print-sheet">
       <style>{`
+        #qr-tag-print-sheet { display: none; }
         @media print {
-          @page { size: A4; margin: 10mm; }
-          body * { visibility: hidden; }
-          #qr-tag-print-sheet, #qr-tag-print-sheet * { visibility: visible; }
-          #qr-tag-print-sheet { position: absolute; inset: 0; }
+          @page { size: ${engine === "a4" ? "A4" : "auto"}; margin: ${engine === "a4" ? "0" : "10mm"}; }
+          html, body { margin: 0 !important; padding: 0 !important; }
+          body > *:not(#qr-tag-print-sheet) { display: none !important; }
+          #qr-tag-print-sheet { display: block !important; position: static; width: ${engine === "a4" ? "210mm" : "auto"}; }
+          #qr-tag-print-sheet > style { display: none !important; }
+          .qr-a4-print-page { break-inside: avoid; }
         }
       `}</style>
       {engine === "thermal" ? (
@@ -31,7 +35,8 @@ const QrTagPrintSheet = ({ engine, tags, a4Preset, a4StartAt, fields, qrmm, typo
       ) : (
         <A4PrintPages tags={tags} a4Preset={a4Preset} startAt={a4StartAt} buildTagData={buildTagData} qrmm={qrmm} />
       )}
-    </div>
+    </div>,
+    document.body,
   );
 };
 
@@ -97,15 +102,27 @@ const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
     sheets.push(
       <div
         key={s}
-        className="grid"
+        className="qr-a4-print-page"
         style={{
-          gridTemplateColumns: `repeat(${grid.c}, ${grid.w}mm)`,
-          gridTemplateRows: `repeat(${grid.r}, ${grid.h}mm)`,
-          height: `${grid.r * grid.h}mm`,
+          width: "210mm",
+          height: "297mm",
+          display: "grid",
+          placeItems: "center",
+          breakAfter: s < sheetCount - 1 ? "page" : "auto",
           pageBreakAfter: s < sheetCount - 1 ? "always" : "auto",
         }}
       >
-        {cells}
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(${grid.c}, ${grid.w}mm)`,
+            gridTemplateRows: `repeat(${grid.r}, ${grid.h}mm)`,
+            width: `${grid.c * grid.w}mm`,
+            height: `${grid.r * grid.h}mm`,
+          }}
+        >
+          {cells}
+        </div>
       </div>
     );
   }
