@@ -52,12 +52,13 @@ const QrTagStudioStep = ({
   onPrinterChange,
   onTestPrint,
   onSetPrintOnConfirm,
+  onSetPrintConfig,
   onAdvance,
 }) => {
   const [activeTab, setActiveTab] = useState("parent");
-  const [engine, setEngine] = useState("thermal");
+  const [engine, setEngine] = useState("a4");
   const [thermalPreset, setThermalPreset] = useState("50x30");
-  const [a4Preset, setA4Preset] = useState("24");
+  const [a4Preset, setA4Preset] = useState("65");
   const [a4StartAt, setA4StartAt] = useState(1);
   const [qrmm, setQrmm] = useState(17);
   const [typography, setTypography] = useState("standard");
@@ -186,7 +187,7 @@ const QrTagStudioStep = ({
   const mediaUsage =
     engine === "thermal"
       ? `${((totals.total * (dims.h + 3)) / 1000).toFixed(1)} m`
-      : `${Math.ceil((totals.total + Number(a4StartAt || 0)) / (dims.c * dims.r))} sheets`;
+      : `${Math.ceil((totals.total + Math.max(0, Number(a4StartAt || 1) - 1)) / (dims.c * dims.r))} sheets`;
 
   const issueCount = taggedTags.filter((tag) => tag.flags.length > 0).length;
 
@@ -292,8 +293,7 @@ const QrTagStudioStep = ({
                     className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[13px] text-slate-900"
                   />
                   <p className="mt-2 text-[12.3px] leading-snug text-slate-500">
-                    Skips the first {a4StartAt || 0} cells so a part-used sheet finishes properly instead of being
-                    thrown away.
+                    Starts at label {a4StartAt || 1}, leaving earlier cells blank on a part-used sheet.
                   </p>
                 </div>
               )}
@@ -371,7 +371,15 @@ const QrTagStudioStep = ({
             onSavePreset={handleSavePreset}
             onDownloadPdf={() => window.print()}
             onSkip={() => { onSetPrintOnConfirm(false); onAdvance(); }}
-            onSendToPrinter={() => { onSetPrintOnConfirm(true); onAdvance(); }}
+            onSendToPrinter={() => {
+              if (engine !== "a4") {
+                toast.error("Select the A4 sheet engine to print on Oddy ST-65 labels.");
+                return;
+              }
+              onSetPrintConfig({ engine, a4Preset, a4StartAt });
+              onSetPrintOnConfirm(true);
+              onAdvance();
+            }}
           />
 
           <QrTagPrintSheet

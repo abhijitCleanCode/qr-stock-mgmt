@@ -20,7 +20,7 @@ const QrTagPrintSheet = ({ engine, tags, a4Preset, a4StartAt, fields, qrmm, typo
     <div id="qr-tag-print-sheet" className="hidden print:block">
       <style>{`
         @media print {
-          @page { size: A4; margin: 10mm; }
+          @page { size: ${engine === "a4" ? "A4" : "auto"}; margin: ${engine === "a4" ? "0" : "10mm"}; }
           body * { visibility: hidden; }
           #qr-tag-print-sheet, #qr-tag-print-sheet * { visibility: visible; }
           #qr-tag-print-sheet { position: absolute; inset: 0; }
@@ -97,15 +97,27 @@ const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
     sheets.push(
       <div
         key={s}
-        className="grid"
+        className="qr-a4-print-page"
         style={{
-          gridTemplateColumns: `repeat(${grid.c}, ${grid.w}mm)`,
-          gridTemplateRows: `repeat(${grid.r}, ${grid.h}mm)`,
-          height: `${grid.r * grid.h}mm`,
+          width: "210mm",
+          height: "297mm",
+          display: "grid",
+          placeItems: "center",
+          breakAfter: s < sheetCount - 1 ? "page" : "auto",
           pageBreakAfter: s < sheetCount - 1 ? "always" : "auto",
         }}
       >
-        {cells}
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(${grid.c}, ${grid.w}mm)`,
+            gridTemplateRows: `repeat(${grid.r}, ${grid.h}mm)`,
+            width: `${grid.c * grid.w}mm`,
+            height: `${grid.r * grid.h}mm`,
+          }}
+        >
+          {cells}
+        </div>
       </div>
     );
   }
