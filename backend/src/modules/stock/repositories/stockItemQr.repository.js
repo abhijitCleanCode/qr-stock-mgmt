@@ -174,15 +174,26 @@ class StockItemQrRepository {
     // needs. Newest-first for the same reason as findByStockItemIds: a caller collapsing to
     // one QR per stock item just takes the first match.
     async findByStockInTransactionId(tx, stockInTransactionId) {
+        const parentStockItemIds = tx.select({ id: stockItem.id })
+            .from(stockItem)
+            .where(eq(stockItem.stockInTransactionId, stockInTransactionId));
+
         return tx.select({
             id: stockItemQr.id,
             stockItemId: stockItemQr.stockItemId,
             payload: stockItemQr.payload,
+            priceSnapshot: stockItemQr.priceSnapshot,
             generatedAt: stockItemQr.generatedAt,
             type: stockItem.type,
+            designSizeLabel: designSize.sizeLabel,
+            parentStockItemId: stockItem.parentStockItemId,
         }).from(stockItemQr)
             .innerJoin(stockItem, eq(stockItemQr.stockItemId, stockItem.id))
-            .where(eq(stockItem.stockInTransactionId, stockInTransactionId))
+            .leftJoin(designSize, eq(stockItem.designSizeId, designSize.id))
+            .where(or(
+                eq(stockItem.stockInTransactionId, stockInTransactionId),
+                inArray(stockItem.originSetStockItemId, parentStockItemIds),
+            ))
             .orderBy(desc(stockItemQr.generatedAt));
     }
 

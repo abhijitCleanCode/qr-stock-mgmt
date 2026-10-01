@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import QrCodeImage from "../../qr-center/QrCodeImage";
 
-const LABELS_PER_SHEET = 65;
+const LABELS_PER_SHEET = 40;
 
-const ConfirmedA4QrPrintSheet = ({ items, startAt, onAfterPrint }) => {
+const ConfirmedA4QrPrintSheet = ({ items, startAt, content = {}, onAfterPrint }) => {
   const onAfterPrintRef = useRef(onAfterPrint);
 
   useEffect(() => {
@@ -39,28 +40,34 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, onAfterPrint }) => {
     for (let index = 0; index < itemCount; index += 1) {
       const item = items[firstItemIndex + index];
       const payload = item.payload ?? {};
+      const isParent = item.type === "SET" || item.type === "BUNDLE";
+      const designCode = item.design?.code ?? payload.designCode ?? "STOCK";
+      const variantName = (item.variant?.colorName ?? payload.colorName ?? "").toUpperCase();
+      const stockId = item.displayCode ?? payload.setId ?? item.stockItemId;
+      const price = Number(item.priceSnapshot ?? item.sellingPricePerPiece ?? 0);
+      const setPrice = price * Number(item.piecesPerSet ?? item.composition?.length ?? 0);
+      const qrmm = Math.min(24, Math.max(9, Number(content.qrmm) || 17));
+      const detail = isParent
+        ? `${item.type === "BUNDLE" ? "SEMI" : "SET"} ${item.piecesPerSet ?? item.composition?.length ?? 0}-PC`
+        : `SIZE ${item.designSizeLabel ?? ""}`;
+      const priceText = isParent ? `₹ ${setPrice.toLocaleString("en-IN")} (SET)` : `₹ ${price.toLocaleString("en-IN")}`;
       cells.push(
         <div
           key={`qr-${item.stockItemId}`}
-          className="flex items-center gap-[1mm] overflow-hidden border border-black p-[1mm] font-mono text-black"
-          style={{ width: "38.1mm", height: "21.2mm", boxSizing: "border-box" }}
+          className="flex items-center gap-[1mm] overflow-hidden border border-slate-300 p-[1mm] font-mono text-black"
+          style={{ width: "52.5mm", height: "29.7mm", boxSizing: "border-box" }}
         >
           <QrCodeImage
             value={JSON.stringify(payload)}
-            size={160}
-            style={{ width: "16mm", height: "16mm" }}
+            size={200}
+            style={{ width: `${qrmm}mm`, height: `${qrmm}mm` }}
             className="shrink-0"
           />
-          <div className="min-w-0 overflow-hidden leading-tight">
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap font-bold" style={{ fontSize: "2mm" }}>
-              {item.design?.code ?? payload.designCode ?? "STOCK"}
-            </div>
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap" style={{ fontSize: "1.7mm" }}>
-              {item.variant?.colorName ?? payload.colorName ?? ""}
-            </div>
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap" style={{ fontSize: "1.7mm" }}>
-              {item.type ?? "ITEM"} · {payload.setId ?? item.stockItemId}
-            </div>
+          <div className="min-w-0 flex-1 overflow-hidden font-mono leading-tight">
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap font-bold" style={{ fontSize: "2mm" }}>{stockId}</div>
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>{designCode} · {variantName}</div>
+            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>{detail}</div>
+            <div className="font-bold" style={{ fontSize: "1.9mm" }}>{priceText}</div>
           </div>
         </div>,
       );
@@ -69,6 +76,7 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, onAfterPrint }) => {
     pages.push(
       <div
         key={`page-${pageIndex}`}
+        className="confirmed-a4-print-page"
         style={{
           width: "210mm",
           height: "297mm",
@@ -81,10 +89,10 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, onAfterPrint }) => {
         <div
           className="grid"
           style={{
-            gridTemplateColumns: "repeat(5, 38.1mm)",
-            gridTemplateRows: "repeat(13, 21.2mm)",
-            width: "190.5mm",
-            height: "275.6mm",
+            gridTemplateColumns: "repeat(4, 52.5mm)",
+            gridTemplateRows: "repeat(10, 29.7mm)",
+            width: "210mm",
+            height: "297mm",
           }}
         >
           {cells}
@@ -93,18 +101,22 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, onAfterPrint }) => {
     );
   }
 
-  return (
-    <div id="confirmed-a4-qr-print" className="hidden print:block">
+  return createPortal(
+    <div id="confirmed-a4-qr-print">
       <style>{`
+        #confirmed-a4-qr-print { display: none; }
         @media print {
           @page { size: A4; margin: 0; }
-          body * { visibility: hidden; }
-          #confirmed-a4-qr-print, #confirmed-a4-qr-print * { visibility: visible; }
-          #confirmed-a4-qr-print { position: absolute; inset: 0; }
+          html, body { width: 210mm !important; margin: 0 !important; padding: 0 !important; }
+          body > *:not(#confirmed-a4-qr-print) { display: none !important; }
+          #confirmed-a4-qr-print { display: block !important; position: static; width: 210mm; }
+          #confirmed-a4-qr-print > style { display: none !important; }
+          .confirmed-a4-print-page { break-inside: avoid; }
         }
       `}</style>
       {pages}
-    </div>
+    </div>,
+    document.body,
   );
 };
 

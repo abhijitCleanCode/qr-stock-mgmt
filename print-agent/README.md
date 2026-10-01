@@ -49,7 +49,7 @@ npm start
 
 ## Printing behavior
 
-The agent creates a vector/text A4 PDF with QR images at the Oddy ST-65 geometry: 5 columns × 13 rows, each 38.1 × 21.2 mm, centered on A4. It submits the PDF silently to the OS print queue with A4 and 100%/no-scale settings. `startAt` preserves a partially used sheet; accepted positions are 1 through 65.
+The agent creates an A4 PDF using only the 4 × 10 (40-up) grid: each label is 52.5 × 29.7 mm. It submits the PDF silently to the OS print queue with A4 and 100%/no-scale settings. `startAt` preserves a partially used sheet; accepted positions are 1 through 40.
 
 A queued job means the OS accepted it, not that paper physically exited the printer. Printer status, paper feed calibration, and label alignment still need to be checked on the target device. Run a plain-paper calibration test before loading label stock.
 

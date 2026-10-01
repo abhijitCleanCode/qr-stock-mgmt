@@ -18,7 +18,7 @@ const FRONTEND_ORIGINS = new Set(
     .filter(Boolean),
 );
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
-const LABELS_PER_SHEET = 65;
+const LABELS_PER_SHEET = 40;
 
 function originAllowed(origin) {
   if (!origin) return false;
@@ -56,39 +56,53 @@ function validateJob(job) {
   }
   const startAt = Number(job.startAt ?? 1);
   if (!Number.isInteger(startAt) || startAt < 1 || startAt > LABELS_PER_SHEET) {
-    throw new Error("startAt must be a label position from 1 to 65.");
+    throw new Error("startAt must be a label position from 1 to 40.");
   }
   for (const item of job.items) {
     if (!item || typeof item !== "object" || !item.payload || typeof item.payload !== "object") {
       throw new Error("Each label must include a QR payload.");
     }
   }
-  return { items: job.items, startAt };
+  return { items: job.items, startAt, content: job.content ?? {} };
 }
 
-function drawLabel(doc, item, qrPng) {
-  const labelWidth = 38.1 * 72 / 25.4;
-  const labelHeight = 21.2 * 72 / 25.4;
-  const qrSize = 16 * 72 / 25.4;
+function drawLabel(doc, item, qrPng, content = {}) {
+  const labelWidth = 52.5 * 72 / 25.4;
+  const labelHeight = 29.7 * 72 / 25.4;
+  const qrSize = Math.min(24, Math.max(9, Number(content.qrmm) || 17)) * 72 / 25.4;
   const padding = 1 * 72 / 25.4;
   const x = doc.x;
   const y = doc.y;
   const payload = item.payload;
+  const isParent = item.type === "SET" || item.type === "BUNDLE";
   const designCode = String(item.design?.code ?? payload.designCode ?? "STOCK");
-  const colorName = String(item.variant?.colorName ?? payload.colorName ?? "");
-  const stockId = String(payload.setId ?? item.stockItemId ?? "");
-  const type = String(item.type ?? "ITEM");
+  const colorName = String(item.variant?.colorName ?? payload.colorName ?? "").toUpperCase();
+  const stockId = String(item.displayCode ?? payload.setId ?? item.stockItemId ?? "");
+  const price = Number(item.priceSnapshot ?? item.sellingPricePerPiece ?? 0);
+  const piecesPerSet = Number(item.piecesPerSet ?? item.composition?.length ?? 0);
+  const detail = isParent
+    ? `${item.type === "BUNDLE" ? "SEMI" : "SET"} ${piecesPerSet}-PC`
+    : `SIZE ${item.designSizeLabel ?? ""}`;
+  const priceText = isParent
+    ? `Rs. ${(price * piecesPerSet).toLocaleString("en-IN")} (SET)`
+    : `Rs. ${price.toLocaleString("en-IN")}`;
+  const textX = x + padding + qrSize + padding;
+  const textWidth = labelWidth - (textX - x) - padding;
+  const firstY = y + (labelHeight - qrSize) / 2;
 
   doc.rect(x, y, labelWidth, labelHeight).lineWidth(0.35).stroke("#111111");
   doc.image(qrPng, x + padding, y + (labelHeight - qrSize) / 2, { width: qrSize, height: qrSize });
-  const textX = x + padding + qrSize + padding;
-  const textWidth = labelWidth - (textX - x) - padding;
-  doc.font("Helvetica-Bold").fontSize(6.2).fillColor("#111111").text(designCode, textX, y + padding, { width: textWidth, height: 9, ellipsis: true, lineBreak: false });
-  doc.font("Helvetica").fontSize(5.5).fillColor("#333333").text(colorName, textX, y + padding + 10, { width: textWidth, height: 8, ellipsis: true, lineBreak: false });
-  doc.font("Helvetica").fontSize(5.2).fillColor("#111111").text(`${type} · ${stockId}`, textX, y + padding + 19, { width: textWidth, height: 8, ellipsis: true, lineBreak: false });
+  doc.font("Helvetica-Bold").fontSize(5.7).fillColor("#111111")
+    .text(stockId, textX, firstY, { width: textWidth, height: 6, ellipsis: true, lineBreak: false });
+  doc.font("Helvetica").fontSize(4.8).fillColor("#555555")
+    .text(`${designCode} · ${colorName}`, textX, firstY + 7, { width: textWidth, height: 5, ellipsis: true, lineBreak: false });
+  doc.font(isParent ? "Helvetica-Bold" : "Helvetica").fontSize(4.8).fillColor("#555555")
+    .text(detail, textX, firstY + 13, { width: textWidth, height: 5, ellipsis: true, lineBreak: false });
+  doc.font("Helvetica-Bold").fontSize(5.1).fillColor("#111111")
+    .text(priceText, textX, firstY + 19, { width: textWidth, height: 6, ellipsis: true, lineBreak: false });
 }
 
-async function createA4Pdf(items, startAt) {
+async function createA4Pdf(items, startAt, content) {
   const filePath = path.join(os.tmpdir(), `stock-movement-labels-${randomUUID()}.pdf`);
   const doc = new PDFDocument({ size: "A4", margin: 0, autoFirstPage: true, compress: true });
   const output = [];
@@ -98,12 +112,12 @@ async function createA4Pdf(items, startAt) {
     doc.once("error", reject);
   });
 
-  const labelWidth = 38.1 * 72 / 25.4;
-  const labelHeight = 21.2 * 72 / 25.4;
+  const labelWidth = 52.5 * 72 / 25.4;
+  const labelHeight = 29.7 * 72 / 25.4;
   const sheetWidth = 210 * 72 / 25.4;
   const sheetHeight = 297 * 72 / 25.4;
-  const columns = 5;
-  const rows = 13;
+  const columns = 4;
+  const rows = 10;
   const gridWidth = labelWidth * columns;
   const gridHeight = labelHeight * rows;
   const left = (sheetWidth - gridWidth) / 2;
@@ -128,7 +142,7 @@ async function createA4Pdf(items, startAt) {
       const row = Math.floor(slot / columns);
       doc.x = left + column * labelWidth;
       doc.y = top + row * labelHeight;
-      drawLabel(doc, item, qrPng);
+      drawLabel(doc, item, qrPng, content);
     }
   }
 
@@ -201,7 +215,7 @@ const server = createServer(async (request, response) => {
   let pdfPath;
   try {
     const job = validateJob(await readJson(request));
-    pdfPath = await createA4Pdf(job.items, job.startAt);
+    pdfPath = await createA4Pdf(job.items, job.startAt, job.content);
     await spoolPdf(pdfPath);
     sendJson(response, 202, { status: "submitted", count: job.items.length, printer: PRINTER_NAME || "system default" }, origin);
   } catch (error) {

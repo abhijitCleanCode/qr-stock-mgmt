@@ -205,7 +205,7 @@ class stockInPersistence {
     //     origin path).
     // Parent SET/BUNDLE QR is deliberately left ACTIVE — see design decision 3 in the spec.
     async createTaggedPieces(tx, {
-        colorVariantId, variantInput, setSizes, createdSetItems, createdBundleItems,
+        stockInTransactionId, colorVariantId, variantInput, setSizes, createdSetItems, createdBundleItems,
         loosePieceEntries, designCode, designName, colorName,
     }) {
         const tagging = variantInput.tagging ?? { strategy: "parent", childTagsEnabled: false, tagLoosePieces: false };
@@ -217,6 +217,7 @@ class stockInPersistence {
             for (const setItem of createdSetItems) {
                 const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
                     colorVariantId,
+                    stockInTransactionId,
                     sizeEntries: setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize })),
                     originSetStockItemId: setItem.id,
                     insideParent: true,
@@ -239,6 +240,7 @@ class stockInPersistence {
                 });
                 const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
                     colorVariantId,
+                    stockInTransactionId,
                     sizeEntries,
                     originSetStockItemId: bundleItem.id,
                     insideParent: true,
@@ -258,6 +260,7 @@ class stockInPersistence {
                 });
                 const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
                     colorVariantId,
+                    stockInTransactionId,
                     sizeEntries,
                     originSetStockItemId: null,
                     designCode, designName, colorName,

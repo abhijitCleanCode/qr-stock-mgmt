@@ -163,6 +163,7 @@ class StockInService {
         const loosePieceEntries = variantInput.loosePieces ?? [];
 
         const taggedPieces = await this._stockInPersistence.createTaggedPieces(tx, {
+            stockInTransactionId: stockInTransaction.id,
             colorVariantId: validateStockIn.variant.id,
             variantInput,
             setSizes,

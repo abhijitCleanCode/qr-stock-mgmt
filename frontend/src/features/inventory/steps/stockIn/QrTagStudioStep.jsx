@@ -58,7 +58,7 @@ const QrTagStudioStep = ({
   const [activeTab, setActiveTab] = useState("parent");
   const [engine, setEngine] = useState("a4");
   const [thermalPreset, setThermalPreset] = useState("50x30");
-  const [a4Preset, setA4Preset] = useState("65");
+  const [a4Preset, setA4Preset] = useState("40");
   const [a4StartAt, setA4StartAt] = useState(1);
   const [qrmm, setQrmm] = useState(17);
   const [typography, setTypography] = useState("standard");
@@ -288,7 +288,8 @@ const QrTagStudioStep = ({
                   <input
                     type="number"
                     min={1}
-                    value={a4StartAt}
+                     value={a4StartAt}
+                     max={dims.c * dims.r}
                     onChange={(event) => setA4StartAt(event.target.value)}
                     className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[13px] text-slate-900"
                   />
@@ -373,10 +374,16 @@ const QrTagStudioStep = ({
             onSkip={() => { onSetPrintOnConfirm(false); onAdvance(); }}
             onSendToPrinter={() => {
               if (engine !== "a4") {
-                toast.error("Select the A4 sheet engine to print on Oddy ST-65 labels.");
+                toast.error("Select the A4 sheet engine to print on the 4×10 label sheet.");
                 return;
               }
-              onSetPrintConfig({ engine, a4Preset, a4StartAt });
+              onSetPrintConfig({
+                engine,
+                a4Preset,
+                a4StartAt,
+                qrmm,
+                displayTags: allTags.map((tag) => ({ code: tag.code, kind: tag.kind, variantKey: tag.variant.key })),
+              });
               onSetPrintOnConfirm(true);
               onAdvance();
             }}
