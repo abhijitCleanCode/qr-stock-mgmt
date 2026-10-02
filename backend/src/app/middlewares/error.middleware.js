@@ -53,12 +53,18 @@ const errorHandler = (err, req, res, next) => {
     const traceId = req.traceId || req.headers[TRACE_ID_HEADER];
 
     // logging
-    logger.error({
+    const isMissingStockInDraft =
+        statusCode === 404 &&
+        req.method === 'GET' &&
+        /\/stock-in\/drafts\/\d+$/.test(req.originalUrl);
+
+    const logError = isMissingStockInDraft ? logger.warn.bind(logger) : logger.error.bind(logger);
+    logError({
         err,
         traceId,
         path: req.originalUrl,
         method: req.method,
-    }, "Request failed");
+    }, isMissingStockInDraft ? "Stock In draft no longer exists." : "Request failed");
 
     const response = {
         error: {

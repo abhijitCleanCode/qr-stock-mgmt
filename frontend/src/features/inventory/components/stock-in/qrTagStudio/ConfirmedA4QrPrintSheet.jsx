@@ -55,7 +55,7 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, content = {}, onAfterPrint })
         <div
           key={`qr-${item.stockItemId}`}
           className="flex items-center gap-[1mm] overflow-hidden border border-slate-300 p-[1mm] font-mono text-black"
-          style={{ width: "52.5mm", height: "29.7mm", boxSizing: "border-box" }}
+          style={{ width: "52.5mm", height: "29.7mm", boxSizing: "border-box",padding:"3mm" }}
         >
           <QrCodeImage
             value={JSON.stringify(payload)}

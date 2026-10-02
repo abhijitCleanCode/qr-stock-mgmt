@@ -12,7 +12,9 @@ async function stockInRequest(path, { method = "GET", body } = {}) {
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data?.error?.message ?? data?.message ?? "Stock In request failed.");
+        const error = new Error(data?.error?.message ?? data?.message ?? "Stock In request failed.");
+        error.status = response.status;
+        throw error;
     }
 
     return data;

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "react-toastify";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -194,8 +194,18 @@ const StockIn = () => {
   const draftIdRef = useRef(null);
   const saveChainRef = useRef(Promise.resolve());
   const [hydratedDraftId, setHydratedDraftId] = useState(null);
-  const draftQuery = useStockInDraftApi(routeDraftId);
+  // Set once the inward is registered: the server deleted the draft, so stop fetching it (a
+  // window-focus refetch would 404 and bounce the user off the confirmed-print sheet).
+  const [consumedDraftId, setConsumedDraftId] = useState(null);
+  const draftQuery = useStockInDraftApi(routeDraftId && routeDraftId !== consumedDraftId ? routeDraftId : null);
   const { mutateAsync: saveDraft, isPending: isSavingDraft } = useSaveStockInDraftApi();
+
+  useEffect(() => {
+    if (routeDraftId && draftQuery.isError && draftQuery.error?.status === 404) {
+      toast.info("That saved draft no longer exists. Returning to Stock In.");
+      navigate("/stock-in", { replace: true });
+    }
+  }, [routeDraftId, draftQuery.isError, draftQuery.error, navigate]);
 
   // Resume: copy the saved wizard state in once per draft — adjusted during render (not in an
   // effect) so the steps never flash empty before the draft's own state appears.
@@ -285,6 +295,7 @@ const StockIn = () => {
       await saveChainRef.current;
       const draftId = draftIdRef.current ?? (hydratedDraftId ? Number(hydratedDraftId) : null);
       const result = await registerStockIn(draftId ? { ...payload, draftId } : payload);
+      if (draftId) setConsumedDraftId(String(draftId));
       if (printOnConfirm && printConfig.engine === "a4") {
         try {
           const registrationDetails = await Promise.all(
