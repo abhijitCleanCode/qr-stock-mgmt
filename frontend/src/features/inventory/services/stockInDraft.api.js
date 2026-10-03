@@ -2,7 +2,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 // Stock In dashboard + wizard drafts — same thin fetch contract as the other inventory
 // services (JSON body, throw on non-ok using ApiResponse's error shape).
-async function stockInRequest(path, { method = "GET", body } = {}) {
+export async function stockInRequest(path, { method = "GET", body } = {}) {
     const response = await fetch(`${baseURL}/stock-in${path}`, {
         method,
         headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,

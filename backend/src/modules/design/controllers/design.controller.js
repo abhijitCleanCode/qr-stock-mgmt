@@ -87,6 +87,16 @@ class DesignController {
         }
     }
 
+    getItemNames = async (req, res, next) => {
+        try {
+            const response = await this._designService.getItemNames();
+
+            return res.status(200).json(new ApiResponse(200, response, "Item names fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    }
+
     searchPatterns = async (req, res, next) => {
         const { keyword } = req.validatedQuery;
 

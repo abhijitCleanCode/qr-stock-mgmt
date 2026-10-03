@@ -11,6 +11,7 @@ import designSemiSetSizeRepository from "../repositories/designSemiSetSize.repos
 import jobberRepository from "../repositories/jobber.repository.js";
 import qualityRepository from "../repositories/quality.repository.js";
 import patternRepository from "../repositories/pattern.repository.js";
+import itemNameRepository from "../repositories/itemName.repository.js";
 import mediaUploadService from "../../../core/media/mediaUploadService.js";
 
 const DUPLICATE_DESIGN_MESSAGE = "Design already exists in the database.";
@@ -26,10 +27,11 @@ class DesignService {
     _jobberRepository = jobberRepository;
     _qualityRepository = qualityRepository;
     _patternRepository = patternRepository;
+    _itemNameRepository = itemNameRepository;
     _mediaUploadService = mediaUploadService;
 
     async registerDesign(data, files = []) {
-        const { colorVariants, designSizes = [], semiSets = [], jobberId, jobberName, qualityId, quality, patternId, name, code, ...designData } = data;
+        const { colorVariants, designSizes = [], semiSets = [], jobberId, jobberName, qualityId, quality, patternId, name, code, itemNameId, itemName, ...designData } = data;
 
         if (colorVariants.length !== files.length) {
             throw new ApiError(
@@ -87,6 +89,7 @@ class DesignService {
                 if (!design) {
                     const resolvedJobberId = await this._resolveJobberId(tx, { jobberId, jobberName });
                     const resolvedQuality = await this._resolveQuality(tx, { qualityId, qualityName: quality });
+                    const resolvedItemName = await this._resolveItemName(tx, { itemNameId, itemName });
 
                     design = await this._designRepository.create(tx, {
                         ...designData,
@@ -95,6 +98,8 @@ class DesignService {
                         jobberId: resolvedJobberId,
                         qualityId: resolvedQuality.id,
                         quality: resolvedQuality.name,
+                        itemNameId: resolvedItemName.id,
+                        itemName: resolvedItemName.name,
                         patternId: resolvedPattern.id,
                         name: resolvedPattern.name,
                     });
@@ -324,6 +329,22 @@ class DesignService {
         }
 
         return this._qualityRepository.findOrCreate(tx, qualityName.trim());
+    }
+
+    async getItemNames() {
+        return this._itemNameRepository.findAll();
+    }
+
+    // Mirrors _resolveQuality — item name is required, so this always resolves to a real row,
+    // creating it when the user typed a new name. Returns both id and name (name is stored
+    // denormalized on the design row alongside itemNameId).
+    async _resolveItemName(tx, { itemNameId, itemName }) {
+        if (itemNameId) {
+            const existing = await this._itemNameRepository.findById(tx, itemNameId);
+            if (existing) return existing;
+        }
+
+        return this._itemNameRepository.findOrCreate(tx, itemName.trim());
     }
 
     async searchPatterns(keyword) {

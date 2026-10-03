@@ -6,7 +6,7 @@ export const DESIGN_STEPS = [
     {
         id: "design-identity",
         title: "Design Identity",
-        fields: [],
+        fields: ["itemName", "code", "jobberName", "name", "quality"],
         component: DesignIdentity,
     },
     {

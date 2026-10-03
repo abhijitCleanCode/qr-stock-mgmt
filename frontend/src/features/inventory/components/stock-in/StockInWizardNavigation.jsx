@@ -3,12 +3,17 @@ import { ArrowLeft, ArrowRight, Loader2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { STOCK_IN_STEPS } from "../../hooks/useStockInWizard";
 
+const Kbd = ({ children }) => (
+  <kbd className="mx-px rounded border border-b-2 border-slate-300 bg-white px-1.5 py-px font-mono text-[10.5px] font-semibold text-slate-700">{children}</kbd>
+);
+
 const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSubmitting, isSavingDraft }) => {
   const isFirstStep = activeStep === 0;
   const isLastStep = activeStep === STOCK_IN_STEPS.length - 1;
 
   return (
-    <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-6">
+    <div className="sticky bottom-0 z-10 -mx-6 mt-6 flex items-center justify-between gap-3 border-t border-slate-100 bg-white px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 md:static md:mx-0 md:bg-transparent md:px-0 md:pb-0 md:pt-6">
+      <div className="flex items-center gap-4">
       <Button
         type="button"
         variant="ghost"
@@ -19,6 +24,12 @@ const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSu
         <ArrowLeft className="size-4" />
         Prev
       </Button>
+      {activeStep < 3 && (
+        <span className="hidden whitespace-nowrap text-[11.5px] text-slate-500 xl:inline [@media(hover:none)]:hidden">
+          <Kbd>↑</Kbd><Kbd>↓</Kbd><Kbd>←</Kbd><Kbd>→</Kbd> move between fields · <Kbd>Enter</Kbd> next · <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> back
+        </span>
+      )}
+      </div>
 
       <div className="flex items-center gap-3">
         <Button
@@ -33,6 +44,7 @@ const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSu
         </Button>
 
         <Button
+          id="stock-in-next"
           type="button"
           onClick={onNext}
           disabled={isSubmitting}

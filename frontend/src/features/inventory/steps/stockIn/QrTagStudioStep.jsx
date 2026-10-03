@@ -42,11 +42,13 @@ const QrTagStudioStep = ({
   challanDate,
   defectAction,
   printStrategy,
-  onPrintStrategyChange,
+  tagParentChild,
+  tagLoose,
+  onToggleParentChild,
+  onToggleLoose,
   perVariantSettings,
   onToggleVariantIncluded,
   onToggleVariantChildTags,
-  onToggleVariantTagLoosePieces,
   printer,
   printerId,
   onPrinterChange,
@@ -227,7 +229,7 @@ const QrTagStudioStep = ({
         <div className="mb-1 flex items-baseline gap-2">
           <h3 className="text-[14.5px] font-bold tracking-tight text-slate-900">1 · Tagging strategy</h3>
           <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-px font-mono text-[10px] font-bold tracking-wide text-emerald-700">
-            DECIDE FIRST
+            BOTH ON BY DEFAULT
           </span>
         </div>
         {/* <p className="mb-3.5 max-w-[74ch] text-[13px] text-slate-500">
@@ -241,27 +243,37 @@ const QrTagStudioStep = ({
         ) : (
           <StrategyCards
             variants={variants}
-            strategy={printStrategy}
             perVariantSettings={perVariantSettings}
-            onStrategyChange={onPrintStrategyChange}
+            tagParentChild={tagParentChild}
+            tagLoose={tagLoose}
+            onToggleParentChild={onToggleParentChild}
+            onToggleLoose={onToggleLoose}
           />
         )}
       </div>
 
       {variants.length > 0 && (
         <>
-          <div>
-            <h3 className="mb-1 text-[14.5px] font-bold tracking-tight text-slate-900">2 · Generation queue</h3>
-            <GenerationQueue
-              variants={variants}
-              strategy={printStrategy}
-              perVariantSettings={perVariantSettings}
-              onToggleIncluded={onToggleVariantIncluded}
-              onToggleChildTags={onToggleVariantChildTags}
-              onToggleTagLoosePieces={onToggleVariantTagLoosePieces}
-              defectAction={defectAction}
-            />
-          </div>
+          <details className="group overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-slate-50 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
+              <h3 className="text-sm font-bold tracking-tight text-slate-900">2 · Generation queue</h3>
+              <span className="ml-auto text-xs text-slate-500">
+                {totals.total} tags · {new Set(variants.map((v) => v.designId)).size} design
+                {new Set(variants.map((v) => v.designId)).size === 1 ? "" : "s"} · {rows.filter((row) => row.included).length} of {rows.length} variants
+              </span>
+              <span className="text-slate-400 transition-transform group-open:rotate-180">▾</span>
+            </summary>
+            <div className="border-t border-slate-200 p-4">
+              <GenerationQueue
+                variants={variants}
+                strategy={printStrategy}
+                perVariantSettings={perVariantSettings}
+                onToggleIncluded={onToggleVariantIncluded}
+                onToggleChildTags={onToggleVariantChildTags}
+                defectAction={defectAction}
+              />
+            </div>
+          </details>
 
           <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
             <div className="space-y-4">

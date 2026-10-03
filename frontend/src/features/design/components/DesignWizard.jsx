@@ -7,10 +7,12 @@ import { useDesignForm } from "../hooks/useDesignForm";
 import { useDesignWizard } from "../hooks/useDesignWizard";
 import { useDesignRegisterApi } from "../hooks/useDesignRegisterApi";
 import { useDesignUpdateApi } from "../hooks/useDesignDetailApi";
+import { useCreateDesignDraftApi } from "../hooks/useDesignDraftsApi";
 import DesignStepper from "./DesignStepper";
 import StepRenderer from "./StepRenderer";
 import DesignWizardNavigation from "./DesignWizardNavigation";
 import { DESIGN_STEPS } from "../steps/DesignSteps";
+import { sortSizes } from "../utils/sizeOrder";
 
 // Register a new design, or — with `editDesign` (the GET /designs/:id payload) and matching
 // `initialValues` — edit an existing one through the same three steps.
@@ -24,6 +26,7 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
     const { mutateAsync, isPending: isRegistering } = useDesignRegisterApi();
     const { mutateAsync: updateDesign, isPending: isUpdating } = useDesignUpdateApi();
     const isPending = isRegistering || isUpdating;
+    const { mutateAsync: createDraft, isPending: isSavingDraft } = useCreateDesignDraftApi();
 
     // Populated by DesignIdentity (Step 1) once the typed Design Code matches an existing
     // design; consumed here (final duplicate gate) and by Variants (Step 3, to block adding a
@@ -41,7 +44,8 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
             return;
         }
 
-        const designSizes = sizes.map((sizeLabel, index) => ({
+        // displayOrder follows size order (S-M-L-XL), not the order sizes were clicked in.
+        const designSizes = sortSizes(sizes).map((sizeLabel, index) => ({
             sizeLabel,
             displayOrder: index,
             includedInSet: true,
@@ -53,7 +57,7 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
             .map((semiSet, index) => ({
                 label: semiSet.label.trim(),
                 displayOrder: index,
-                sizeLabels: semiSet.sizeLabels,
+                sizeLabels: sortSizes(semiSet.sizeLabels),
             }));
 
         if (isEdit) {
@@ -120,10 +124,34 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
         }
     };
 
+    // Saves the form as-is — no validation, a draft may be half-filled. A variant's photo (a
+    // browser File + blob: preview URL) can't be stored as JSON, so it's left out of the draft
+    // for now; the colour name/hex are kept.
+    const handleSaveDraft = async () => {
+        const { colorVariants = [], ...values } = form.getValues();
+        const state = {
+            ...values,
+            colorVariants: colorVariants.map((variant) => {
+                const storable = { ...variant };
+                delete storable.imageFile;
+                delete storable.imagePreview;
+                return storable;
+            }),
+        };
+
+        try {
+            await createDraft({ currentStep: wizard.activeStep, state });
+            toast.success("Draft saved.");
+            navigate("/designs");
+        } catch (error) {
+            toast.error(error?.message ?? "Couldn't save draft. Please try again.");
+        }
+    };
+
     return (
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
-                <DesignStepper activeStep={wizard.activeStep} setActiveStep={wizard.setActiveStep} />
+                <DesignStepper activeStep={wizard.activeStep} setActiveStep={wizard.goTo} />
 
                 <StepRenderer
                     activeStep={wizard.activeStep}
@@ -139,6 +167,8 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
                     isSubmitting={isPending}
                     onNext={wizard.next}
                     onPrev={wizard.prev}
+                    onSaveDraft={isEdit ? undefined : handleSaveDraft}
+                    isSavingDraft={isSavingDraft}
                 />
             </form>
         </FormProvider>

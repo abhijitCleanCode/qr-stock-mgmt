@@ -59,8 +59,14 @@ const variantEntrySchema = z
         // Delivery Date: the actual date stock was received. Required — the frontend always
         // sends it (defaulted to today, editable) — and stored as a date-only string, never
         // parsed into a Date object here, so no UTC shift can occur before it reaches the DB.
-        stockDate: z.string().date(),
-        challanNo: challanNoSchema,
+        // Optional per variant: the challan-level values below are authoritative and are applied
+        // to every variant by the service.
+        stockDate: z.string().date().optional(),
+        challanNo: challanNoSchema.optional(),
+        // QC outcome — pieces that failed inspection and the reason. A category is mandatory
+        // whenever any piece is defective (checked in the superRefine below).
+        defectivePieces: nonNegativeInt.default(0),
+        defectCategory: z.string().trim().max(100).optional(),
         notes: z.string().max(1000).optional(),
         totalSetsReceived: nonNegativeInt.default(0),
         bundles: z.array(bundleSchema).default([]),
@@ -77,6 +83,14 @@ const variantEntrySchema = z
                 code: z.ZodIssueCode.custom,
                 path: [],
                 message: "Each variant must include at least one of totalSetsReceived, bundles, or loosePieces.",
+            });
+        }
+
+        if (variant.defectivePieces > 0 && !variant.defectCategory) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["defectCategory"],
+                message: "Pick a defect category when a variant has defective pieces.",
             });
         }
 
@@ -99,8 +113,21 @@ const designGroupSchema = z.object({
     variants: z.array(variantEntrySchema).min(1),
 });
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+// The jobber delivery as a whole: one challan, however many designs/variants it carries.
+const challanSchema = z.object({
+    jobberName: z.string().trim().min(1, "Select the jobber.").max(150),
+    challanNo: challanNoSchema,
+    issuedChallanNo: z.string().trim().min(1, "Issued challan number is required.").max(100),
+    stockDate: z.string().date().refine((value) => value <= todayIso(), "Inward date can't be in the future."),
+    remarks: z.string().trim().max(1000).optional(),
+    defectAction: z.enum(["seconds", "return"]).default("seconds"),
+});
+
 export const stockInSchema = z
     .object({
+        challan: challanSchema,
         designs: z.array(designGroupSchema).min(1),
         printOnConfirm: z.boolean().default(false),
         printerId: positiveInt.optional(),
@@ -155,4 +182,40 @@ export const stockInDraftIdParamsSchema = z.object({
 export const stockInDraftSchema = z.object({
     currentStep: z.number().int().min(0).max(4).default(0),
     state: z.record(z.string(), z.unknown()),
+});
+
+// --- Stock In challans (the dashboard register) ---
+
+export const stockInChallanIdParamsSchema = z.object({
+    id: z.coerce.number().int().positive(),
+});
+
+export const stockInChallanListQuerySchema = z.object({
+    search: z.string().trim().max(100).optional(),
+    jobber: z.string().trim().max(150).optional(),
+    // "7" | "30" | "90" = last N days, "90+" = older than 90 days, "custom" uses from/to.
+    dateRange: z.enum(["7", "30", "90", "90+", "custom"]).optional(),
+    from: z.string().date().optional(),
+    to: z.string().date().optional(),
+    status: z.enum(["active", "defects", "edited", "dropped", "all"]).default("active"),
+    sort: z.enum(["new", "old", "pcs"]).default("new"),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(500).default(8),
+});
+
+export const stockInChallanUpdateSchema = z.object({
+    jobberName: z.string().trim().min(1).max(150),
+    challanNo: challanNoSchema,
+    issuedChallanNo: z.string().trim().max(100).optional(),
+    stockDate: z.string().date(),
+    remarks: z.string().trim().max(1000).optional(),
+    reason: z.string().trim().min(1, "Add a short reason for the edit.").max(300),
+});
+
+export const stockInChallanDropSchema = z.object({
+    reason: z.string().trim().min(1, "Add a reason.").max(300),
+});
+
+export const stockInChallanEventSchema = z.object({
+    kind: z.enum(["PRINT", "PDF"]),
 });
