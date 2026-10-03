@@ -8,6 +8,7 @@ import { useDesignDetailApi } from "../hooks/useDesignDetailApi";
 // Wizard form values for an existing design — same field names the register wizard uses.
 function toFormValues(design) {
   return {
+    itemNameId: design.itemNameId ?? null,
     itemName: design.itemName ?? "",
     code: design.code ?? "",
     patternId: design.patternId ?? null,

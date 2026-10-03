@@ -87,6 +87,18 @@ export const searchQualitiesApi = async (keyword) => {
     return data;
 };
 
+export const getItemNamesApi = async () => {
+    const response = await fetch(`${baseURL}/designs/item-names`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Failed to fetch item names.");
+    }
+
+    return data;
+};
+
 export const searchPatternsApi = async (keyword) => {
     const params = new URLSearchParams({ keyword });
 

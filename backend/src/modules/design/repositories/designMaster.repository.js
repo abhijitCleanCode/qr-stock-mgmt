@@ -36,6 +36,7 @@ const designColumns = {
     patternId: design.patternId,
     code: design.code,
     itemName: design.itemName,
+    itemNameId: design.itemNameId,
     quality: design.quality,
     qualityId: design.qualityId,
     jobberId: design.jobberId,

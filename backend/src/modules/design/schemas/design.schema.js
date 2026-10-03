@@ -2,6 +2,7 @@ import { integer, pgTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/p
 import { jobber } from "./jobber.schema.js";
 import { quality } from "./quality.schema.js";
 import { pattern } from "./pattern.schema.js";
+import { itemName } from "./itemName.schema.js";
 
 export const design = pgTable("designs", {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -19,7 +20,10 @@ export const design = pgTable("designs", {
     // code is blank — designs without a code aren't deduplicated against each other.
     normalizedCode: varchar("normalized_code", { length: 255 }),
 
+    // denormalized display copy of item_names.name, kept alongside itemNameId — same rationale
+    // as quality below (designs saved before the item_names table existed keep their text).
     itemName: varchar("item_name", { length: 255 }),
+    itemNameId: integer("item_name_id").references(() => itemName.id),
 
     // denormalized display copy of quality.name at the time of registration — kept alongside
     // qualityId (rather than joined on every read) so existing designs registered before the
@@ -37,7 +41,8 @@ export const design = pgTable("designs", {
     defaultCostPricePerPiece: integer("default_cost_price_per_piece"),
     defaultSellingPricePerPiece: integer("default_selling_price_per_piece").notNull(),
 
-    notes: varchar("notes", { length: 255 }),
+    // max 300 characters — enforced in design.validator.js
+    notes: varchar("notes", { length: 300 }),
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().$onUpdateFn(() => new Date()),

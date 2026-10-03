@@ -11,6 +11,7 @@ import DesignStepper from "./DesignStepper";
 import StepRenderer from "./StepRenderer";
 import DesignWizardNavigation from "./DesignWizardNavigation";
 import { DESIGN_STEPS } from "../steps/DesignSteps";
+import { sortSizes } from "../utils/sizeOrder";
 
 // Register a new design, or — with `editDesign` (the GET /designs/:id payload) and matching
 // `initialValues` — edit an existing one through the same three steps.
@@ -41,7 +42,8 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
             return;
         }
 
-        const designSizes = sizes.map((sizeLabel, index) => ({
+        // displayOrder follows size order (S-M-L-XL), not the order sizes were clicked in.
+        const designSizes = sortSizes(sizes).map((sizeLabel, index) => ({
             sizeLabel,
             displayOrder: index,
             includedInSet: true,
@@ -53,7 +55,7 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
             .map((semiSet, index) => ({
                 label: semiSet.label.trim(),
                 displayOrder: index,
-                sizeLabels: semiSet.sizeLabels,
+                sizeLabels: sortSizes(semiSet.sizeLabels),
             }));
 
         if (isEdit) {
@@ -123,7 +125,7 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
     return (
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
-                <DesignStepper activeStep={wizard.activeStep} setActiveStep={wizard.setActiveStep} />
+                <DesignStepper activeStep={wizard.activeStep} setActiveStep={wizard.goTo} />
 
                 <StepRenderer
                     activeStep={wizard.activeStep}

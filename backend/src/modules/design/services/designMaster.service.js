@@ -120,7 +120,7 @@ class DesignMasterService {
     //     sizes, because those physical sets don't contain the new size.
     // `files` are the new photos, in order, for each variant that is new or has replaceImage set.
     async updateDesign(id, data, files = []) {
-        const { colorVariants, designSizes, semiSets, jobberId, jobberName, qualityId, quality, patternId, name, code, itemName, defaultSellingPricePerPiece, notes } = data;
+        const { colorVariants, designSizes, semiSets, jobberId, jobberName, qualityId, quality, patternId, name, code, itemNameId, itemName, defaultSellingPricePerPiece, notes } = data;
 
         const needsImage = colorVariants.filter((variant) => !variant.id || variant.replaceImage);
         if (needsImage.length !== files.length) {
@@ -154,13 +154,15 @@ class DesignMasterService {
                 if (clash) throw new ApiError("Another design already has this pattern and design code.", 409, "DESIGN_ALREADY_EXISTS");
                 const resolvedQuality = await this._designService._resolveQuality(tx, { qualityId, qualityName: quality });
                 const resolvedJobberId = await this._designService._resolveJobberId(tx, { jobberId, jobberName });
+                const resolvedItemName = await this._designService._resolveItemName(tx, { itemNameId, itemName });
 
                 await this._repository.updateDesign(tx, id, {
                     name: pattern.name,
                     patternId: pattern.id,
                     code: code?.trim() || null,
                     normalizedCode,
-                    itemName,
+                    itemName: resolvedItemName.name,
+                    itemNameId: resolvedItemName.id,
                     quality: resolvedQuality.name,
                     qualityId: resolvedQuality.id,
                     jobberId: resolvedJobberId,

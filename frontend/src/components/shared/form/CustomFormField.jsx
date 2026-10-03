@@ -48,7 +48,7 @@ const CustomFormField = (props) => {
 
                     {fieldState.error && (
                         <p className="text-sm text-[#EA6365] animate-pulse">
-                            {fieldState.error.message}
+                            {/* {fieldState.error.message} */}
                         </p>
                     )}
                 </div>

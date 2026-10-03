@@ -1,6 +1,7 @@
 export * from "../modules/design/schemas/jobber.schema.js";
 export * from "../modules/design/schemas/quality.schema.js";
 export * from "../modules/design/schemas/pattern.schema.js";
+export * from "../modules/design/schemas/itemName.schema.js";
 export * from "../modules/design/schemas/design.schema.js";
 export * from "../modules/design/schemas/designSize.schema.js";
 export * from "../modules/design/schemas/designSemiSet.schema.js";
