@@ -12,6 +12,8 @@ import stockHistoryService from "./stockHistory.service.js";
 import printJobRepository from "../repositories/printJob.repository.js";
 import printJobItemRepository from "../repositories/printJobItem.repository.js";
 import stockInDraftRepository from "../repositories/stockInDraft.repository.js";
+import stockInChallanRepository from "../repositories/stockInChallan.repository.js";
+import { formatSerial } from "./stockInChallan.service.js";
 
 function todayAsIsoDate() {
     return new Date().toISOString().slice(0, 10);
@@ -63,6 +65,7 @@ class StockInService {
     _printJobRepository = printJobRepository;
     _printJobItemRepository = printJobItemRepository;
     _stockInDraftRepository = stockInDraftRepository;
+    _stockInChallanRepository = stockInChallanRepository;
 
     _stockInResultMapper = stockInResultMapper;
 
@@ -71,10 +74,37 @@ class StockInService {
     // or rolls back together as one atomic database transaction.
     async registerStockIn(data) {
         return db.transaction(async (tx) => {
+            const { challan: challanInput } = data;
+
+            // The same jobber can't deliver the same challan number twice — that is almost
+            // always the same delivery entered again.
+            const duplicate = await this._stockInChallanRepository.findActiveDuplicate(tx, {
+                jobberName: challanInput.jobberName,
+                challanNo: challanInput.challanNo,
+            });
+            if (duplicate) {
+                throw new ApiError(`${challanInput.jobberName} already has challan ${challanInput.challanNo} (${formatSerial(duplicate.serial)}).`, 409, "DUPLICATE_CHALLAN");
+            }
+
+            // The serial is issued here — when the inward is actually completed — and only
+            // moves forward, so a draft never uses one and a dropped challan never frees one.
+            const serial = await this._stockInChallanRepository.issueNextSerial(tx);
+            const challan = await this._stockInChallanRepository.create(tx, {
+                serial,
+                jobberName: challanInput.jobberName,
+                challanNo: challanInput.challanNo,
+                issuedChallanNo: challanInput.issuedChallanNo,
+                stockDate: challanInput.stockDate,
+                remarks: challanInput.remarks || null,
+                defectAction: challanInput.defectAction,
+                enteredBy: "Staff",
+            });
+
             const variantResults = [];
 
             for (const design of data.designs) {
-                for (const variantInput of design.variants) {
+                for (const submitted of design.variants) {
+                    const variantInput = { ...submitted, challanId: challan.id, stockDate: challan.stockDate, challanNo: challan.challanNo };
                     const result = await this._registerVariantStockIn(tx, design.designId, variantInput);
                     variantResults.push(result);
                 }
@@ -110,6 +140,7 @@ class StockInService {
             }
 
             return {
+                challan: { id: challan.id, serial: challan.serial, serialLabel: formatSerial(challan.serial) },
                 transactionsCreated: variantResults.length,
                 variants: variantResults,
                 printJobId,

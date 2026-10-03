@@ -1,10 +1,9 @@
 import { computeVariantRow, aggregateRows, buildDefectNarrative } from "../../../utils/qrTagStudio";
 
-const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleIncluded, onToggleChildTags, onToggleTagLoosePieces, defectAction }) => {
+const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleIncluded, onToggleChildTags, defectAction }) => {
   const rows = variants.map((v) => computeVariantRow(v, strategy, perVariantSettings));
   const totals = aggregateRows(rows);
   const isCustom = strategy === "custom";
-  const anyLoose = rows.some((row) => row.variant.looseTotal > 0);
 
   return (
     <div className="space-y-3">
@@ -20,15 +19,15 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
               <th className="px-3.5 py-2.5 text-right">Loose</th>
               <th className="px-3.5 py-2.5 text-right">Parent tags</th>
               <th className="px-3.5 py-2.5 text-right">Child tags</th>
+              <th className="px-3.5 py-2.5 text-right">Loose tags</th>
               <th className="px-3.5 py-2.5 text-right">Total</th>
               {isCustom && <th className="px-3.5 py-2.5 text-center">Child?</th>}
-              {anyLoose && <th className="px-3.5 py-2.5 text-center">Tag loose?</th>}
               <th className="px-3.5 py-2.5 text-center">Include</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const settings = perVariantSettings[row.key] ?? { included: true, childTags: false, tagLoosePieces: true };
+              const settings = perVariantSettings[row.key] ?? { included: true, childTags: false };
               return (
                 <tr key={row.key} className={`border-b border-slate-200 last:border-0 ${row.included ? "" : "opacity-45"}`}>
                   <td className="px-3.5 py-2.5 text-slate-600">
@@ -47,6 +46,9 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
                   <td className={`px-3.5 py-2.5 text-right font-mono tabular-nums ${row.child ? "text-slate-600" : "text-slate-400"}`}>
                     {row.child || "—"}
                   </td>
+                  <td className={`px-3.5 py-2.5 text-right font-mono tabular-nums ${row.loose ? "text-slate-600" : "text-slate-400"}`}>
+                    {row.loose || "—"}
+                  </td>
                   <td className="px-3.5 py-2.5 text-right font-mono font-bold tabular-nums text-slate-900">{row.total}</td>
                   {isCustom && (
                     <td className="px-3.5 py-2.5 text-center">
@@ -57,30 +59,6 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
                         disabled={!row.included}
                         className="size-4 accent-emerald-600"
                       />
-                    </td>
-                  )}
-                  {anyLoose && (
-                    <td className="px-3.5 py-2.5 text-center">
-                      {row.variant.looseTotal > 0 ? (
-                        <div className="relative inline-flex size-4 items-center justify-center">
-                          <input
-                            type="checkbox"
-                            checked={Boolean(settings.tagLoosePieces)}
-                            onChange={() => onToggleTagLoosePieces(row.key)}
-                            disabled={!row.included}
-                            className="peer size-4 shrink-0 appearance-none rounded-[3px] border-2 border-slate-900 bg-white checked:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                          />
-                          <svg
-                            className="pointer-events-none absolute hidden size-2.5 stroke-slate-900 peer-checked:block"
-                            viewBox="0 0 12 10"
-                            fill="none"
-                          >
-                            <path d="M1.5 5.2 4.4 8 10.5 1.5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
                     </td>
                   )}
                   <td className="px-3.5 py-2.5 text-center">
@@ -109,9 +87,9 @@ const GenerationQueue = ({ variants, strategy, perVariantSettings, onToggleInclu
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.loose}</td>
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.parent}</td>
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.child || "—"}</td>
+              <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.loose || "—"}</td>
               <td className="px-3.5 py-2.5 text-right font-mono tabular-nums">{totals.total}</td>
               {isCustom && <td />}
-              {anyLoose && <td />}
               <td />
             </tr>
           </tfoot>

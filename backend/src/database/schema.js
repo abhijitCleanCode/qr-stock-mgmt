@@ -8,6 +8,7 @@ export * from "../modules/design/schemas/designSemiSetSize.schema.js";
 
 export * from "../modules/design/schemas/colorVariant.schema.js";
 
+export * from "../modules/stock/schemas/stockInChallan.schema.js";
 export * from "../modules/stock/schemas/stockInTransaction.schema.js";
 export * from "../modules/stock/schemas/stockInEntry.schema.js";
 export * from "../modules/stock/schemas/stockInBundle.schema.js";

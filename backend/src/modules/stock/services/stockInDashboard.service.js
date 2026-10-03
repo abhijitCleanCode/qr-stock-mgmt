@@ -1,54 +1,28 @@
 import { db } from "../../../database/index.js";
 
-import stockInTransactionRepository from "../repositories/stockInTransaction.repository.js";
+import stockInChallanRepository from "../repositories/stockInChallan.repository.js";
 import stockInDraftRepository from "../repositories/stockInDraft.repository.js";
 
-const RECENT_LIMIT = 5;
-
-// "NONE": the registration never produced a QR label (e.g. loose pieces only, untagged).
-// "NOT_PRINTED" / "PARTIAL" / "PRINTED": how many of its ACTIVE labels a print job has covered.
-function toPrintStatus(qrCount, printedCount) {
-    if (qrCount === 0) return "NONE";
-    if (printedCount === 0) return "NOT_PRINTED";
-    if (printedCount < qrCount) return "PARTIAL";
-    return "PRINTED";
-}
-
-function toRecentView(row) {
-    return {
-        stockInTransactionId: row.stockInTransactionId,
-        challanNo: row.challanNo,
-        stockDate: row.stockDate,
-        createdAt: row.createdAt,
-        design: { id: row.designId, code: row.designCode, name: row.designName },
-        variant: { id: row.colorVariantId, colorName: row.colorName, colorHex: row.colorHex },
-        pieceCount: row.pieceCount,
-        qrCount: row.qrCount,
-        printedCount: row.printedCount,
-        printStatus: toPrintStatus(row.qrCount, row.printedCount),
-    };
-}
-
 class StockInDashboardService {
-    _stockInTransactionRepository = stockInTransactionRepository;
+    _stockInChallanRepository = stockInChallanRepository;
     _stockInDraftRepository = stockInDraftRepository;
 
+    // The four numbers at the top of the Stock In page. "Batches" are challans (one per jobber
+    // delivery); dropped challans never count.
     async getDashboard() {
-        const [monthTotals, draftCount, pendingPrintCount, recentRows] = await Promise.all([
-            this._stockInTransactionRepository.getCurrentMonthTotals(db),
+        const [monthTotals, draftCount, pendingPrintCount] = await Promise.all([
+            this._stockInChallanRepository.currentMonthTotals(db),
             this._stockInDraftRepository.count(db),
-            this._stockInTransactionRepository.countWithUnprintedQr(db),
-            this._stockInTransactionRepository.findRecentWithPrintStatus(db, { limit: RECENT_LIMIT }),
+            this._stockInChallanRepository.countPendingPrint(db),
         ]);
 
         return {
             stats: {
-                batchesThisMonth: monthTotals.batchCount,
-                piecesThisMonth: monthTotals.pieceCount,
+                batchesThisMonth: monthTotals.batches,
+                piecesThisMonth: monthTotals.pieces,
                 draftsInProgress: draftCount,
                 batchesPendingPrint: pendingPrintCount,
             },
-            recent: recentRows.map(toRecentView),
         };
     }
 }

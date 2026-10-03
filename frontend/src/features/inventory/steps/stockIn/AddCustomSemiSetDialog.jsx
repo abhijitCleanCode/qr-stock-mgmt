@@ -1,43 +1,48 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import ActionModal from "@/components/shared/ActionModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import SizeQuantityGrid from "../../components/SizeQuantityGrid";
-import { getBundlePiecesPerBundle } from "../../utils/stockCalculations";
-
-const buildInitialComposition = (sizes) => Object.fromEntries(sizes.map((size) => [size.id, 0]));
+import { cn } from "@/lib/utils";
 
 // Lets the user define a Semi Set on the fly, for this Stock Inwarding transaction only —
-// no Design Master record is created or touched. Composition/label are handed back through
+// no Design Master record is created or touched. Tap the sizes bundled together and say how many
+// such bundles arrived; one piece per tapped size. Composition/label are handed back through
 // onSubmit exactly like a Design Master semi set would (see handleAddSemiSet in
 // SetMatrixVariantCard), so downstream totals/payload building don't need to know the
 // difference between the two origins.
 const AddCustomSemiSetDialog = ({ sizes, onSubmit, onClose }) => {
   const [open, setOpen] = useState(true);
-  const [label, setLabel] = useState("");
-  const [composition, setComposition] = useState(() => buildInitialComposition(sizes));
+  const [picked, setPicked] = useState([]);
+  const [quantity, setQuantity] = useState(1);
+  const [error, setError] = useState("");
 
-  const piecesPerSet = useMemo(() => getBundlePiecesPerBundle(composition), [composition]);
-  const isValid = piecesPerSet > 0;
+  const fullSetSizeIds = sizes.filter((size) => size.includedInSet).map((size) => size.id);
+  const ordered = sizes.filter((size) => picked.includes(size.id));
 
   const handleOpenChange = (nextOpen) => {
     setOpen(nextOpen);
-
-    if (!nextOpen) {
-      setTimeout(onClose, 150);
-    }
+    if (!nextOpen) setTimeout(onClose, 150);
   };
 
-  const handleCompositionChange = (sizeId, value) => {
-    setComposition((prev) => ({ ...prev, [sizeId]: value }));
+  const toggle = (sizeId) => {
+    setPicked((prev) => (prev.includes(sizeId) ? prev.filter((id) => id !== sizeId) : [...prev, sizeId]));
+    setError("");
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!isValid) return;
+    if (picked.length < 2) return setError("Pick at least 2 sizes — a single size is a loose piece.");
+    if (fullSetSizeIds.length > 0 && fullSetSizeIds.every((id) => picked.includes(id)) && picked.length === fullSetSizeIds.length) {
+      return setError(`That's the full ${ordered.map((size) => size.sizeLabel).join("-")} set — add it to Sets Received instead.`);
+    }
+    if (!(quantity >= 1)) return setError("Enter how many semi sets.");
 
-    onSubmit({ quantity: 1, composition, label: label.trim() || "Semi Set" });
+    onSubmit({
+      quantity,
+      composition: Object.fromEntries(picked.map((id) => [id, 1])),
+      label: ordered.map((size) => size.sizeLabel).join("-"),
+    });
     handleOpenChange(false);
   };
 
@@ -45,38 +50,50 @@ const AddCustomSemiSetDialog = ({ sizes, onSubmit, onClose }) => {
     <ActionModal openActionModal={open} setOpenActionModal={handleOpenChange} title="Add Semi Set">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4 sm:p-6">
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Semi Set name (optional)</span>
-          <Input
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            placeholder='e.g. "3-pc: S/M/L"'
-            className="h-11"
-          />
+          <span className="text-sm font-medium text-foreground">Sizes in this semi set</span>
+          <div className="flex flex-wrap gap-2">
+            {sizes.map((size) => {
+              const on = picked.includes(size.id);
+              return (
+                <button
+                  key={size.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggle(size.id)}
+                  className={cn(
+                    "h-10 min-w-[52px] rounded-[9px] border-[1.5px] px-3 text-[13px] font-bold",
+                    on ? "border-emerald-600 bg-emerald-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400",
+                  )}
+                >
+                  {size.sizeLabel}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-slate-500">
+            {ordered.length
+              ? <>Semi set: <b>{ordered.map((size) => size.sizeLabel).join(" · ")}</b> — {ordered.length} piece{ordered.length > 1 ? "s" : ""} each</>
+              : "Tap the sizes that come bundled together."}
+          </p>
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-foreground">Sizes in this Semi Set</span>
-          {sizes.length > 0 ? (
-            <SizeQuantityGrid sizes={sizes} values={composition} onChange={handleCompositionChange} />
-          ) : (
-            <p className="text-sm text-muted-foreground">No active sizes for this variant.</p>
-          )}
+          <label htmlFor="semi-set-quantity" className="text-sm font-medium text-foreground">Number of semi sets</label>
+          <Input
+            id="semi-set-quantity"
+            type="number"
+            min={1}
+            value={quantity}
+            onChange={(event) => setQuantity(Math.max(0, parseInt(event.target.value, 10) || 0))}
+            className="max-w-[140px]"
+          />
         </div>
 
-        <p className="text-sm text-muted-foreground">{piecesPerSet} pcs / set</p>
+        {error && <div className="text-xs text-red-600">{error}</div>}
 
-        <div className="mt-1 flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 flex-1"
-            onClick={() => handleOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" className="h-11 flex-1 bg-[#00694C]" disabled={!isValid}>
-            Add Semi Set
-          </Button>
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
+          <Button type="submit" className="bg-emerald-600 text-white hover:bg-emerald-700">Save semi set</Button>
         </div>
       </form>
     </ActionModal>

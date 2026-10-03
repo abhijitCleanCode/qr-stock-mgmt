@@ -76,16 +76,21 @@ export const defaultFieldState = () => {
 // always get their own tag (they were never inside a sealed set to begin with). `child` is
 // QC-passed minus loose, clamped at 0, so Parent+Child+Loose never double-counts a garment
 // against the real QC-approved total.
+// Strategy is "parentChild" (sets/semi sets AND their pieces are tagged), "none" (their labels
+// are left for QR Center — the codes are still issued at registration) or the legacy "parent" /
+// "custom". Loose pieces are an independent switch: perVariantSettings[key].tagLoosePieces.
+export const parentTagsActive = (strategy) => strategy !== "none";
+
 export function computeVariantRow(variant, strategy, perVariantSettings) {
-  const settings = perVariantSettings[variant.key] ?? { included: true, childTags: false };
+  const settings = perVariantSettings[variant.key] ?? { included: true, childTags: false, tagLoosePieces: true };
   const included = settings.included !== false;
   const childActive = strategy === "parentChild" || (strategy === "custom" && settings.childTags);
 
   const sets = included ? variant.setsTotal : 0;
   const semiSets = included ? (variant.semiSetsTotal || 0) : 0;
-  const loose = included ? variant.looseTotal : 0;
+  const loose = included && settings.tagLoosePieces !== false ? variant.looseTotal : 0;
   const child = included && childActive ? Math.max(0, variant.qcPassed - variant.looseTotal) : 0;
-  const parentTags = sets + semiSets;
+  const parentTags = parentTagsActive(strategy) ? sets + semiSets : 0;
   const total = parentTags + child + loose;
 
   return { key: variant.key, variant, included, childActive, sets, semiSets, parentTags, loose, child, total };
@@ -167,8 +172,10 @@ export function buildTagList(variants, configs, strategy, perVariantSettings) {
     const fullSetSizes = sizes.filter((size) => size.includedInSet);
     const childActive = strategy === "parentChild" || (strategy === "custom" && settings.childTags);
 
+    const parentActive = parentTagsActive(strategy);
+
     // SETs
-    for (let i = 1; i <= variant.setsTotal; i++) {
+    for (let i = 1; parentActive && i <= variant.setsTotal; i++) {
       const setSuffix = String(i).padStart(3, "0");
       const parentId = `SET-${variant.code}-${setSuffix}`;
       tags.push({
@@ -184,7 +191,7 @@ export function buildTagList(variants, configs, strategy, perVariantSettings) {
     }
 
     // Semi sets / bundles
-    (config?.bundles ?? []).forEach((bundle, bundleIndex) => {
+    (parentActive ? (config?.bundles ?? []) : []).forEach((bundle, bundleIndex) => {
       const compEntries = Object.entries(bundle.composition ?? {}).filter(([, qty]) => Number(qty) > 0);
       const bundleSizeLabels = compEntries.map(([sizeId]) => sizes.find((s) => String(s.id) === String(sizeId))?.sizeLabel).filter(Boolean);
       const semi = isSemiSet(bundleSizeLabels.length, fullSetSizes.length);
@@ -209,7 +216,7 @@ export function buildTagList(variants, configs, strategy, perVariantSettings) {
 
     // Loose pieces — always their own tag when tagged; untagged loose stock has no physical
     // tag at all (matches the backend leaving it as a fungible LOOSE_PIECE with no QR).
-    if (settings.tagLoosePieces) {
+    if (settings.tagLoosePieces !== false) {
       Object.entries(config?.loosePieces ?? {}).forEach(([sizeId, qty]) => {
         const sizeLabel = sizes.find((s) => String(s.id) === String(sizeId))?.sizeLabel ?? "";
         for (let i = 1; i <= Number(qty || 0); i++) {

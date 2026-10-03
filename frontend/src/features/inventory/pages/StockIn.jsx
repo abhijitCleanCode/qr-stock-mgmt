@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "react-toastify";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -9,11 +9,15 @@ import ConfirmedA4QrPrintSheet from "../components/stock-in/qrTagStudio/Confirme
 import { useStockInWizard } from "../hooks/useStockInWizard";
 import { useVariantStockConfigs } from "../hooks/useVariantStockConfigs";
 import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
+import { useNextStockInSerialApi } from "../hooks/useStockInChallansApi";
+import { useWizardKeyboardNav } from "../hooks/useWizardKeyboardNav";
 import { getQrCenterRegistrationDetailApi } from "../services/qrCenter.api.js";
 import { submitA4QrPrintJob } from "../services/localPrintAgent.api.js";
 import { useSaveStockInDraftApi, useStockInDraftApi } from "../hooks/useStockInDraftsApi";
 import { buildStockInPayload } from "../utils/buildStockInPayload";
 import { getVariantKey } from "../utils/variantKey";
+import { NO_DEFECT_CATEGORY } from "../utils/qcDefects";
+import { aggregateRows, computeVariantRow } from "../utils/qrTagStudio";
 import InwardDetailsStep from "../steps/stockIn/InwardDetailsStep";
 import SetMatrixStep from "../steps/stockIn/SetMatrixStep";
 import QcDefectStep from "../steps/stockIn/QcDefectStep";
@@ -39,13 +43,12 @@ const StockIn = () => {
 
   const [jobber, setJobber] = useState({ id: null, name: "" });
   const [challanNo, setChallanNo] = useState("");
+  const [issuedChallanNo, setIssuedChallanNo] = useState("");
   const [challanDate, setChallanDate] = useState(todayAsIsoDate);
+  const nextSerialQuery = useNextStockInSerialApi();
+  const nextSerial = nextSerialQuery.data?.data?.serial;
 
   const [selectedVariants, setSelectedVariants] = useState([]);
-  // All variants added against one inward batch share the same Job Work/Design reference, so
-  // the selling price registered on that design (fetched via DesignSearchInput) applies to the
-  // whole batch — taken from the first variant added rather than re-entered by hand.
-  const sellingPricePerPiece = selectedVariants[0]?.sellingPricePerPiece ?? 0;
   const {
     configs,
     ensureConfig,
@@ -66,18 +69,19 @@ const StockIn = () => {
     setVariantTotals((prev) => ({ ...prev, [key]: totals }));
   };
 
-  // QC overrides per variant — only holds fields the user has actually hand-edited. Until
-  // touched, Passed keeps auto-syncing to the live "expected" (garments) total from Step 2
-  // (resolved into `qcByKey` below), same as the reference workflow's live recalculation.
+  // QC per variant. Only what the user typed is stored (defective count + category); passed is
+  // always what Set Matrix received minus the defective pieces, so the two can never drift
+  // apart — even when Step 2's quantities change afterwards.
   const [qcOverridesByKey, setQcOverridesByKey] = useState({});
   const qcByKey = useMemo(() => {
     const resolved = {};
     for (const [key, totals] of Object.entries(variantTotals)) {
       const override = qcOverridesByKey[key];
+      const defects = Math.min(Math.max(Number(override?.defects) || 0, 0), totals.garmentsTotal);
       resolved[key] = {
-        passed: override?.passed ?? totals.garmentsTotal,
-        defects: override?.defects ?? 0,
-        category: override?.category ?? "No defect detected",
+        passed: totals.garmentsTotal - defects,
+        defects,
+        category: override?.category ?? NO_DEFECT_CATEGORY,
       };
     }
     return resolved;
@@ -90,14 +94,13 @@ const StockIn = () => {
   const [defectAction, setDefectAction] = useState("seconds");
   const [qcRemarks, setQcRemarks] = useState("");
 
-  // "parent" | "parentChild" | "custom" — QR Tag Studio's tagging strategy. Only
-  // "parentChild" and "parent" (shown to the user as "Loose pieces only") are reachable
-  // from the Strategy Cards UI — see StrategyCards.jsx. Defaults to "parentChild", matching
-  // the reference mock's own default. Per-variant include/child-tag overrides only apply
-  // when strategy is "custom" (unreachable from this UI, kept for backend/API compatibility);
-  // QrTagStudioStep defaults any variant missing from this map to
-  // { included: true, childTags: false }.
-  const [printStrategy, setPrintStrategy] = useState("parentChild");
+  // QR Tag Studio: two independent switches, both on by default. Parent + Child tags every set
+  // / semi set and every piece in it; Loose pieces tags the odd pieces. Off never skips issuing
+  // the codes or registering the stock — those labels are just printed later from QR Center.
+  // Per-variant overrides here are only Include (and child tags for the legacy "custom" mode).
+  const [tagParentChild, setTagParentChild] = useState(true);
+  const [tagLoose, setTagLoose] = useState(true);
+  const printStrategy = tagParentChild ? "parentChild" : "none";
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
   const [printer, setPrinter] = useState("A4 Laser Printer (4×10 · 40-Up)");
   const [printOnConfirm, setPrintOnConfirm] = useState(false);
@@ -109,24 +112,29 @@ const StockIn = () => {
 
   const toggleVariantIncluded = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: true };
+      const current = prev[key] ?? { included: true, childTags: false };
       return { ...prev, [key]: { ...current, included: !current.included } };
     });
   };
 
   const toggleVariantChildTags = (key) => {
     setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: true };
+      const current = prev[key] ?? { included: true, childTags: false };
       return { ...prev, [key]: { ...current, childTags: !current.childTags } };
     });
   };
 
-  const toggleVariantTagLoosePieces = (key) => {
-    setQrPerVariantSettings((prev) => {
-      const current = prev[key] ?? { included: true, childTags: false, tagLoosePieces: true };
-      return { ...prev, [key]: { ...current, tagLoosePieces: !current.tagLoosePieces } };
-    });
-  };
+  // The one Loose pieces switch applied to every variant — what the queue, preview and payload read.
+  const effectiveQrSettings = useMemo(
+    () =>
+      Object.fromEntries(
+        selectedVariants.map((variant) => {
+          const key = getVariantKey(variant);
+          return [key, { included: true, childTags: false, ...qrPerVariantSettings[key], tagLoosePieces: tagLoose }];
+        }),
+      ),
+    [selectedVariants, qrPerVariantSettings, tagLoose],
+  );
 
   const { mutateAsync: registerStockIn, isPending } = useStockInRegisterApi();
 
@@ -154,36 +162,54 @@ const StockIn = () => {
     setQcOverridesByKey({});
     setJobber({ id: null, name: "" });
     setChallanNo("");
+    setIssuedChallanNo("");
     setChallanDate(todayAsIsoDate());
+    setTriedSteps({});
     setDefectAction("seconds");
     setQcRemarks("");
-    setPrintStrategy("parentChild");
+    setTagParentChild(true);
+    setTagLoose(true);
     setQrPerVariantSettings({});
     setPrintOnConfirm(false);
     setPrintConfig({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   };
 
-  const canAdvance = (step) => {
+  // Which steps the user has already tried to leave with a problem — inline errors only show
+  // after that, so a fresh form isn't covered in red.
+  const [triedSteps, setTriedSteps] = useState({});
+
+  const getStepErrors = (step) => {
+    const errors = {};
     if (step === 0) {
-      if (!challanNo.trim()) {
-        toast.error("Jobber Delivery Challan No. is required.");
-        return false;
-      }
-      if (selectedVariants.length === 0) {
-        toast.error("Add at least one design colour variant before continuing.");
-        return false;
-      }
-      return true;
+      if (!jobber?.name?.trim()) errors.jobber = "Select the jobber.";
+      if (selectedVariants.length === 0) errors.design = "Add at least one design.";
+      if (!challanNo.trim()) errors.challanNo = "Enter the jobber delivery challan no.";
+      if (!issuedChallanNo.trim()) errors.issuedChallanNo = "Enter the issued challan number.";
+      if (!challanDate) errors.challanDate = "Pick the inward date.";
+      else if (challanDate > todayAsIsoDate()) errors.challanDate = "Inward date can't be in the future.";
     }
     if (step === 1) {
       const totalGarments = Object.values(variantTotals).reduce((sum, item) => sum + item.garmentsTotal, 0);
-      if (totalGarments === 0) {
-        toast.error("Enter at least one full set or loose piece before continuing.");
-        return false;
-      }
-      return true;
+      if (totalGarments === 0) errors.matrix = "Enter at least one full set, semi set or loose piece before continuing.";
     }
-    return true;
+    if (step === 2) {
+      for (const variant of selectedVariants) {
+        const key = getVariantKey(variant);
+        const qc = qcByKey[key];
+        if (qc && qc.defects > 0 && qc.category === NO_DEFECT_CATEGORY) {
+          errors[key] = `Pick a defect category for ${variant.designCode ? `${variant.designCode} · ` : ""}${variant.colorName}.`;
+        }
+      }
+    }
+    return errors;
+  };
+
+  const canAdvance = (step) => {
+    const first = Object.values(getStepErrors(step))[0];
+    if (!first) return true;
+    setTriedSteps((prev) => ({ ...prev, [step]: true }));
+    toast.error(first);
+    return false;
   };
 
   const wizard = useStockInWizard(canAdvance);
@@ -215,6 +241,7 @@ const StockIn = () => {
     setHydratedDraftId(routeDraftId);
     setJobber(saved.jobber ?? { id: null, name: "" });
     setChallanNo(saved.challanNo ?? "");
+    setIssuedChallanNo(saved.issuedChallanNo ?? "");
     setChallanDate(saved.challanDate || todayAsIsoDate());
     setSelectedVariants(saved.selectedVariants ?? []);
     hydrateConfigs(saved.configs ?? {});
@@ -222,7 +249,9 @@ const StockIn = () => {
     setQcOverridesByKey(saved.qcOverridesByKey ?? {});
     setDefectAction(saved.defectAction ?? "seconds");
     setQcRemarks(saved.qcRemarks ?? "");
-    setPrintStrategy(saved.printStrategy ?? "parentChild");
+    // Drafts saved before the two tag switches existed carry a single printStrategy.
+    setTagParentChild(saved.tagParentChild ?? saved.printStrategy !== "parent");
+    setTagLoose(saved.tagLoose ?? true);
     setQrPerVariantSettings(saved.qrPerVariantSettings ?? {});
     if (saved.printer) setPrinter(saved.printer);
     wizard.setActiveStep(loadedDraft.currentStep ?? 0);
@@ -232,6 +261,7 @@ const StockIn = () => {
   const buildDraftState = () => ({
     jobber,
     challanNo,
+    issuedChallanNo,
     challanDate,
     selectedVariants,
     configs,
@@ -241,7 +271,8 @@ const StockIn = () => {
     qcOverridesByKey,
     defectAction,
     qcRemarks,
-    printStrategy,
+    tagParentChild,
+    tagLoose,
     qrPerVariantSettings,
     printer,
   });
@@ -273,11 +304,29 @@ const StockIn = () => {
   };
 
   const handleConfirmInward = async () => {
+    // Steps can be reached out of order through the stepper, so re-check the data-entry steps.
+    for (const step of [0, 1, 2]) {
+      const first = Object.values(getStepErrors(step))[0];
+      if (first) {
+        setTriedSteps((prev) => ({ ...prev, [step]: true }));
+        wizard.setActiveStep(step);
+        toast.error(first);
+        return;
+      }
+    }
+
     const payload = buildStockInPayload(selectedVariants, configs, {
-      deliveryDate: challanDate,
-      challanNo,
-      printStrategy,
-      qrPerVariantSettings,
+      challan: {
+        jobberName: jobber.name.trim(),
+        challanNo: challanNo.trim(),
+        issuedChallanNo: issuedChallanNo.trim(),
+        stockDate: challanDate,
+        remarks: qcRemarks.trim() || undefined,
+        defectAction,
+      },
+      tagParentChild,
+      qrPerVariantSettings: effectiveQrSettings,
+      qcByKey,
       printOnConfirm: printOnConfirm && Boolean(printerId),
       printerId,
     });
@@ -287,14 +336,15 @@ const StockIn = () => {
       return;
     }
 
-    const totalSets = Object.values(variantTotals).reduce((sum, item) => sum + item.setsTotal, 0);
-    const totalPassed = Object.values(qcByKey).reduce((sum, item) => sum + (Number(item.passed) || 0), 0);
+    const totalReceived = Object.values(variantTotals).reduce((sum, item) => sum + item.garmentsTotal, 0);
 
     try {
       // Let any in-flight autosave finish first so its draft id is known and removed on confirm.
       await saveChainRef.current;
       const draftId = draftIdRef.current ?? (hydratedDraftId ? Number(hydratedDraftId) : null);
       const result = await registerStockIn(draftId ? { ...payload, draftId } : payload);
+      const serialLabel = result?.data?.challan?.serialLabel;
+      const registeredMessage = `Stock-in ${serialLabel ?? ""} registered · challan ${challanNo.trim()} · ${totalReceived} pcs added.`;
       if (draftId) setConsumedDraftId(String(draftId));
       if (printOnConfirm && printConfig.engine === "a4") {
         try {
@@ -320,14 +370,18 @@ const StockIn = () => {
               if (tag.variantKey === variantKey) displayCodes[tag.kind]?.push(tag.code);
             }
             const displayIndexes = { parent: 0, child: 0, loose: 0 };
-            return (detail?.qrs ?? []).map((qr) => {
+            const variantIncluded = !variantKey || effectiveQrSettings[variantKey]?.included !== false;
+            return (detail?.qrs ?? []).flatMap((qr) => {
               const kind = qr.type === "SET" || qr.type === "BUNDLE"
                 ? "parent"
                 : qr.parentStockItemId
                   ? "child"
                   : "loose";
+              // Labels the user switched off (or excluded variants) stay in QR Center, unprinted.
+              const printable = variantIncluded && (kind === "loose" ? tagLoose : tagParentChild);
+              if (!printable) return [];
               const displayCode = displayCodes[kind]?.[displayIndexes[kind]++];
-              return {
+              return [{
               ...qr,
               design: detail.registration?.design,
               variant: detail.registration?.variant,
@@ -335,7 +389,7 @@ const StockIn = () => {
               piecesPerSet: variantTotalsForPrint?.piecesPerSet ?? composition.length,
               sellingPricePerPiece: sourceVariant?.sellingPricePerPiece ?? 0,
               displayCode: displayCode ?? String(qr.payload?.setId ?? qr.stockItemId),
-              };
+              }];
             });
           });
 
@@ -348,7 +402,7 @@ const StockIn = () => {
               content: printConfig,
             });
             const sheetCount = Math.ceil((printResult.count + Number(printConfig.a4StartAt || 1) - 1) / 40);
-            toast.success(`${printResult.count} QR labels across ${sheetCount} sheets submitted to ${printResult.printer}.`);
+            toast.success(`${registeredMessage} ${printResult.count} QR labels across ${sheetCount} sheets submitted to ${printResult.printer}.`);
             resetAll();
             navigate("/stock-in");
             return;
@@ -364,7 +418,7 @@ const StockIn = () => {
           return;
         }
       }
-      toast.success(`Stock Inward confirmed! ${totalSets} Parent & ${totalPassed} Child QR tags generated.`);
+      toast.success(registeredMessage);
       resetAll();
       navigate("/stock-in");
     } catch (error) {
@@ -382,6 +436,37 @@ const StockIn = () => {
   };
 
   const handleSaveDraft = () => persistDraft(wizard.activeStep, { silent: false });
+
+  // Enter / arrow-key entry on the three data-entry steps.
+  const stepsRef = useRef(null);
+  const handleAdvanceByKeyboard = useCallback(() => document.getElementById("stock-in-next")?.click(), []);
+  useWizardKeyboardNav({ containerRef: stepsRef, enabled: wizard.activeStep <= 2, onAdvance: handleAdvanceByKeyboard });
+
+  // Totals the Summary announces, from the same rows the QR Tag Studio queue uses.
+  const tagCounts = useMemo(() => {
+    const rows = selectedVariants.map((variant) => {
+      const key = getVariantKey(variant);
+      const totals = variantTotals[key] ?? { setsTotal: 0, semiSetsTotal: 0, looseTotal: 0 };
+      return computeVariantRow(
+        { key, setsTotal: totals.setsTotal, semiSetsTotal: totals.semiSetsTotal, looseTotal: totals.looseTotal, qcPassed: qcByKey[key]?.passed ?? 0 },
+        printStrategy,
+        effectiveQrSettings,
+      );
+    });
+    const aggregate = aggregateRows(rows);
+    return { parents: aggregate.parent, children: aggregate.child, loose: aggregate.loose };
+  }, [selectedVariants, variantTotals, qcByKey, printStrategy, effectiveQrSettings]);
+
+  const sizeLabelsById = useMemo(
+    () => Object.fromEntries(Object.values(variantTotals).flatMap((totals) => (totals.sizes ?? []).map((size) => [String(size.id), size.sizeLabel]))),
+    [variantTotals],
+  );
+
+  const stepErrors = {
+    0: triedSteps[0] ? getStepErrors(0) : {},
+    1: triedSteps[1] ? getStepErrors(1) : {},
+    2: triedSteps[2] ? getStepErrors(2) : {},
+  };
 
   // Test labels are sample IDs from the studio, not persisted QR payloads. Only confirmed
   // inward jobs are sent to the local agent with their server-generated QR payloads.
@@ -406,10 +491,20 @@ const StockIn = () => {
             <ArrowLeft className="size-3.5" />
             Stock In dashboard
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>
-          <p className="mt-0.5 text-xs text-slate-500 md:text-sm">
-            Log received stock from Jobbers &amp; generate inventory QR tags.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>
+              <p className="mt-0.5 text-xs text-slate-500 md:text-sm">
+                Log received stock from Jobbers &amp; generate inventory QR tags.
+              </p>
+            </div>
+            <span
+              title="Assigned when the inward is confirmed"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"
+            >
+              Serial No. <b className="font-mono text-[13px] text-slate-900">{nextSerial ?? "…"}</b>
+            </span>
+          </div>
         </div>
 
         <StockInStepper activeStep={wizard.activeStep} setActiveStep={wizard.setActiveStep} />
@@ -428,19 +523,22 @@ const StockIn = () => {
         </div>
       ) : (
       <>
-      <div className="flex-1">
+      <div className="flex-1" ref={stepsRef}>
         {wizard.activeStep === 0 && (
           <InwardDetailsStep
             jobber={jobber}
             onJobberChange={setJobber}
             challanNo={challanNo}
             onChallanNoChange={setChallanNo}
+            issuedChallanNo={issuedChallanNo}
+            onIssuedChallanNoChange={setIssuedChallanNo}
             challanDate={challanDate}
             onChallanDateChange={setChallanDate}
+            nextSerial={nextSerial}
             selectedVariants={selectedVariants}
             onAddVariant={handleAddVariant}
             onRemoveVariant={handleRemoveVariant}
-            sellingPricePerPiece={sellingPricePerPiece}
+            errors={stepErrors[0]}
           />
         )}
 
@@ -455,7 +553,7 @@ const StockIn = () => {
             onRemoveBundle={removeBundle}
             variantTotals={variantTotals}
             onVariantTotalsChange={handleVariantTotalsChange}
-            sellingPricePerPiece={sellingPricePerPiece}
+            error={stepErrors[1].matrix}
           />
         )}
 
@@ -469,6 +567,7 @@ const StockIn = () => {
             onDefectActionChange={setDefectAction}
             qcRemarks={qcRemarks}
             onQcRemarksChange={setQcRemarks}
+            errors={stepErrors[2]}
           />
         )}
 
@@ -483,11 +582,13 @@ const StockIn = () => {
             challanDate={challanDate}
             defectAction={defectAction}
             printStrategy={printStrategy}
-            onPrintStrategyChange={setPrintStrategy}
-            perVariantSettings={qrPerVariantSettings}
+            tagParentChild={tagParentChild}
+            tagLoose={tagLoose}
+            onToggleParentChild={() => setTagParentChild((on) => !on)}
+            onToggleLoose={() => setTagLoose((on) => !on)}
+            perVariantSettings={effectiveQrSettings}
             onToggleVariantIncluded={toggleVariantIncluded}
             onToggleVariantChildTags={toggleVariantChildTags}
-            onToggleVariantTagLoosePieces={toggleVariantTagLoosePieces}
             printer={printer}
             printerId={printerId}
             onPrinterChange={setPrinter}
@@ -503,9 +604,13 @@ const StockIn = () => {
             selectedVariants={selectedVariants}
             variantTotals={variantTotals}
             qcByKey={qcByKey}
+            configs={configs}
+            sizeLabelsById={sizeLabelsById}
             defectAction={defectAction}
-            sellingPricePerPiece={sellingPricePerPiece}
             challanNo={challanNo}
+            issuedChallanNo={issuedChallanNo}
+            nextSerial={nextSerial}
+            tagCounts={tagCounts}
           />
         )}
       </div>
