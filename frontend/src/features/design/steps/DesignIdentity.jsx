@@ -7,29 +7,46 @@ import { FormFieldType } from "@/config/FormFieldType";
 import JobberSearchInput from "../components/JobberSearchInput";
 import QualitySearchInput from "../components/QualitySearchInput";
 import PatternSearchInput from "../components/PatternSearchInput";
+import ItemNameSelect from "../components/ItemNameSelect";
 import { useExistingDesignByCode } from "../hooks/useExistingDesignByCode";
 
 const CODE_CHECK_DEBOUNCE_MS = 400;
 
-// Enforces "<letters> <digits>" (e.g. "KP 100"): letters accumulate until the first digit is
-// typed, at which point a space is auto-inserted and only digits are accepted from then on.
-// Anything else typed (hyphens, letters after a digit, extra spaces) is silently dropped.
-const formatDesignCode = (raw) => {
-  let letters = "";
-  let digits = "";
-  let seenDigit = false;
+// Kept in step with backend design.validator.js and the designs.notes column width.
+const NOTES_MAX_LENGTH = 300;
 
-  for (const char of raw) {
-    if (!seenDigit && /[a-zA-Z]/.test(char)) {
-      letters += char;
-    } else if (/[0-9]/.test(char)) {
-      seenDigit = true;
-      digits += char;
-    }
+// Max letters + digits in a design code (spaces aren't counted). Kept in step with
+// designCodeField in backend design.validator.js.
+const DESIGN_CODE_MAX_LENGTH = 30;
+
+const countCodeChars = (code) => code.replace(/ /g, "").length;
+
+// Design codes are lowercase letters and digits in any order (e.g. "kp100", "100kp", "kp100a"),
+// optionally split by single spaces (older codes like "kpd 100"). Applied on every keystroke:
+// lower-cases, drops anything else, collapses repeated spaces and stops at the length limit.
+const formatDesignCode = (raw) => {
+  let code = "";
+
+  for (const char of raw.toLowerCase().replace(/\s+/g, " ").replace(/^ /, "")) {
+    if (!/[a-z0-9 ]/.test(char)) continue;
+    if (char !== " " && countCodeChars(code) >= DESIGN_CODE_MAX_LENGTH) break;
+    code += char;
   }
 
-  if (!letters) return digits;
-  return seenDigit ? `${letters} ${digits}` : letters;
+  return code;
+};
+
+// Mandatory: blocks the Design Identity step (see DesignSteps) until the code is valid.
+const designCodeRules = {
+  validate: (value) => {
+    const code = (value ?? "").trim();
+    if (!code) return "Design Code is required.";
+    if (!/^[a-z0-9]+(?: [a-z0-9]+)*$/.test(code) || !/[a-z]/.test(code) || !/[0-9]/.test(code)) {
+      return "Design Code must contain both letters and numbers (e.g. kp100).";
+    }
+    if (countCodeChars(code) > DESIGN_CODE_MAX_LENGTH) return `Design Code must be at most ${DESIGN_CODE_MAX_LENGTH} characters.`;
+    return true;
+  },
 };
 
 const DesignIdentity = ({ control, setExistingDesignByCode, editDesign }) => {
@@ -57,12 +74,7 @@ const DesignIdentity = ({ control, setExistingDesignByCode, editDesign }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-      <CustomFormField
-        control={control}
-        name="itemName"
-        label="Item Name"
-        fieldType={FormFieldType.INPUT}
-      />
+      <ItemNameSelect />
       <div>
         <CustomFormField
           control={control}
@@ -70,6 +82,7 @@ const DesignIdentity = ({ control, setExistingDesignByCode, editDesign }) => {
           label="Design Code"
           fieldType={FormFieldType.INPUT}
           format={formatDesignCode}
+          rules={designCodeRules}
         />
         {existingDesign && (
           <p className="mt-1 text-sm text-amber-600">
@@ -92,6 +105,7 @@ const DesignIdentity = ({ control, setExistingDesignByCode, editDesign }) => {
           name="notes"
           label="Notes"
           fieldType={FormFieldType.TEXTAREA}
+          maxLength={NOTES_MAX_LENGTH}
         />
       </div>
     </div>

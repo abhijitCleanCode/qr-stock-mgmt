@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { sortSizes } from "../utils/sizeOrder";
+import { sizesRules } from "../utils/setCompositionRules";
 
 const DEFAULT_SIZES = ["S", "M", "L", "XL", "XXL"];
 
@@ -34,9 +36,12 @@ const SemiSetsField = ({ control, selectedSizes }) => (
 
       const toggleSemiSetSize = (index, size) => {
         const semiSet = semiSets[index];
-        const sizeLabels = semiSet.sizeLabels.includes(size)
-          ? semiSet.sizeLabels.filter((s) => s !== size)
-          : [...semiSet.sizeLabels, size];
+        // Kept smallest → largest regardless of click order (see sortSizes).
+        const sizeLabels = sortSizes(
+          semiSet.sizeLabels.includes(size)
+            ? semiSet.sizeLabels.filter((s) => s !== size)
+            : [...semiSet.sizeLabels, size]
+        );
         updateSemiSet(index, { sizeLabels });
       };
 
@@ -122,21 +127,28 @@ const SetCompositionFields = ({ control }) => {
   const [isAddingCustomSize, setIsAddingCustomSize] = useState(false);
   const [customSizeValue, setCustomSizeValue] = useState("");
 
-  const allSizes = [...DEFAULT_SIZES, ...customSizes];
+  const allSizes = sortSizes([...DEFAULT_SIZES, ...customSizes]);
 
   return (
     <Controller
       control={control}
       name="sizes"
       defaultValue={[]}
-      render={({ field }) => {
-        const selectedSizes = field.value ?? [];
+      // Blocks leaving this step (Next or the stepper header — see useDesignWizard) until the set
+      // has at least one size.
+      rules={sizesRules}
+      render={({ field, fieldState }) => {
+        // Always smallest → largest (S-M-L-XL), whatever order the sizes were clicked in — also
+        // straightens out older designs saved in click order when they're opened for editing.
+        const selectedSizes = sortSizes(field.value ?? []);
 
         const toggleSize = (size) => {
           field.onChange(
-            selectedSizes.includes(size)
-              ? selectedSizes.filter((s) => s !== size)
-              : [...selectedSizes, size]
+            sortSizes(
+              selectedSizes.includes(size)
+                ? selectedSizes.filter((s) => s !== size)
+                : [...selectedSizes, size]
+            )
           );
         };
 
@@ -154,7 +166,7 @@ const SetCompositionFields = ({ control }) => {
           }
 
           setCustomSizes((prev) => [...prev, size]);
-          field.onChange([...selectedSizes, size]);
+          field.onChange(sortSizes([...selectedSizes, size]));
           cancelCustomSize();
         };
 
@@ -257,6 +269,10 @@ const SetCompositionFields = ({ control }) => {
                 </p>
               )}
             </div>
+
+            {fieldState.error && (
+              <p className="-mt-3 text-sm text-[#EA6365] animate-pulse">{fieldState.error.message}</p>
+            )}
 
             <SemiSetsField control={control} selectedSizes={selectedSizes} />
           </div>

@@ -1,5 +1,5 @@
 import { useId, useMemo } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
+import { useController, useFormContext, useWatch } from "react-hook-form";
 import { Loader2Icon, SearchIcon } from "lucide-react";
 
 import {
@@ -11,6 +11,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { formatLettersOnly, lettersOnlyRules } from "../utils/nameRules";
 import { usePatternSearchApi, MIN_PATTERN_SEARCH_LENGTH } from "../hooks/usePatternSearchApi";
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -28,6 +29,9 @@ const PatternSearchInput = ({ name = "patternId", nameField = "name", label = "P
   // react-hook-form is the only source of truth here — see JobberSearchInput for why `value`
   // is kept in sync with the form instead of held as component-local state.
   const patternId = useWatch({ control, name });
+  // Registers the text field with the letters-only / max-50 rules so the wizard's step check
+  // (form.trigger) and submit run them; the error is rendered under the input below.
+  const { fieldState: { error } } = useController({ control, name: nameField, rules: lettersOnlyRules("Pattern Name") });
   const patternName = useWatch({ control, name: nameField }) ?? "";
   const value = patternName ? { id: patternId ?? null, name: patternName } : null;
 
@@ -38,8 +42,10 @@ const PatternSearchInput = ({ name = "patternId", nameField = "name", label = "P
   const { data: response, isFetching, isError } = usePatternSearchApi({ keyword });
   const patterns = useMemo(() => response?.data ?? [], [response]);
 
-  const handleInputValueChange = (text, eventDetails) => {
-    setValue(nameField, text, { shouldDirty: true });
+  const handleInputValueChange = (raw, eventDetails) => {
+    // Typed text is shaped to the rules as it's entered (letters/spaces/hyphens, max 50).
+    const text = TYPING_REASONS.has(eventDetails.reason) ? formatLettersOnly(raw) : raw;
+    setValue(nameField, text, { shouldDirty: true, shouldValidate: true });
 
     // Typing/pasting/clearing means whatever was selected before no longer applies — an item
     // selection is reported separately via onValueChange (reason "item-press"), which this
@@ -57,7 +63,7 @@ const PatternSearchInput = ({ name = "patternId", nameField = "name", label = "P
     }
 
     setValue(name, item.id, { shouldDirty: true });
-    setValue(nameField, item.name, { shouldDirty: true });
+    setValue(nameField, item.name, { shouldDirty: true, shouldValidate: true });
   };
 
   return (
@@ -115,6 +121,8 @@ const PatternSearchInput = ({ name = "patternId", nameField = "name", label = "P
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
+
+      {error && <p className="text-sm text-[#EA6365] animate-pulse">{error.message}</p>}
     </div>
   );
 };

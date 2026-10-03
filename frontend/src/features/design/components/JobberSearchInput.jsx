@@ -1,5 +1,5 @@
 import { useId, useMemo } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
+import { useController, useFormContext, useWatch } from "react-hook-form";
 import { Loader2Icon, SearchIcon } from "lucide-react";
 
 import {
@@ -11,6 +11,7 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { formatLettersOnly, lettersOnlyRules } from "../utils/nameRules";
 import { useJobberSearchApi, MIN_JOBBER_SEARCH_LENGTH } from "../hooks/useJobberSearchApi";
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -33,6 +34,9 @@ const JobberSearchInput = ({ name = "jobberId", nameField = "jobberName", label 
   // an empty selection and wiped the input — the bug. Keeping `value` in sync with the form
   // (below) makes that resync a no-op instead of a reset.
   const jobberId = useWatch({ control, name });
+  // Registers the text field with the letters-only / max-50 rules so the wizard's step check
+  // (form.trigger) and submit run them; the error is rendered under the input below.
+  const { fieldState: { error } } = useController({ control, name: nameField, rules: lettersOnlyRules("Jobber Name", { required: false }) });
   const jobberName = useWatch({ control, name: nameField }) ?? "";
   const value = jobberName ? { id: jobberId ?? null, name: jobberName } : null;
 
@@ -43,8 +47,10 @@ const JobberSearchInput = ({ name = "jobberId", nameField = "jobberName", label 
   const { data: response, isFetching, isError } = useJobberSearchApi({ keyword });
   const jobbers = useMemo(() => response?.data ?? [], [response]);
 
-  const handleInputValueChange = (text, eventDetails) => {
-    setValue(nameField, text, { shouldDirty: true });
+  const handleInputValueChange = (raw, eventDetails) => {
+    // Typed text is shaped to the rules as it's entered (letters/spaces/hyphens, max 50).
+    const text = TYPING_REASONS.has(eventDetails.reason) ? formatLettersOnly(raw) : raw;
+    setValue(nameField, text, { shouldDirty: true, shouldValidate: true });
 
     // Typing/pasting/clearing means whatever was selected before no longer applies — an item
     // selection is reported separately via onValueChange (reason "item-press"), which this
@@ -62,7 +68,7 @@ const JobberSearchInput = ({ name = "jobberId", nameField = "jobberName", label 
     }
 
     setValue(name, item.id, { shouldDirty: true });
-    setValue(nameField, item.name, { shouldDirty: true });
+    setValue(nameField, item.name, { shouldDirty: true, shouldValidate: true });
   };
 
   return (
@@ -120,6 +126,8 @@ const JobberSearchInput = ({ name = "jobberId", nameField = "jobberName", label 
           </ComboboxList>
         </ComboboxContent>
       </Combobox>
+
+      {error && <p className="text-sm text-[#EA6365] animate-pulse">{error.message}</p>}
     </div>
   );
 };

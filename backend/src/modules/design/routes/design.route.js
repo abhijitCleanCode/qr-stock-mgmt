@@ -52,6 +52,12 @@ export const designRoutes = [
         }
     },
     {
+        path: "/item-names",
+        controller: {
+            get: designController.getItemNames
+        }
+    },
+    {
         path: "/patterns",
         controller: {
             get: designController.searchPatterns

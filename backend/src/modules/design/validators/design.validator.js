@@ -68,31 +68,68 @@ export const colorVariantSizesParamsSchema = z.object({
     colorVariantId: z.coerce.number().int().positive(),
 });
 
+// Design Code: mandatory, letters and digits in any order (must contain at least one of each),
+// optionally split by single spaces (older codes like "kpd 100"), at most 30 letters + digits
+// (spaces aren't counted). Always stored in lowercase.
+export const DESIGN_CODE_MAX_LENGTH = 30;
+const designCodeField = z.string({ error: "Design Code is required." })
+    .transform((value) => value.trim().replace(/\s+/g, " ").toLowerCase())
+    .pipe(z.string()
+        .min(1, "Design Code is required.")
+        .regex(/^[a-z0-9]+(?: [a-z0-9]+)*$/, "Design Code can contain only letters and numbers.")
+        .refine((code) => /[a-z]/.test(code) && /[0-9]/.test(code), "Design Code must contain both letters and numbers (e.g. kp100).")
+        .refine((code) => code.replace(/ /g, "").length <= DESIGN_CODE_MAX_LENGTH, `Design Code must be at most ${DESIGN_CODE_MAX_LENGTH} characters.`));
+
+// Name fields (Item Name, Pattern, Quality, Jobber name): letters only, with single spaces or
+// hyphens between words (so "Co-ord Set" / "Up-Down" are allowed), at most 50 characters.
+// Whitespace is trimmed and collapsed before checking. Kept in step with frontend nameRules.js.
+export const NAME_MAX_LENGTH = 50;
+const LETTERS_PATTERN = /^[A-Za-z]+(?:[ -][A-Za-z]+)*$/;
+const lettersOnlyField = (label, requiredMessage = `${label} is required.`) => z.string({ error: requiredMessage })
+    .transform((value) => value.trim().replace(/\s+/g, " "))
+    .pipe(z.string()
+        .min(1, requiredMessage)
+        .max(NAME_MAX_LENGTH, `${label} must be at most ${NAME_MAX_LENGTH} characters.`)
+        .regex(LETTERS_PATTERN, `${label} can contain letters only (spaces and hyphens between words are allowed).`));
+
+// Item Name is additionally stored in capitals.
+const itemNameField = lettersOnlyField("Item Name").transform((value) => value.toUpperCase());
+const patternNameField = lettersOnlyField("Pattern");
+const qualityField = lettersOnlyField("Quality");
+const jobberNameField = lettersOnlyField("Jobber name", "Jobber name cannot be blank.").optional();
+
+// Notes: optional, at most 300 characters (matches the designs.notes column width).
+export const NOTES_MAX_LENGTH = 300;
+const notesField = z.string().trim().max(NOTES_MAX_LENGTH, `Notes must be at most ${NOTES_MAX_LENGTH} characters.`).optional();
+
 export const registerDesignSchema = z.object({
     // Pattern (e.g. Anarkali/Straight/Flair) is required, same as quality: name carries the
     // typed/selected name, patternId optionally selects an existing pattern by id. Backend
     // re-validates patternId rather than trusting it outright — see DesignService._resolvePattern.
-    name: z.string().trim().min(1, "Pattern is required.").max(255),
+    name: patternNameField,
     patternId: z.coerce.number().int().positive().optional(),
 
-    code: z.string().trim().optional(),
-    itemName: z.string().trim().min(1, "Item Name is required."),
+    code: designCodeField,
+    // Same contract as quality below: itemName carries the typed/selected name, itemNameId
+    // optionally selects an existing item name by id — see DesignService._resolveItemName.
+    itemName: itemNameField,
+    itemNameId: z.coerce.number().int().positive().optional(),
 
     // Quality is required (unlike jobber): quality carries the typed/selected name, qualityId
     // optionally selects an existing quality by id. Backend re-validates qualityId rather than
     // trusting it outright — see DesignService._resolveQuality.
-    quality: z.string().trim().min(1, "Quality is required.").max(255),
+    quality: qualityField,
     qualityId: z.coerce.number().int().positive().optional(),
 
     defaultSellingPricePerPiece: z.coerce.number().int().nonnegative(),
-    notes: z.string().trim().optional(),
+    notes: notesField,
 
     // Jobber is optional (backward compatible with designs registered before this field
     // existed): jobberId selects an existing jobber, jobberName resolves/creates one by name
     // when no id is given — see DesignService._resolveJobberId. Backend re-validates jobberId
     // rather than trusting it outright.
     jobberId: z.coerce.number().int().positive().optional(),
-    jobberName: z.string().trim().min(1, "Jobber name cannot be blank.").max(255).optional(),
+    jobberName: jobberNameField,
 
     // one image is required per entry — enforced against the uploaded file count in the
     // service layer, since multer's file count isn't part of req.body and can't be checked here
@@ -111,16 +148,17 @@ const editVariantInputSchema = colorVariantInputSchema.extend({
 });
 
 export const updateDesignSchema = z.object({
-    name: z.string().trim().min(1, "Pattern is required.").max(255),
+    name: patternNameField,
     patternId: z.coerce.number().int().positive().optional(),
-    code: z.string().trim().optional(),
-    itemName: z.string().trim().min(1, "Item Name is required."),
-    quality: z.string().trim().min(1, "Quality is required.").max(255),
+    code: designCodeField,
+    itemName: itemNameField,
+    itemNameId: z.coerce.number().int().positive().optional(),
+    quality: qualityField,
     qualityId: z.coerce.number().int().positive().optional(),
     defaultSellingPricePerPiece: z.coerce.number().int().nonnegative(),
-    notes: z.string().trim().optional(),
+    notes: notesField,
     jobberId: z.coerce.number().int().positive().optional(),
-    jobberName: z.string().trim().min(1, "Jobber name cannot be blank.").max(255).optional(),
+    jobberName: jobberNameField,
     colorVariants: jsonField(z.array(editVariantInputSchema).min(1, "At least one color variant is required")),
     designSizes: jsonField(z.array(designSizeInputSchema).min(1, "Select at least one size")),
     semiSets: jsonField(z.array(designSemiSetInputSchema)).default([]),
