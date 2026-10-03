@@ -287,6 +287,9 @@ class QrCenterService {
                 stockItemId: row.stockItemId,
                 type: row.type,
                 payload: row.payload,
+                priceSnapshot: row.priceSnapshot,
+                designSizeLabel: row.designSizeLabel,
+                parentStockItemId: row.parentStockItemId,
                 generatedAt: row.generatedAt,
             }))
             .sort((a, b) => a.stockItemId - b.stockItemId);
