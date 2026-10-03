@@ -163,3 +163,12 @@ export const updateDesignSchema = z.object({
     designSizes: jsonField(z.array(designSizeInputSchema).min(1, "Select at least one size")),
     semiSets: jsonField(z.array(designSemiSetInputSchema)).default([]),
 });
+
+// --- Design drafts ---
+
+// `state` is the wizard's own form snapshot — only its outer shape is checked here; nothing in it
+// is trusted for registration, which re-validates via registerDesignSchema when the draft is used.
+export const designDraftSchema = z.object({
+    currentStep: z.number().int().min(0).max(2).default(0),
+    state: z.record(z.string(), z.unknown()),
+});

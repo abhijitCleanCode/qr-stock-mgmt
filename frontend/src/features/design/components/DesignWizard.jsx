@@ -7,6 +7,7 @@ import { useDesignForm } from "../hooks/useDesignForm";
 import { useDesignWizard } from "../hooks/useDesignWizard";
 import { useDesignRegisterApi } from "../hooks/useDesignRegisterApi";
 import { useDesignUpdateApi } from "../hooks/useDesignDetailApi";
+import { useCreateDesignDraftApi } from "../hooks/useDesignDraftsApi";
 import DesignStepper from "./DesignStepper";
 import StepRenderer from "./StepRenderer";
 import DesignWizardNavigation from "./DesignWizardNavigation";
@@ -25,6 +26,7 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
     const { mutateAsync, isPending: isRegistering } = useDesignRegisterApi();
     const { mutateAsync: updateDesign, isPending: isUpdating } = useDesignUpdateApi();
     const isPending = isRegistering || isUpdating;
+    const { mutateAsync: createDraft, isPending: isSavingDraft } = useCreateDesignDraftApi();
 
     // Populated by DesignIdentity (Step 1) once the typed Design Code matches an existing
     // design; consumed here (final duplicate gate) and by Variants (Step 3, to block adding a
@@ -122,6 +124,30 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
         }
     };
 
+    // Saves the form as-is — no validation, a draft may be half-filled. A variant's photo (a
+    // browser File + blob: preview URL) can't be stored as JSON, so it's left out of the draft
+    // for now; the colour name/hex are kept.
+    const handleSaveDraft = async () => {
+        const { colorVariants = [], ...values } = form.getValues();
+        const state = {
+            ...values,
+            colorVariants: colorVariants.map((variant) => {
+                const storable = { ...variant };
+                delete storable.imageFile;
+                delete storable.imagePreview;
+                return storable;
+            }),
+        };
+
+        try {
+            await createDraft({ currentStep: wizard.activeStep, state });
+            toast.success("Draft saved.");
+            navigate("/designs");
+        } catch (error) {
+            toast.error(error?.message ?? "Couldn't save draft. Please try again.");
+        }
+    };
+
     return (
         <FormProvider {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
@@ -141,6 +167,8 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
                     isSubmitting={isPending}
                     onNext={wizard.next}
                     onPrev={wizard.prev}
+                    onSaveDraft={isEdit ? undefined : handleSaveDraft}
+                    isSavingDraft={isSavingDraft}
                 />
             </form>
         </FormProvider>
