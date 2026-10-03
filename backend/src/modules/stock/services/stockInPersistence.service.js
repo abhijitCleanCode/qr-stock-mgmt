@@ -49,7 +49,10 @@ class stockInPersistence {
             variantId: variant.id,
             stockDate: variantInput.stockDate ?? todayAsIsoDate(),
             challanNo: variantInput.challanNo,
+            challanId: variantInput.challanId ?? null,
             totalSetsReceived: variantInput.totalSetsReceived ?? 0,
+            defectivePieces: variantInput.defectivePieces ?? 0,
+            defectCategory: variantInput.defectivePieces > 0 ? variantInput.defectCategory ?? null : null,
             notes: variantInput.notes ?? null,
         });
 
