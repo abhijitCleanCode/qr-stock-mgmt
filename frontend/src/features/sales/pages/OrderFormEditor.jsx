@@ -26,7 +26,6 @@ const OrderFormEditor = () => {
     const [party, setParty] = useState(EMPTY_PARTY_FIELDS);
     const [linkedParty, setLinkedParty] = useState(null);
     const [items, setItems] = useState([]);
-    const [resolved, setResolved] = useState(null);
     const [feedback, setFeedback] = useState(null);
     const [scanning, setScanning] = useState(false);
     const [syncPrompt, setSyncPrompt] = useState(null);
@@ -70,54 +69,47 @@ const OrderFormEditor = () => {
                 setFeedback({
                     tone: "bad",
                     message: data?.state === "DUPLICATE"
-                        ? `${code} is on two different items — fix it in QR Center before using it here.`
-                        : `${code} isn't a known tag or design code. Check the ID and try again.`,
+                        ? `${data.shortCode} is on two different items — fix it in QR Center before using it here.`
+                        : data?.state === "RETIRED"
+                        ? `${data.shortCode} is a retired label — scan the item's current tag.`
+                        : "That isn't a known tag or design code. Check the ID and try again.",
                 });
-                setResolved(null);
                 return;
             }
 
-            setResolved(data.design);
+            // The scanned tag's own colour goes straight onto the order with the tag's piece count
+            // (a set tag = its pieces, a piece tag = 1); scanning another tag of the same colour adds
+            // to that line. Quantities stay editable in the list below.
+            const variant = data.design.variants.find((item) => item.colorVariantId === data.colorVariantId);
+            setItems((previous) => {
+                const existingLine = previous.find((item) => item.colorVariantId === data.colorVariantId);
+                if (existingLine) {
+                    return previous.map((item) => item.colorVariantId === data.colorVariantId
+                        ? { ...item, quantityPcs: item.quantityPcs + data.pieces }
+                        : item);
+                }
+
+                return [...previous, {
+                    colorVariantId: data.colorVariantId,
+                    designId: data.designId,
+                    designCode: data.designCode,
+                    designName: data.designName,
+                    colorName: data.colorName,
+                    colorHex: data.colorHex,
+                    quantityPcs: data.pieces,
+                    availablePcs: variant?.availablePcs ?? 0,
+                }];
+            });
+
             setFeedback({
                 tone: "ok",
-                message: `${data.design.designCode} · ${data.design.designName} found from the ${data.colorName} tag. Enter the pieces below.`,
+                message: `Added ${data.pieces} pcs of ${data.designCode} ${data.colorName} (${data.shortCode}). Scan the next tag, or change the quantity below.`,
             });
         } catch (error) {
             setFeedback({ tone: "bad", message: error.message });
         } finally {
             setScanning(false);
         }
-    };
-
-    const applyQuantities = (quantities) => {
-        setItems((previous) => {
-            const next = previous.filter((item) => item.designId !== resolved.designId);
-
-            for (const variant of resolved.variants) {
-                const quantity = Number(quantities[variant.colorVariantId] ?? 0);
-                if (quantity <= 0) continue;
-
-                next.push({
-                    colorVariantId: variant.colorVariantId,
-                    designId: resolved.designId,
-                    designCode: resolved.designCode,
-                    designName: resolved.designName,
-                    colorName: variant.colorName,
-                    colorHex: variant.colorHex,
-                    quantityPcs: quantity,
-                    availablePcs: variant.availablePcs,
-                });
-            }
-
-            return next;
-        });
-
-        const added = Object.values(quantities).reduce((sum, value) => sum + (Number(value) || 0), 0);
-        setResolved(null);
-        setFeedback({
-            tone: "ok",
-            message: added ? `Added ${added} pcs of ${resolved.designCode}. Scan the next design.` : `No pieces entered for ${resolved.designCode}.`,
-        });
     };
 
     const save = async (partySync) => {
@@ -163,11 +155,11 @@ const OrderFormEditor = () => {
     };
 
     if (isEditing && loadingExisting) {
-        return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-[#00694C]" /></div>;
+        return <div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-[#00694C]" /></div>;
     }
 
     return (
-        <div className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
+        <div className="flex flex-col gap-4 pb-4">
             <div className="glass-card rounded-[24px] p-5">
                 <div className="flex flex-wrap items-start justify-between gap-5">
                     <div>
@@ -217,21 +209,12 @@ const OrderFormEditor = () => {
             <div className="glass-card rounded-[24px] p-5">
                 <ScanPanel
                     title="Add designs"
-                    hint="Scan any hanging tag — set, semi-set or loose piece — to pull up its design, then type pieces per colour."
+                    hint="Scan any hanging tag — set, semi-set or loose piece — and its pieces are added to the order. Adjust quantities below."
                     placeholder="Set ID or piece ID, e.g. FL20500"
                     onScan={handleScan}
                     feedback={feedback}
                     busy={scanning}
                 />
-
-                {resolved && (
-                    <QuantityPanel
-                        design={resolved}
-                        items={items}
-                        onCancel={() => setResolved(null)}
-                        onApply={applyQuantities}
-                    />
-                )}
             </div>
 
             <div className="glass-card rounded-[24px] p-5">
@@ -342,68 +325,6 @@ const OrderFormEditor = () => {
                     onChoose={(choice) => { setSyncPrompt(null); save(choice); }}
                 />
             )}
-        </div>
-    );
-};
-
-// Pieces per colour for the design just scanned. Pre-filled with whatever is already on the
-// form for that design, so re-scanning a design edits its line rather than starting over.
-const QuantityPanel = ({ design, items, onApply, onCancel }) => {
-    const [quantities, setQuantities] = useState(() =>
-        Object.fromEntries(design.variants.map((variant) => [
-            variant.colorVariantId,
-            items.find((item) => item.colorVariantId === variant.colorVariantId)?.quantityPcs ?? "",
-        ])));
-
-    return (
-        <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-                <div>
-                    <b className="text-sm text-[#1E1B4B]">{design.designCode} · {design.designName}</b>
-                    <p className="text-[11.5px] text-[#1E1B4B]/60">
-                        Pieces required per colour — leave blank for colours they don't want.
-                    </p>
-                </div>
-                <button type="button" onClick={onCancel} className="rounded-lg p-1.5 text-[#1E1B4B]/50 hover:bg-white" title="Close">
-                    <X className="h-4 w-4" />
-                </button>
-            </div>
-
-            <div className="space-y-1.5">
-                {design.variants.map((variant) => (
-                    <div key={variant.colorVariantId} className="flex items-center gap-3 rounded-xl border border-white/70 bg-white px-3 py-2">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: variant.colorHex }} />
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold text-[#1E1B4B]">{variant.colorName}</div>
-                        </div>
-                        <span className={`text-xs ${variant.availablePcs ? "text-[#1E1B4B]/55" : "text-red-600"}`}>
-                            {variant.availablePcs ? `${variant.availablePcs} pcs in stock` : "Out of stock"}
-                        </span>
-                        <input
-                            type="number"
-                            min="0"
-                            placeholder="0"
-                            value={quantities[variant.colorVariantId]}
-                            onChange={(event) => setQuantities((previous) => ({ ...previous, [variant.colorVariantId]: event.target.value }))}
-                            onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); onApply(quantities); } }}
-                            className="w-24 rounded-lg border border-[#1E1B4B]/15 px-2 py-1.5 text-right font-mono text-sm font-bold outline-none focus:border-emerald-500"
-                        />
-                    </div>
-                ))}
-            </div>
-
-            <div className="mt-3 flex justify-end gap-2">
-                <button type="button" onClick={onCancel} className="neu-button rounded-full px-4 py-1.5 text-xs font-semibold text-[#1E1B4B]">
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    onClick={() => onApply(quantities)}
-                    className="rounded-full bg-[#00694C] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#00563e]"
-                >
-                    Add to order
-                </button>
-            </div>
         </div>
     );
 };

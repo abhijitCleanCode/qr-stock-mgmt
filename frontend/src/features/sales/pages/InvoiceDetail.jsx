@@ -16,12 +16,12 @@ const InvoiceDetail = () => {
     const invoice = response?.data;
 
     if (isPending) {
-        return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-[#00694C]" /></div>;
+        return <div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-[#00694C]" /></div>;
     }
 
     if (isError) {
         return (
-            <div className="glass-card flex h-full flex-col items-center justify-center gap-2 rounded-[24px] text-center">
+            <div className="glass-card flex flex-col items-center justify-center gap-2 py-16 rounded-[24px] text-center">
                 <b className="text-[#1E1B4B]">Invoice not found</b>
                 <span className="text-sm text-[#1E1B4B]/55">{error.message}</span>
             </div>
@@ -29,7 +29,7 @@ const InvoiceDetail = () => {
     }
 
     return (
-        <div className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
+        <div className="flex flex-col gap-4 pb-4">
             <div className="glass-card rounded-[24px] p-5">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>

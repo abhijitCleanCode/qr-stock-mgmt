@@ -389,6 +389,14 @@
     border-radius: 24px;
 }
 
+/* Stock Out stacks several cards 16px apart — the deep default shadow pools into grey bands
+   between them, so cards there get the same light lift as the Design Master / Stock In sheets. */
+.stock-out .glass-card {
+    box-shadow:
+        0 4px 20px rgba(15, 23, 42, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
 .glass-table {
     background:
         linear-gradient(135deg,
@@ -575,6 +583,12 @@
     box-shadow:
         0 10px 30px rgba(0, 0, 0, 0.25),
         0 20px 60px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 oklch(1 0 0 / 6%);
+}
+
+.dark .stock-out .glass-card {
+    box-shadow:
+        0 4px 20px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 oklch(1 0 0 / 6%);
 }
 

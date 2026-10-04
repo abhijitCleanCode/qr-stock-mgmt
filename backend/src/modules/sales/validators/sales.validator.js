@@ -86,7 +86,8 @@ export const checkNumberQuerySchema = z.object({
 });
 
 export const scanQuerySchema = z.object({
-    code: z.string().trim().min(1).max(32),
+    // A bare shortCode, or a whole JSON label payload (see ScanResolverService._toShortCode).
+    code: z.string().trim().min(1).max(500),
     invoiceId: z.coerce.number().int().positive().optional(),
     // Codes already on the picking screen, so a re-scan is reported as a duplicate rather than
     // silently accepted.

@@ -40,7 +40,7 @@ const Overview = () => {
     ];
 
     return (
-        <div className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
+        <div className="flex flex-col gap-4 pb-4">
             <div className="glass-card rounded-[24px] p-6">
                 <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">Stock Out</h1>
                 <p className="mt-1 max-w-[72ch] text-sm text-[#1E1B4B]/60">

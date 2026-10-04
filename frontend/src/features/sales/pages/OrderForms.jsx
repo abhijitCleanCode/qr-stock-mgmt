@@ -30,7 +30,7 @@ const OrderForms = () => {
     const countFor = (key) => (key ? counts[key] ?? 0 : Object.values(counts).reduce((sum, value) => sum + value, 0));
 
     return (
-        <div className="flex h-full flex-col">
+        <div className="flex flex-col">
             <div className="mb-4 flex shrink-0 flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">Order Forms</h1>
@@ -78,9 +78,9 @@ const OrderForms = () => {
 
                 <div className="min-h-0 flex-1 overflow-auto px-1 pb-1">
                     {isPending ? (
-                        <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-[#00694C]" /></div>
+                        <div className="flex items-center justify-center py-16"><Loader2 className="animate-spin text-[#00694C]" /></div>
                     ) : orderForms.length === 0 ? (
-                        <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                        <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
                             <FileText className="h-10 w-10 text-[#1E1B4B]/20" />
                             <b className="text-[#1E1B4B]">{search ? "No order forms match" : "No order forms yet"}</b>
                             <span className="text-sm text-[#1E1B4B]/55">
