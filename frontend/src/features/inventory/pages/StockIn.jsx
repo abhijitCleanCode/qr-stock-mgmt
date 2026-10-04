@@ -1,3 +1,4 @@
+import { buildConfirmedLabelLines } from "../utils/confirmedLabelLines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "react-toastify";
@@ -142,6 +143,8 @@ const StockIn = () => {
     const key = getVariantKey(variant);
     setSelectedVariants((prev) => (prev.some((item) => getVariantKey(item) === key) ? prev : [...prev, variant]));
     ensureConfig(variant);
+    // The design already records who makes it, so entering a design fills the jobber in.
+    if (variant.jobberName) setJobber({ id: variant.jobberId ?? null, name: variant.jobberName });
   };
 
   const omitKey = (record, key) =>
@@ -392,6 +395,9 @@ const StockIn = () => {
               }];
             });
           });
+
+          // The local print agent can't import this app's code, so it gets the finished label lines.
+          for (const printItem of printItems) printItem.labelLines = buildConfirmedLabelLines(printItem, printConfig);
 
           if (printItems.length === 0) throw new Error("No saved QR labels were returned for this inward.");
 

@@ -394,6 +394,10 @@ const QrTagStudioStep = ({
                 a4Preset,
                 a4StartAt,
                 qrmm,
+                fields,
+                firm: FIRM_LABEL,
+                jobber: jobber?.name ? `#${jobber.name.toUpperCase()}` : "UNASSIGNED",
+                date: formatDdMmYy(challanDate),
                 displayTags: allTags.map((tag) => ({ code: tag.code, kind: tag.kind, variantKey: tag.variant.key })),
               });
               onSetPrintOnConfirm(true);

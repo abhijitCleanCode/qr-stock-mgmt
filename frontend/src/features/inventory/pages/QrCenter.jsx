@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import "../qrCenter2.theme.css";
 import QrCenterHeader from "../components/qrCenter2/QrCenterHeader.jsx";
@@ -18,6 +18,9 @@ const EMPTY_FILTERS = { designId: "", colorVariantId: "", type: "", days: "" };
 
 const QrCenter = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    // Set by "View QR tags" on a Stock In challan: narrows the history below to that challan.
+    const challanNo = searchParams.get("challan") ?? "";
     const [query, setQuery] = useState("");
     const [filters, setFilters] = useState(EMPTY_FILTERS);
     const [selectedCode, setSelectedCode] = useState(null);
@@ -75,6 +78,8 @@ const QrCenter = () => {
 
             <HistorySection
                 designs={designs}
+                challanNo={challanNo}
+                onClearChallan={() => setSearchParams({}, { replace: true })}
                 onConfigure={(row) => setConfigureBatchId(row.registrationId)}
                 onView={(row) => navigate(`/qr-center/${row.registrationId}`)}
             />

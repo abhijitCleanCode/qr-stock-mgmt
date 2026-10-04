@@ -1,6 +1,14 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import QrCodeImage from "../../qr-center/QrCodeImage";
+import { buildConfirmedLabelLines } from "../../../utils/confirmedLabelLines";
+
+const LINE_STYLE = {
+  title: { fontSize: "2mm", fontWeight: 700 },
+  bold: { fontSize: "1.7mm", fontWeight: 700 },
+  price: { fontSize: "1.9mm", fontWeight: 700 },
+  muted: { fontSize: "1.7mm" },
+};
 
 const LABELS_PER_SHEET = 40;
 
@@ -51,6 +59,7 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, content = {}, onAfterPrint })
         ? `${item.type === "BUNDLE" ? "SEMI" : "SET"} ${item.piecesPerSet ?? item.composition?.length ?? 0}-PC`
         : `SIZE ${item.designSizeLabel ?? ""}`;
       const priceText = isParent ? `₹ ${setPrice.toLocaleString("en-IN")} (SET)` : `₹ ${price.toLocaleString("en-IN")}`;
+      const lines = buildConfirmedLabelLines(item, content);
       cells.push(
         <div
           key={`qr-${item.stockItemId}`}
@@ -64,10 +73,24 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, content = {}, onAfterPrint })
             className="shrink-0"
           />
           <div className="min-w-0 flex-1 overflow-hidden font-mono leading-tight">
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap font-bold" style={{ fontSize: "2mm" }}>{stockId}</div>
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>{designCode} · {variantName}</div>
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>{detail}</div>
-            <div className="font-bold" style={{ fontSize: "1.9mm" }}>{priceText}</div>
+            {lines ? (
+              lines.map((line, lineIndex) => (
+                <div
+                  key={lineIndex}
+                  className={`overflow-hidden text-ellipsis whitespace-nowrap ${line.style === "muted" ? "text-slate-600" : ""}`}
+                  style={LINE_STYLE[line.style]}
+                >
+                  {line.text}
+                </div>
+              ))
+            ) : (
+              <>
+                <div className="overflow-hidden text-ellipsis whitespace-nowrap font-bold" style={{ fontSize: "2mm" }}>{stockId}</div>
+                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>{designCode} · {variantName}</div>
+                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>{detail}</div>
+                <div className="font-bold" style={{ fontSize: "1.9mm" }}>{priceText}</div>
+              </>
+            )}
           </div>
         </div>,
       );

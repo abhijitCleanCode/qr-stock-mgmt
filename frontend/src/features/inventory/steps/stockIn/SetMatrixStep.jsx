@@ -41,7 +41,7 @@ const DesignHeader = ({ variants }) => {
       <div className="text-right">
         <span className="block text-[11px] text-slate-500">Selling Price Base</span>
         <span className="text-xs font-bold text-slate-800">
-          {formatInr(price)} / Pc ({formatInr(price * sizes.length)} / Set)
+          {formatInr(price)} / Pc
         </span>
       </div>
     </div>
