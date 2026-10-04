@@ -119,7 +119,7 @@ const Gallery = () => {
     };
 
     return (
-        <div className="flex h-[calc(100vh-8rem)] flex-col gap-4 overflow-y-auto pb-4 font-sans">
+        <div className="stock-out flex flex-col gap-4 pb-4 font-sans">
             <div className="glass-card rounded-[24px] p-5">
                 <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">Gallery</h1>
                 <p className="mt-1 max-w-[72ch] text-sm text-[#1E1B4B]/60">

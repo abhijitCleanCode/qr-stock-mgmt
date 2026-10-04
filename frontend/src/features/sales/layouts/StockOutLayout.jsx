@@ -9,7 +9,7 @@ const TABS = [
 ];
 
 const StockOutLayout = () => (
-    <div className="flex h-[calc(100vh-8rem)] flex-col font-sans">
+    <div className="stock-out flex flex-col font-sans">
         <nav className="toolbar-neu mb-5 flex w-fit shrink-0 gap-1 rounded-full p-1">
             {TABS.map((tab) => (
                 <NavLink
@@ -26,7 +26,7 @@ const StockOutLayout = () => (
             ))}
         </nav>
 
-        <div className="min-h-0 flex-1">
+        <div>
             <Outlet />
         </div>
     </div>

@@ -60,10 +60,33 @@ class ScanResolverService {
         return [{ designSizeId: context.designSizeId, sizeLabel: context.sizeLabel ?? "", quantity: 1 }];
     }
 
+    // What a scanner reads depends on which screen printed the label: QR Center 2 encodes the bare
+    // shortCode, while Stock In's A4 sheet and the older QR Center encode the JSON payload
+    // ({ designCode, designName, colorName, setId } — see stockQr.service.js#buildPayload), whose
+    // setId is the stock item id. Both resolve to the same tag; a payload whose item has no
+    // ACTIVE label left reads as unknown.
+    async _toShortCode(runner, code) {
+        const text = String(code ?? "").trim();
+        if (!text.startsWith("{")) return text.toUpperCase();
+
+        let payload;
+        try {
+            payload = JSON.parse(text);
+        } catch {
+            return null;
+        }
+
+        const stockItemId = Number(payload?.setId);
+        if (!Number.isInteger(stockItemId) || stockItemId <= 0) return null;
+
+        const qrRow = await this._stockItemQrRepository.findLatestActiveByStockItemId(runner, stockItemId);
+        return qrRow?.shortCode ?? null;
+    }
+
     // Returns null for an unknown code rather than throwing: "not a tag we know" is an ordinary
     // answer at a scanning station, not an exceptional one, and the caller words it for the user.
     async resolve(code, { runner = db } = {}) {
-        const shortCode = String(code ?? "").trim().toUpperCase();
+        const shortCode = await this._toShortCode(runner, code);
         if (!shortCode) return null;
 
         const qrRows = await this._stockItemQrRepository.findByShortCode(runner, shortCode);

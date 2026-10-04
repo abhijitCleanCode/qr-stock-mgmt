@@ -253,11 +253,11 @@ const InvoiceEditor = () => {
     };
 
     if (isEditing && loadingExisting) {
-        return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-[#00694C]" /></div>;
+        return <div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-[#00694C]" /></div>;
     }
 
     return (
-        <div className="flex h-full flex-col gap-4 overflow-y-auto pb-4">
+        <div className="flex flex-col gap-4 pb-4">
             <div className="glass-card rounded-[24px] p-5">
                 <div className="flex flex-wrap items-start justify-between gap-5">
                     <div>

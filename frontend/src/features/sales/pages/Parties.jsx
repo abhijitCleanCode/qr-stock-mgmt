@@ -24,7 +24,7 @@ const Parties = () => {
     const columns = buildPartyColumns({ onEdit: openEdit });
 
     return (
-        <div className="flex h-full flex-col">
+        <div className="flex flex-col">
             <div className="mb-4 flex shrink-0 flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">Party Master</h1>
@@ -58,7 +58,7 @@ const Parties = () => {
 
                 <div className="min-h-0 flex-1 bg-transparent">
                     {isPending ? (
-                        <div className="flex h-full items-center justify-center">
+                        <div className="flex items-center justify-center py-16">
                             <Loader2 className="animate-spin text-[#00694C]" />
                         </div>
                     ) : (

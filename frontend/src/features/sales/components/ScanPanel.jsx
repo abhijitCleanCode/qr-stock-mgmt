@@ -1,6 +1,36 @@
 import { useEffect, useRef, useState } from "react";
+import jsQR from "jsqr";
 import { AlertTriangle, Camera, Check, Keyboard, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Frames are downscaled to this width before jsQR reads them — plenty for a tag held in the
+// frame, and keeps each read cheap enough for the 350ms scan loop.
+const DECODE_WIDTH = 640;
+
+// The browser's own BarcodeDetector where it exists (Chrome on Android/macOS), otherwise jsQR on
+// a canvas snapshot of the video — desktop Chrome on Windows, Brave, Firefox and Safari have no
+// BarcodeDetector. Either way: video element in, decoded text (or null) out.
+function createDetector() {
+    if ("BarcodeDetector" in window) {
+        const native = new window.BarcodeDetector({ formats: ["qr_code", "code_128"] });
+        return async (video) => (await native.detect(video))[0]?.rawValue ?? null;
+    }
+
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+
+    return async (video) => {
+        if (!video.videoWidth) return null;
+
+        const scale = Math.min(1, DECODE_WIDTH / video.videoWidth);
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
+        return jsQR(data, width, height, { inversionAttempts: "dontInvert" })?.data ?? null;
+    };
+}
 
 const METHODS = [
     { key: "Manual", label: "Manual ID", Icon: Keyboard },
@@ -25,10 +55,15 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
     const streamRef = useRef(null);
     const timerRef = useRef(null);
     const lastRef = useRef({ code: "", at: 0 });
+    // The camera loop is an interval created once per Start — reading onScan through a ref means
+    // it always calls the page's latest handler (and so sees the latest picked/requested items).
+    const onScanRef = useRef(onScan);
+    useEffect(() => {
+        onScanRef.current = onScan;
+    }, [onScan]);
 
-    const cameraSupported = typeof window !== "undefined"
-        && "BarcodeDetector" in window
-        && Boolean(navigator.mediaDevices?.getUserMedia);
+    // Browsers only expose the camera on https or localhost.
+    const cameraSupported = typeof window !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
 
     const stopCamera = () => {
         if (timerRef.current) clearInterval(timerRef.current);
@@ -51,7 +86,7 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
         const trimmed = String(code ?? "").trim();
         if (!trimmed) return;
 
-        onScan(trimmed, via);
+        onScanRef.current(trimmed, via);
         setValue("");
         inputRef.current?.focus();
     };
@@ -66,14 +101,13 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
             await videoRef.current.play();
             setCameraOn(true);
 
-            const detector = new window.BarcodeDetector({ formats: ["qr_code", "code_128"] });
+            const detect = createDetector();
 
             timerRef.current = setInterval(async () => {
                 try {
-                    const codes = await detector.detect(videoRef.current);
-                    if (codes.length === 0) return;
+                    const code = await detect(videoRef.current);
+                    if (!code) return;
 
-                    const code = codes[0].rawValue;
                     const now = Date.now();
                     // A tag held in frame reads many times a second; without this the same set is
                     // added repeatedly while the operator is still lining up the next one.
@@ -121,7 +155,7 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
                         <video ref={videoRef} playsInline muted className="absolute inset-0 h-full w-full object-cover" />
                         <div className="relative h-32 w-32 rounded-xl border-[2.5px] border-white/85" />
                         <span className="absolute bottom-2 left-0 right-0 text-center text-[11.5px] text-slate-300">
-                            {!cameraSupported ? "Live camera scanning isn't supported in this browser"
+                            {!cameraSupported ? "The camera is only available on https or localhost"
                                 : cameraError ? cameraError
                                 : cameraOn ? "Scanning… hold the tag inside the frame"
                                 : "Tap Start camera, then point at the QR tag"}
@@ -139,7 +173,7 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
                                 </button>
                             </>
                         ) : (
-                            <span className="text-xs text-[#1E1B4B]/60">Use Chrome on Android, or type the ID with Manual ID.</span>
+                            <span className="text-xs text-[#1E1B4B]/60">Open this page over https, or use the QR Gun / Manual ID.</span>
                         )}
                     </div>
                 </div>
