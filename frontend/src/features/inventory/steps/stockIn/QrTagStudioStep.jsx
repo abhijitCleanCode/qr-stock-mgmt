@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
 import StrategyCards from "../../components/stock-in/qrTagStudio/StrategyCards";
@@ -11,6 +11,7 @@ import A4SheetPreview from "../../components/stock-in/qrTagStudio/A4SheetPreview
 import PreviewFilterBar from "../../components/stock-in/qrTagStudio/PreviewFilterBar";
 import ActionBar from "../../components/stock-in/qrTagStudio/ActionBar";
 import QrTagPrintSheet from "../../components/stock-in/qrTagStudio/QrTagPrintSheet";
+import { downloadTagSheetPdf } from "../../utils/qrTagPdf";
 import { useTagPresetApi } from "../../hooks/useTagPresetApi";
 import { getVariantKey } from "../../utils/variantKey";
 import { getVariantDisplayCode } from "../../utils/variantDisplay";
@@ -54,8 +55,8 @@ const QrTagStudioStep = ({
   onPrinterChange,
   onTestPrint,
   onSetPrintOnConfirm,
-  onSetPrintConfig,
-  onAdvance,
+  onPrintedChange,
+  printed,
 }) => {
   const [activeTab, setActiveTab] = useState("parent");
   const [engine, setEngine] = useState("a4");
@@ -210,6 +211,46 @@ const QrTagStudioStep = ({
       toast.success("Tag preset saved for this design.");
     } catch (error) {
       toast.error(error?.message ?? "Couldn't save the preset.");
+    }
+  };
+
+  // Any change to what would be printed invalidates an earlier print, so the user re-prints
+  // before moving on.
+  const printSignature = `${engine}|${a4Preset}|${a4StartAt}|${qrmm}|${typography}|${JSON.stringify(fields)}|${allTags.map((tag) => tag.code).join(",")}`;
+  useEffect(() => {
+    onPrintedChange(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printSignature]);
+
+  // The browser print dialog is the printer hand-off; the step unlocks once it closes.
+  const handleSendToPrinter = () => {
+    if (filteredTags.length !== taggedTags.length) {
+      toast.error("Clear the preview filter so every tag is included before printing.");
+      return;
+    }
+    const markPrinted = () => {
+      window.removeEventListener("afterprint", markPrinted);
+      onPrintedChange(true);
+    };
+    window.addEventListener("afterprint", markPrinted);
+    onSetPrintOnConfirm(false);
+    window.print();
+  };
+
+  const handleDownloadPdf = () => {
+    try {
+      downloadTagSheetPdf({
+        engine,
+        tags: filteredTags,
+        a4Preset,
+        a4StartAt,
+        thermalPreset,
+        qrmm,
+        buildTagData,
+        fileName: `qr-tags-${challanNo || "stock-in"}.pdf`,
+      });
+    } catch (error) {
+      toast.error(error?.message ?? "Couldn't create the PDF.");
     }
   };
 
@@ -382,27 +423,9 @@ const QrTagStudioStep = ({
             }}
             isSavingPreset={isSavingPreset}
             onSavePreset={handleSavePreset}
-            onDownloadPdf={() => window.print()}
-            onSkip={() => { onSetPrintOnConfirm(false); onAdvance(); }}
-            onSendToPrinter={() => {
-              if (engine !== "a4") {
-                toast.error("Select the A4 sheet engine to print on the 4×10 label sheet.");
-                return;
-              }
-              onSetPrintConfig({
-                engine,
-                a4Preset,
-                a4StartAt,
-                qrmm,
-                fields,
-                firm: FIRM_LABEL,
-                jobber: jobber?.name ? `#${jobber.name.toUpperCase()}` : "UNASSIGNED",
-                date: formatDdMmYy(challanDate),
-                displayTags: allTags.map((tag) => ({ code: tag.code, kind: tag.kind, variantKey: tag.variant.key })),
-              });
-              onSetPrintOnConfirm(true);
-              onAdvance();
-            }}
+            printed={printed}
+            onDownloadPdf={handleDownloadPdf}
+            onSendToPrinter={handleSendToPrinter}
           />
 
           <QrTagPrintSheet

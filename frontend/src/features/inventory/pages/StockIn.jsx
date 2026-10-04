@@ -105,6 +105,7 @@ const StockIn = () => {
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
   const [printer, setPrinter] = useState("A4 Laser Printer (4×10 · 40-Up)");
   const [printOnConfirm, setPrintOnConfirm] = useState(false);
+  const [tagsPrinted, setTagsPrinted] = useState(false);
   const [printConfig, setPrintConfig] = useState({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   const [confirmedQrPrint, setConfirmedQrPrint] = useState(null);
   // Physical dispatch is handled by the local print agent; the backend printer registry is
@@ -174,6 +175,7 @@ const StockIn = () => {
     setTagLoose(true);
     setQrPerVariantSettings({});
     setPrintOnConfirm(false);
+    setTagsPrinted(false);
     setPrintConfig({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   };
 
@@ -433,6 +435,10 @@ const StockIn = () => {
   };
 
   const handleNext = () => {
+    if (wizard.activeStep === 3 && !tagsPrinted) {
+      toast.error("Send the tags to the printer before continuing.");
+      return;
+    }
     if (wizard.activeStep === 4) {
       handleConfirmInward();
       return;
@@ -600,8 +606,8 @@ const StockIn = () => {
             onPrinterChange={setPrinter}
             onTestPrint={handleTestPrint}
             onSetPrintOnConfirm={setPrintOnConfirm}
-            onSetPrintConfig={setPrintConfig}
-            onAdvance={wizard.next}
+            printed={tagsPrinted}
+            onPrintedChange={setTagsPrinted}
           />
         )}
 
@@ -625,6 +631,7 @@ const StockIn = () => {
         activeStep={wizard.activeStep}
         onPrev={wizard.prev}
         onNext={handleNext}
+        nextDisabled={wizard.activeStep === 3 && !tagsPrinted}
         onSaveDraft={handleSaveDraft}
         isSubmitting={isPending}
         isSavingDraft={isSavingDraft}

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 
-const ActionBar = ({ totals, onSavePreset, onDownloadPdf, onSkip, onSendToPrinter, isSavingPreset }) => (
+const ActionBar = ({ totals, onSavePreset, onDownloadPdf, onSendToPrinter, isSavingPreset, printed }) => (
   <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
     <div className="flex flex-wrap gap-6">
       <div>
@@ -27,11 +27,8 @@ const ActionBar = ({ totals, onSavePreset, onDownloadPdf, onSkip, onSendToPrinte
       <Button type="button" variant="outline" onClick={onDownloadPdf} className="rounded-lg border-slate-200 text-xs font-semibold text-slate-700">
         Download PDF
       </Button>
-      <Button type="button" variant="outline" onClick={onSkip} className="rounded-lg border-slate-200 text-xs font-semibold text-slate-700">
-        Skip · send to QR Center
-      </Button>
       <Button type="button" onClick={onSendToPrinter} className="gap-1.5 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700">
-        Send to printer →
+        {printed ? "Printed ✓ · print again" : "Send to printer →"}
       </Button>
     </div>
   </div>
