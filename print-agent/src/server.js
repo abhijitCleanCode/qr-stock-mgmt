@@ -92,6 +92,24 @@ function drawLabel(doc, item, qrPng, content = {}) {
 
   doc.rect(x, y, labelWidth, labelHeight).lineWidth(0.35).stroke("#111111");
   doc.image(qrPng, x + padding, y + (labelHeight - qrSize) / 2, { width: qrSize, height: qrSize });
+  if (Array.isArray(item.labelLines) && item.labelLines.length > 0) {
+    const styles = {
+      title: ["Helvetica-Bold", 5.7, "#111111"],
+      bold: ["Helvetica-Bold", 4.8, "#111111"],
+      price: ["Helvetica-Bold", 5.1, "#111111"],
+      muted: ["Helvetica", 4.4, "#555555"],
+    };
+    const lineHeight = 6.2;
+    const startY = y + Math.max(padding, (labelHeight - item.labelLines.length * lineHeight) / 2);
+    item.labelLines.forEach((line, index) => {
+      const [font, size, color] = styles[line.style] ?? styles.muted;
+      // Built-in PDF fonts have no rupee glyph.
+      doc.font(font).fontSize(size).fillColor(color)
+        .text(String(line.text).replaceAll("₹", "Rs."), textX, startY + index * lineHeight, { width: textWidth, height: lineHeight, ellipsis: true, lineBreak: false });
+    });
+    return;
+  }
+
   doc.font("Helvetica-Bold").fontSize(5.7).fillColor("#111111")
     .text(stockId, textX, firstY, { width: textWidth, height: 6, ellipsis: true, lineBreak: false });
   doc.font("Helvetica").fontSize(4.8).fillColor("#555555")

@@ -7,7 +7,7 @@ const Kbd = ({ children }) => (
   <kbd className="mx-px rounded border border-b-2 border-slate-300 bg-white px-1.5 py-px font-mono text-[10.5px] font-semibold text-slate-700">{children}</kbd>
 );
 
-const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSubmitting, isSavingDraft }) => {
+const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSubmitting, isSavingDraft, nextDisabled }) => {
   const isFirstStep = activeStep === 0;
   const isLastStep = activeStep === STOCK_IN_STEPS.length - 1;
 
@@ -47,7 +47,8 @@ const StockInWizardNavigation = ({ activeStep, onPrev, onNext, onSaveDraft, isSu
           id="stock-in-next"
           type="button"
           onClick={onNext}
-          disabled={isSubmitting}
+          disabled={isSubmitting || nextDisabled}
+          title={nextDisabled ? "Send the tags to the printer first" : undefined}
           className={
             isLastStep
               ? "gap-2 rounded-lg bg-slate-900 text-xs font-semibold text-white hover:bg-black"

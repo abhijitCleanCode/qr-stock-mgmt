@@ -25,6 +25,8 @@ const flattenToVariantItems = (designs) =>
       designName: design.name,
       designQuality: design.quality,
       designItemName: design.itemName,
+      jobberId: design.jobberId,
+      jobberName: design.jobberName,
       colorName: variant.colorName,
       colorHex: variant.colorHex,
       imageUrl: variant.imageUrl,
