@@ -1,12 +1,12 @@
 import { jsPDF } from "jspdf";
 
-import { A4_PRESETS, labelDims } from "./qrTagStudio";
+import { A4_PRESETS, buildTagLines, labelDims } from "./qrTagStudio";
 
 // Builds the tag sheets as a PDF file (never touches a printer). QR images are read off the
 // canvases QrTagPrintSheet already renders for every tag in the job, so the PDF always matches
 // what would be printed. A4 jobs get one page per die-cut sheet; thermal jobs get one
 // label-sized page per tag.
-export function downloadTagSheetPdf({ engine, tags, a4Preset, a4StartAt, thermalPreset, qrmm, buildTagData, fileName }) {
+export function downloadTagSheetPdf({ engine, tags, a4Preset, a4StartAt, thermalPreset, qrmm, fields, buildTagData, fileName }) {
   const canvases = [...document.querySelectorAll("#qr-tag-print-sheet canvas")];
   if (tags.length === 0 || canvases.length < tags.length) {
     throw new Error("The tag sheet isn't ready yet — try again in a moment.");
@@ -18,7 +18,7 @@ export function downloadTagSheetPdf({ engine, tags, a4Preset, a4StartAt, thermal
     const pdf = new jsPDF({ unit: "mm", format: [w, h], orientation: w > h ? "landscape" : "portrait" });
     tags.forEach((tag, index) => {
       if (index > 0) pdf.addPage([w, h], w > h ? "landscape" : "portrait");
-      drawLabel(pdf, tag, buildTagData(tag), qrOf(index), 0, 0, w, h, qrmm);
+      drawLabel(pdf, tag, buildTagData(tag), fields, qrOf(index), 0, 0, w, h, qrmm);
     });
     pdf.save(fileName);
     return;
@@ -39,12 +39,12 @@ export function downloadTagSheetPdf({ engine, tags, a4Preset, a4StartAt, thermal
     }
     const x = originX + (slotOnSheet % grid.c) * grid.w;
     const y = originY + Math.floor(slotOnSheet / grid.c) * grid.h;
-    drawLabel(pdf, tag, buildTagData(tag), qrOf(index), x, y, grid.w, grid.h, qrmm);
+    drawLabel(pdf, tag, buildTagData(tag), fields, qrOf(index), x, y, grid.w, grid.h, qrmm);
   });
   pdf.save(fileName);
 }
 
-function drawLabel(pdf, tag, data, qrImage, x, y, w, h, qrmm) {
+function drawLabel(pdf, tag, data, fields, qrImage, x, y, w, h, qrmm) {
   const pad = 1;
   const qr = Math.min(qrmm, h - pad * 2);
   pdf.setDrawColor(203, 213, 225);
@@ -54,18 +54,14 @@ function drawLabel(pdf, tag, data, qrImage, x, y, w, h, qrmm) {
 
   const textX = x + pad * 2 + qr;
   const maxWidth = x + w - pad - textX;
-  const lines = [
-    { text: tag.code, size: 6, bold: true },
-    { text: `${data.designCode} · ${data.variantName}`, size: 5, bold: false },
-    { text: tag.kind === "parent" ? `${tag.isSemiSet ? "SEMI" : "SET"} ${tag.piecesPerSet}-PC` : `SIZE ${tag.size}`, size: 5, bold: false },
-    { text: tag.kind === "parent" ? data.bundlePrice : data.piecePrice, size: 5.5, bold: true },
-  ];
-  let cursor = y + (h - lines.length * 3.2) / 2 + 2.4;
+  const SIZE = { title: 6, muted: 4.2, bold: 5, price: 5.5 };
+  const lines = buildTagLines(tag, data, fields).map((line) => ({ text: line.text, size: SIZE[line.style], bold: line.style !== "muted" }));
+  let cursor = y + (h - lines.length * 2.8) / 2 + 2.2;
   for (const line of lines) {
     pdf.setFont("courier", line.bold ? "bold" : "normal");
     pdf.setFontSize(line.size);
     pdf.setTextColor(15, 23, 42);
     pdf.text(pdf.splitTextToSize(String(line.text), maxWidth)[0], textX, cursor);
-    cursor += 3.2;
+    cursor += 2.8;
   }
 }

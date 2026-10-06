@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import QrCodeImage from "../../qr-center/QrCodeImage";
 import LabelTag from "./LabelTag";
-import { A4_PRESETS } from "../../../utils/qrTagStudio";
+import { A4_PRESETS, buildTagLines } from "../../../utils/qrTagStudio";
 
 // The on-screen "Live preview" (TagRoll / A4SheetPreview) is a scrollable, zoomable review
 // widget — great for checking the job, wrong to print from directly: A4SheetPreview only
@@ -14,6 +14,8 @@ import { A4_PRESETS } from "../../../utils/qrTagStudio";
 // the job at true physical (mm) size, invisible on screen, and revealed only by the
 // `@media print` rule below — which also hides everything else in the document, the same
 // visibility trick used by QrPrintSheet for the QR Center page.
+const LINE_MM = { title: "2mm", muted: "1.5mm", bold: "1.7mm", price: "1.9mm" };
+
 const QrTagPrintSheet = ({ engine, tags, a4Preset, a4StartAt, fields, qrmm, typography, buildTagData }) => {
   if (tags.length === 0) return null;
 
@@ -33,7 +35,7 @@ const QrTagPrintSheet = ({ engine, tags, a4Preset, a4StartAt, fields, qrmm, typo
       {engine === "thermal" ? (
         <ThermalPrintRoll tags={tags} buildTagData={buildTagData} fields={fields} qrmm={qrmm} typography={typography} />
       ) : (
-        <A4PrintPages tags={tags} a4Preset={a4Preset} startAt={a4StartAt} buildTagData={buildTagData} qrmm={qrmm} />
+        <A4PrintPages tags={tags} a4Preset={a4Preset} startAt={a4StartAt} buildTagData={buildTagData} fields={fields} qrmm={qrmm} />
       )}
     </div>,
     document.body,
@@ -55,7 +57,7 @@ const ThermalPrintRoll = ({ tags, buildTagData, fields, qrmm, typography }) => (
 // Rebuilds every sheet the job needs (not just the one currently paginated on screen), laid
 // out with the die-cut grid's real mm dimensions so cells line up with the physical sticker
 // sheet, with one `page-break-after` per sheet so a 3-sheet job actually prints 3 pages.
-const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
+const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, fields, qrmm }) => {
   const grid = A4_PRESETS[a4Preset];
   const perSheet = grid.c * grid.r;
   const skip = Math.max(0, Number(startAt) - 1);
@@ -83,18 +85,11 @@ const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
         >
           <QrCodeImage value={tag.code} size={200} style={{ width: `${qrmm}mm`, height: `${qrmm}mm` }} className="shrink-0" />
           <div className="min-w-0 flex-1 overflow-hidden leading-tight">
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap font-bold" style={{ fontSize: "2mm" }}>
-              {tag.code}
-            </div>
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>
-              {data.designCode} · {data.variantName}
-            </div>
-            <div className="overflow-hidden text-ellipsis whitespace-nowrap text-slate-600" style={{ fontSize: "1.7mm" }}>
-              {tag.kind === "parent" ? `${tag.isSemiSet ? "SEMI" : "SET"} ${tag.piecesPerSet}-PC` : `SIZE ${tag.size}`}
-            </div>
-            <div className="font-bold" style={{ fontSize: "1.9mm" }}>
-              {tag.kind === "parent" ? data.bundlePrice : data.piecePrice}
-            </div>
+            {buildTagLines(tag, data, fields).map((line, n) => (
+              <div key={n} className={`overflow-hidden text-ellipsis whitespace-nowrap ${line.style === "muted" ? "text-slate-600" : ""}`} style={{ fontSize: LINE_MM[line.style], fontWeight: line.style === "muted" ? 400 : 700 }}>
+                {line.text}
+              </div>
+            ))}
           </div>
         </div>
       );

@@ -13,6 +13,7 @@ import ActionBar from "../../components/stock-in/qrTagStudio/ActionBar";
 import QrTagPrintSheet from "../../components/stock-in/qrTagStudio/QrTagPrintSheet";
 import { downloadTagSheetPdf } from "../../utils/qrTagPdf";
 import { useTagPresetApi } from "../../hooks/useTagPresetApi";
+import { useSerialCountersApi } from "../../hooks/useStockInChallansApi";
 import { getVariantKey } from "../../utils/variantKey";
 import { getVariantDisplayCode } from "../../utils/variantDisplay";
 import {
@@ -25,7 +26,7 @@ import {
   labelDims,
 } from "../../utils/qrTagStudio";
 
-const FIRM_LABEL = "STOCK MGMT";
+const FIRM_LABEL = "SHAKSHAM'S FASHIONS";
 
 const formatDdMmYy = (isoDate) => {
   if (!isoDate) return "—";
@@ -55,6 +56,7 @@ const QrTagStudioStep = ({
   onPrinterChange,
   onTestPrint,
   onSetPrintOnConfirm,
+  onPrintConfigChange,
   onPrintedChange,
   printed,
 }) => {
@@ -89,6 +91,7 @@ const QrTagStudioStep = ({
         const semiSetsTotal = (configs[key]?.bundles ?? []).reduce((sum, bundle) => sum + (Number(bundle.quantity) || 0), 0);
         return {
           key,
+          colorVariantId: configs[key]?.colorVariantId,
           designId: variant.designId,
           colorName: variant.colorName,
           colorHex: variant.colorHex,
@@ -132,9 +135,19 @@ const QrTagStudioStep = ({
   // Every physical tag this batch will actually produce — real per-tag composition/size,
   // never one sample repeated (see buildTagList's doc comment for how this can differ
   // slightly from the QC-adjusted "child" total in the Generation Queue table above).
+  const serialCountersQuery = useSerialCountersApi(variants.map((v) => v.colorVariantId));
+  const serialsReady = !serialCountersQuery.isPending && !serialCountersQuery.isError && !serialCountersQuery.isFetching;
+  // Next free serial per colour variant — labels continue after the last number ever issued.
+  const serialStarts = useMemo(
+    () =>
+      Object.fromEntries(
+        (serialCountersQuery.data?.data ?? []).map((row) => [row.colorVariantId, { set: row.lastSetSerial + 1, piece: row.lastPieceSerial + 1 }])
+      ),
+    [serialCountersQuery.data]
+  );
   const allTags = useMemo(
-    () => buildTagList(variants, configs, printStrategy, perVariantSettings),
-    [variants, configs, printStrategy, perVariantSettings]
+    () => buildTagList(variants, configs, printStrategy, perVariantSettings, serialStarts),
+    [variants, configs, printStrategy, perVariantSettings, serialStarts]
   );
 
   const taggedTags = useMemo(
@@ -160,7 +173,6 @@ const QrTagStudioStep = ({
       piecesPerSet: tag.piecesPerSet ?? 0,
       isSemiSet: Boolean(tag.isSemiSet),
       jobber: jobber?.name ? `#${jobber.name.toUpperCase()}` : "UNASSIGNED",
-      bundlePrice: `₹ ${((v.sellingPricePerPiece ?? 0) * (tag.piecesPerSet ?? 0)).toLocaleString("en-IN")} (SET)`,
       piecePrice: `₹ ${(v.sellingPricePerPiece ?? 0).toLocaleString("en-IN")}`,
       date: formatDdMmYy(challanDate),
       size: tag.size,
@@ -177,7 +189,6 @@ const QrTagStudioStep = ({
     composition: primaryVariant?.sizeLabels?.join(" · ") || "—",
     piecesPerSet: primaryVariant?.piecesPerSet ?? 0,
     jobber: jobber?.name ? `#${jobber.name.toUpperCase()}` : "UNASSIGNED",
-    bundlePrice: `₹ ${((primaryVariant?.sellingPricePerPiece ?? 0) * (primaryVariant?.piecesPerSet ?? 0)).toLocaleString("en-IN")} (SET)`,
     piecePrice: `₹ ${(primaryVariant?.sellingPricePerPiece ?? 0).toLocaleString("en-IN")}`,
     date: formatDdMmYy(challanDate),
     size: sampleSize,
@@ -214,6 +225,24 @@ const QrTagStudioStep = ({
     }
   };
 
+  // Hands the studio's choices up so the confirmed print (after registration) renders the same
+  // fields, firm header and tag order as this preview.
+  useEffect(() => {
+    onPrintConfigChange?.({
+      engine,
+      a4Preset,
+      a4StartAt,
+      qrmm,
+      fields,
+      firm: FIRM_LABEL,
+      jobber: jobber?.name ? `#${jobber.name.toUpperCase()}` : "UNASSIGNED",
+      date: formatDdMmYy(challanDate),
+      serialStarts: Object.fromEntries(variants.map((v) => [v.key, serialStarts[v.colorVariantId]]).filter(([, start]) => start)),
+      displayTags: allTags.map((tag) => ({ variantKey: tag.variant.key, kind: tag.kind, code: tag.code })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, a4Preset, a4StartAt, qrmm, fields, jobber?.name, challanDate, allTags, serialStarts]);
+
   // Any change to what would be printed invalidates an earlier print, so the user re-prints
   // before moving on.
   const printSignature = `${engine}|${a4Preset}|${a4StartAt}|${qrmm}|${typography}|${JSON.stringify(fields)}|${allTags.map((tag) => tag.code).join(",")}`;
@@ -223,7 +252,15 @@ const QrTagStudioStep = ({
   }, [printSignature]);
 
   // The browser print dialog is the printer hand-off; the step unlocks once it closes.
+  const serialsBlockedMessage = serialCountersQuery.isError
+    ? "Couldn't load the current QR serial numbers — check your connection and try again."
+    : "Still loading the current QR serial numbers — try again in a moment.";
+
   const handleSendToPrinter = () => {
+    if (!serialsReady) {
+      toast.error(serialsBlockedMessage);
+      return;
+    }
     if (filteredTags.length !== taggedTags.length) {
       toast.error("Clear the preview filter so every tag is included before printing.");
       return;
@@ -238,6 +275,10 @@ const QrTagStudioStep = ({
   };
 
   const handleDownloadPdf = () => {
+    if (!serialsReady) {
+      toast.error(serialsBlockedMessage);
+      return;
+    }
     try {
       downloadTagSheetPdf({
         engine,
@@ -246,6 +287,7 @@ const QrTagStudioStep = ({
         a4StartAt,
         thermalPreset,
         qrmm,
+        fields,
         buildTagData,
         fileName: `qr-tags-${challanNo || "stock-in"}.pdf`,
       });
@@ -384,7 +426,7 @@ const QrTagStudioStep = ({
                     />
                   ) : (
                     <div className="p-4">
-                      <A4SheetPreview tags={filteredTags} a4Preset={a4Preset} startAt={a4StartAt} buildTagData={buildTagData} qrmm={qrmm} />
+                      <A4SheetPreview tags={filteredTags} a4Preset={a4Preset} startAt={a4StartAt} buildTagData={buildTagData} fields={fields} qrmm={qrmm} />
                     </div>
                   )}
                 </div>

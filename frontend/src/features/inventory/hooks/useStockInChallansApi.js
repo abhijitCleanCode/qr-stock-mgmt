@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import {
     dropStockInChallanApi,
     getNextStockInSerialApi,
+    getSerialCountersApi,
     getStockInChallanApi,
     getStockInChallansApi,
     getStockInJobberSummaryApi,
@@ -63,3 +64,16 @@ export const useUpdateStockInChallanApi = () => useChallanMutation(updateStockIn
 export const useDropStockInChallanApi = () => useChallanMutation(dropStockInChallanApi, { alsoStock: true });
 
 export const useLogStockInChallanEventApi = () => useChallanMutation(logStockInChallanEventApi);
+
+// Next free QR serial (sets, pieces) per colour variant. Always refetched: the labels printed from
+// these numbers are checked against the live counters when the inward is confirmed.
+export function useSerialCountersApi(colorVariantIds) {
+    const ids = [...new Set(colorVariantIds.filter(Boolean))].sort((a, b) => a - b);
+    return useQuery({
+        queryKey: ["stock-in", "serial-counters", ids],
+        queryFn: () => getSerialCountersApi(ids),
+        enabled: ids.length > 0,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+    });
+}
