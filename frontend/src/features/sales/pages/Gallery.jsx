@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "react-toastify";
-import { AlertTriangle, Check, Download, FileText, Image as ImageIcon, Loader2, Receipt, Search, Share2, X } from "lucide-react";
+import { AlertTriangle, Check, Download, FileText, Image as ImageIcon, Loader2, Receipt, Search, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useGalleryApi } from "../hooks/useSalesApi.js";
@@ -23,6 +23,9 @@ const Gallery = () => {
     const [submittedNumber, setSubmittedNumber] = useState(searchParams.get("number") ?? "");
     const [search, setSearch] = useState("");
     const [stock, setStock] = useState("all");
+    // colorVariantId → the selected gallery item itself (not just `true`), so a pick survives a
+    // new search, filter or order/invoice lookup that no longer shows it — Share and Download
+    // work from this, not from what's on screen. Starts empty: the salesperson picks.
     const [selected, setSelected] = useState({});
     const [lightboxIndex, setLightboxIndex] = useState(null);
 
@@ -36,16 +39,30 @@ const Gallery = () => {
     const items = useMemo(() => response?.data?.items ?? [], [response]);
     const source = response?.data?.source;
 
-    // Selecting everything with a photo on arrival matches what the salesperson almost always
-    // wants — the whole order's designs — while leaving deselection cheap.
-    useEffect(() => {
-        setSelected(Object.fromEntries(items.filter((item) => item.hasPhoto).map((item) => [item.colorVariantId, true])));
-    }, [items]);
-
     const selectable = items.filter((item) => item.hasPhoto);
     const withoutPhoto = items.filter((item) => !item.hasPhoto);
-    const chosen = selectable.filter((item) => selected[item.colorVariantId]);
-    const allSelected = selectable.length > 0 && chosen.length === selectable.length;
+    // Every pick so far, across searches — what Share/Download send.
+    const chosen = Object.values(selected);
+    const chosenDesignCount = new Set(chosen.map((item) => item.designId)).size;
+    // "Select all" only ever concerns the photos currently on screen.
+    const allSelected = selectable.length > 0 && selectable.every((item) => selected[item.colorVariantId]);
+
+    const toggleSelected = (item) => setSelected((previous) => {
+        const next = { ...previous };
+        if (next[item.colorVariantId]) delete next[item.colorVariantId];
+        else next[item.colorVariantId] = item;
+        return next;
+    });
+
+    // Adds (or removes) just the on-screen photos — picks from earlier searches are kept.
+    const toggleAllVisible = () => setSelected((previous) => {
+        const next = { ...previous };
+        for (const item of selectable) {
+            if (allSelected) delete next[item.colorVariantId];
+            else next[item.colorVariantId] = item;
+        }
+        return next;
+    });
 
     const grouped = useMemo(() => {
         const byDesign = new Map();
@@ -251,9 +268,7 @@ const Gallery = () => {
                         <button
                             type="button"
                             disabled={selectable.length === 0}
-                            onClick={() => setSelected(allSelected
-                                ? {}
-                                : Object.fromEntries(selectable.map((item) => [item.colorVariantId, true])))}
+                            onClick={toggleAllVisible}
                             className="flex items-center gap-2 text-sm font-semibold text-[#1E1B4B] disabled:opacity-40"
                         >
                             <span className={cn(
@@ -317,12 +332,7 @@ const Gallery = () => {
                                                             />
                                                             <button
                                                                 type="button"
-                                                                onClick={() => setSelected((previous) => {
-                                                                    const next = { ...previous };
-                                                                    if (next[item.colorVariantId]) delete next[item.colorVariantId];
-                                                                    else next[item.colorVariantId] = true;
-                                                                    return next;
-                                                                })}
+                                                                onClick={() => toggleSelected(item)}
                                                                 className={cn(
                                                                     "absolute left-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-lg shadow",
                                                                     isSelected ? "bg-emerald-600 text-white" : "bg-white/90 text-transparent",
@@ -367,7 +377,8 @@ const Gallery = () => {
                         <div>
                             <b className="text-sm">{chosen.length} photo{chosen.length === 1 ? "" : "s"} selected</b>
                             <div className="text-[11.5px] text-white/60">
-                                {source?.party ? `for ${source.party}` : "from all designs"}
+                                {`from ${chosenDesignCount} design${chosenDesignCount === 1 ? "" : "s"}`}
+                                {source?.party ? ` · for ${source.party}` : ""}
                             </div>
                         </div>
 
@@ -405,12 +416,10 @@ const Gallery = () => {
                     onIndexChange={setLightboxIndex}
                     onClose={() => setLightboxIndex(null)}
                     selected={selected}
-                    onToggle={(colorVariantId) => setSelected((previous) => {
-                        const next = { ...previous };
-                        if (next[colorVariantId]) delete next[colorVariantId];
-                        else next[colorVariantId] = true;
-                        return next;
-                    })}
+                    onToggle={(colorVariantId) => {
+                        const item = selectable.find((candidate) => candidate.colorVariantId === colorVariantId);
+                        if (item) toggleSelected(item);
+                    }}
                 />
             )}
         </div>

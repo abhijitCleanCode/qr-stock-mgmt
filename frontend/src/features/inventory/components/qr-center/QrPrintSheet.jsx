@@ -5,7 +5,7 @@ import { buildQrValue } from "../../utils/qrLabel";
 // same visual, so a screen preview never drifts from what actually prints.
 export const QrLabelCard = ({ item, size = 140, className = "" }) => (
   <div className={`flex flex-col items-center gap-2 rounded-lg border border-black/20 p-4 text-center break-inside-avoid ${className}`}>
-    <QrCodeImage value={buildQrValue(item.qr.payload)} size={size} />
+    <QrCodeImage value={item.qr.shortCode ?? buildQrValue(item.qr.payload)} size={size} />
     <div className="flex flex-col">
       <span className="text-sm font-semibold">{item.designCode}</span>
       <span className="text-xs">

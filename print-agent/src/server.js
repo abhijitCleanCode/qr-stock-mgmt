@@ -132,7 +132,9 @@ async function createA4Pdf(items, startAt, content) {
       const absoluteSlot = page * LABELS_PER_SHEET + slot;
       if (absoluteSlot < initialSkip || itemIndex >= items.length) continue;
       const item = items[itemIndex++];
-      const qrPng = await QRCode.toBuffer(JSON.stringify(item.payload), {
+      // The QR carries the tag's saved shortCode — the code every scan station resolves. Older
+      // callers that don't send it still get the JSON payload, which the backend also accepts.
+      const qrPng = await QRCode.toBuffer(item.shortCode ?? JSON.stringify(item.payload), {
         type: "png",
         errorCorrectionLevel: "M",
         margin: 2,

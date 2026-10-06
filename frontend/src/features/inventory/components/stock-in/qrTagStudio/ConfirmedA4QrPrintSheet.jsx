@@ -57,8 +57,9 @@ const ConfirmedA4QrPrintSheet = ({ items, startAt, content = {}, onAfterPrint })
           className="flex items-center gap-[1mm] overflow-hidden border border-slate-300 p-[1mm] font-mono text-black"
           style={{ width: "52.5mm", height: "29.7mm", boxSizing: "border-box",padding:"3mm" }}
         >
+          {/* The QR carries the tag's saved shortCode — the code every scan station resolves. */}
           <QrCodeImage
-            value={JSON.stringify(payload)}
+            value={item.shortCode ?? JSON.stringify(payload)}
             size={200}
             style={{ width: `${qrmm}mm`, height: `${qrmm}mm` }}
             className="shrink-0"

@@ -182,6 +182,7 @@ class StockItemQrRepository {
             id: stockItemQr.id,
             stockItemId: stockItemQr.stockItemId,
             payload: stockItemQr.payload,
+            shortCode: stockItemQr.shortCode,
             priceSnapshot: stockItemQr.priceSnapshot,
             generatedAt: stockItemQr.generatedAt,
             type: stockItem.type,
