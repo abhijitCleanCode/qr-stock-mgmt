@@ -40,7 +40,7 @@ function latestQrByStockItemId(qrRows) {
 
 function toQrView(qrRow) {
     if (!qrRow) return null;
-    return { generatedAt: qrRow.generatedAt, payload: qrRow.payload };
+    return { generatedAt: qrRow.generatedAt, payload: qrRow.payload, shortCode: qrRow.shortCode };
 }
 
 // QR Center merges two kinds of stock event into one "registration" list — Stock In
@@ -287,6 +287,8 @@ class QrCenterService {
                 stockItemId: row.stockItemId,
                 type: row.type,
                 payload: row.payload,
+                // What the printed QR encodes — the code the scan lookup resolves.
+                shortCode: row.shortCode,
                 priceSnapshot: row.priceSnapshot,
                 designSizeLabel: row.designSizeLabel,
                 parentStockItemId: row.parentStockItemId,
@@ -340,6 +342,7 @@ class QrCenterService {
                 stockItemId: row.stockItemId,
                 type: itemType,
                 payload: row.payload,
+                shortCode: row.shortCode,
                 generatedAt: row.generatedAt,
             }))
             .sort((a, b) => a.stockItemId - b.stockItemId);

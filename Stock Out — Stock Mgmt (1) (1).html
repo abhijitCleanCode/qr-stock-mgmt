@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Out — Stock Mgmt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+:root{
+  --page:#F8FAFC; --page-2:#EEF4FB; --card:#FFFFFF; --sunk:#F8FAFC; --sunk-2:#F1F5F9;
+  --line:#E2E8F0; --line-2:#CBD5E1;
+  --ink:#0F172A; --ink-2:#334155; --mut:#64748B; --faint:#94A3B8;
+  --g:#059669; --g-b:#10B981; --g-soft:#ECFDF5; --g-line:#A7F3D0;
+  --amber:#B45309; --amber-soft:#FFFBEB; --amber-line:#FDE68A;
+  --red:#DC2626; --red-soft:#FEF2F2; --red-line:#FECACA;
+  --blue:#1D4ED8; --blue-soft:#EFF6FF; --blue-line:#BFDBFE;
+  --violet:#6D28D9; --violet-soft:#F5F3FF; --violet-line:#DDD6FE;
+  --sans:"Inter",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:16px; --shadow:0 1px 2px rgba(15,23,42,.04), 0 10px 28px rgba(15,23,42,.05);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--sans);font-size:14px;line-height:1.5;color:var(--ink);
+  background:linear-gradient(110deg,var(--page) 55%,var(--page-2));-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;color:inherit}
+input,select,textarea{font:inherit}
+a{color:inherit}
+.mono{font-family:var(--mono)}
+
+/* shell */
+.app-shell{display:flex;min-height:100%}
+.side{width:250px;flex:none;background:#fff;padding:22px 0 30px;min-height:100vh}
+.side .grp{font-size:13px;color:var(--faint);padding:20px 26px 10px}
+.side a{display:flex;align-items:center;gap:13px;margin:1px 14px;padding:11px 12px;border-radius:9px;
+  color:var(--ink-2);text-decoration:none;font-size:14.5px;cursor:pointer}
+.side a:hover{background:var(--sunk-2)}
+.side a.on{background:var(--sunk-2);color:var(--ink);font-weight:500}
+.side .ic{width:18px;height:18px;flex:none;opacity:.75}
+.main{flex:1;min-width:0}
+.topbar{display:flex;align-items:center;gap:14px;padding:18px 34px}
+.collapse{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:9px;
+  display:grid;place-items:center;color:var(--mut);box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.crumb{font-weight:600;font-size:15px}
+.topbar .sp{margin-left:auto;color:var(--ink-2);font-size:14.5px}
+.page{padding:6px 34px 70px;max-width:1340px;width:100%}
+.sheet{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:26px 30px}
+.stack{display:flex;flex-direction:column;gap:20px}
+
+h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 5px}
+h2{font-size:16px;font-weight:700;margin:0 0 3px;letter-spacing:-.005em}
+.sub{color:var(--mut);font-size:14.5px;margin:0;max-width:72ch}
+.small-sub{color:var(--mut);font-size:12.8px;margin:0}
+.eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 17px;border-radius:9px;font-size:13.5px;
+  font-weight:600;border:1px solid var(--line-2);background:#fff;color:var(--ink-2);white-space:nowrap}
+.btn:hover{background:var(--sunk-2)}
+.btn.pri{background:var(--g);border-color:var(--g);color:#fff}
+.btn.pri:hover{background:#047857}
+.btn.warn{background:var(--amber-soft);border-color:var(--amber-line);color:var(--amber)}
+.btn.warn:hover{background:#FEF3C7}
+.btn.danger{background:#fff;border-color:var(--red-line);color:var(--red)}
+.btn.sm{padding:6px 12px;font-size:12.3px;border-radius:8px}
+.iconbtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+  display:inline-flex;align-items:center;justify-content:center}
+.iconbtn:hover{background:var(--sunk-2)}
+.chev{transition:transform .15s}
+.chev.open{transform:rotate(90deg)}
+
+/* pills */
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.3px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--g-soft);color:var(--g);border:1px solid var(--g-line)}
+.pill.warn{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber-line)}
+.pill.part{background:var(--blue-soft);color:var(--blue);border:1px solid var(--blue-line)}
+.pill.neu{background:var(--sunk-2);color:var(--mut);border:1px solid var(--line)}
+.pill.red{background:var(--red-soft);color:var(--red);border:1px solid var(--red-line)}
+.vchip{display:inline-flex;align-items:center;gap:6px;font-size:11.8px;font-weight:600;color:var(--ink-2);
+  background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 8px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+
+/* stats */
+.stats{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--sunk);margin-top:20px}
+.stat{flex:1;padding:14px 20px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat .v{font-family:var(--mono);font-size:20px;font-weight:700}
+.stat .l{font-size:11.3px;color:var(--mut);margin-top:2px}
+
+/* alert banner */
+.banner{display:flex;align-items:center;gap:14px;border:1.5px solid var(--amber-line);background:var(--amber-soft);
+  border-radius:14px;padding:14px 20px}
+.banner .t{flex:1;font-size:13.2px;color:#92400E;line-height:1.5}
+
+/* drafts */
+.draft{display:flex;align-items:center;gap:18px;border:1px solid var(--line);border-radius:12px;padding:14px 18px;flex-wrap:wrap}
+.draft + .draft{margin-top:10px}
+.bar{height:6px;border-radius:3px;background:var(--sunk-2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px}
+
+/* search + filters */
+.hsearch{position:relative}
+.hsearch .mag{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:var(--g);pointer-events:none}
+.hsearch input{width:100%;padding:15px 18px 15px 48px;border:2px solid var(--g-line);background:var(--g-soft);
+  border-radius:13px;font-size:14.5px;font-family:var(--mono);color:var(--ink);outline:none}
+.hsearch input:focus{border-color:var(--g-b)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.fsel{appearance:none;-webkit-appearance:none;padding:9px 32px 9px 13px;border:1.5px solid var(--line-2);border-radius:9px;
+  font-size:13px;color:var(--ink-2);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394A3B8' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat right 12px center;cursor:pointer}
+.fclear{font-size:13px;color:var(--mut);background:none;border:0;padding:9px 6px}
+.fclear:hover{color:var(--ink)}
+.rcount{margin-left:auto;font-size:12.5px;color:var(--faint)}
+.seg{display:inline-flex;background:var(--sunk-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:7px 14px;border-radius:7px;font-size:12.6px;font-weight:600;color:var(--mut);border:0;background:none}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(15,23,42,.1)}
+.seg button .n{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:4px}
+
+/* batch table */
+.tbl{border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-top:16px}
+.cols{display:grid;grid-template-columns:30px 1.35fr 1.05fr 1.9fr .75fr 1.35fr 1.05fr 176px;gap:12px;align-items:center}
+.thead{padding:10px 16px;background:var(--sunk);border-bottom:1px solid var(--line);font-size:9.8px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.brow{padding:14px 16px;border-bottom:1px solid var(--line);font-size:13px}
+.brow:hover{background:#FCFDFE}
+.brow.pend{background:linear-gradient(90deg,rgba(254,243,199,.35),transparent 40%)}
+.b1{font-family:var(--mono);font-size:12.8px;font-weight:700;color:var(--ink)}
+.b2{font-size:11.6px;color:var(--faint);margin-top:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.num small{color:var(--faint);font-size:11px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.tagprog .top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-bottom:5px}
+.acts{display:flex;gap:6px;justify-content:flex-end}
+
+/* expanded variant breakdown */
+.expand{background:var(--sunk);border-bottom:1px solid var(--line);padding:4px 16px 16px 58px}
+.vtbl{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff}
+.vcols{display:grid;grid-template-columns:1.8fr .6fr .6fr .6fr .8fr .8fr .8fr 1.2fr 1fr;gap:10px;align-items:center}
+.vhead{padding:8px 14px;background:var(--sunk);border-bottom:1px solid var(--line);font-size:9.5px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.vrow{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.6px}
+.vrow:last-child{border-bottom:0}
+.vrow.skip{opacity:.6}
+
+.empty{padding:40px;text-align:center;color:var(--mut);font-size:13.5px}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:5px}
+.more{display:flex;justify-content:center;padding:14px}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(15,23,42,.42);opacity:0;pointer-events:none;transition:opacity .16s;z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(720px,100%);background:#fff;z-index:50;transform:translateX(100%);
+  transition:transform .22s cubic-bezier(.3,.7,.3,1);display:flex;flex-direction:column;box-shadow:-10px 0 40px rgba(15,23,42,.14)}
+.drawer.on{transform:none}
+.drhead{padding:20px 26px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.drbody{flex:1;overflow-y:auto;padding:22px 26px 30px}
+.drfoot{padding:14px 26px;border-top:1px solid var(--line);background:var(--sunk);display:flex;justify-content:flex-end;gap:10px}
+.dsec + .dsec{margin-top:24px}
+.dsec > .eyebrow{margin-bottom:10px}
+.kv{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 20px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:var(--sunk)}
+.kv .k{font-size:10.3px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.kv .v{font-size:13.3px;margin-top:3px;color:var(--ink)}
+.kv .v.mono{font-size:12.8px}
+.vcard{border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.vcard + .vcard{margin-top:12px}
+.vcard .vh{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.vcard .vb{padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.mini .k{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.sizegrid{display:flex;gap:6px;flex-wrap:wrap}
+.sz{min-width:44px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:5px 6px;background:#fff}
+.sz .s{font-size:9.5px;font-weight:700;color:var(--faint)}
+.sz .q{font-family:var(--mono);font-weight:700;font-size:13px}
+.chain{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chain .c{flex:1;padding:12px 14px;border-right:1px solid var(--line);position:relative}
+.chain .c:last-child{border-right:0}
+.chain .c .v{font-family:var(--mono);font-weight:700;font-size:17px}
+.chain .c .l{font-size:10.8px;color:var(--mut);margin-top:2px}
+.tl{position:relative;padding-left:22px}
+.tl:before{content:"";position:absolute;left:6px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.tli{position:relative;padding-bottom:14px}
+.tli:before{content:"";position:absolute;left:-20px;top:5px;width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid var(--g)}
+.tli.warn:before{border-color:var(--amber)}
+.tli .w{font-size:13px;color:var(--ink)}
+.tli .m{font-size:11.5px;color:var(--faint);margin-top:1px}
+.note{border-radius:11px;padding:12px 16px;font-size:12.6px;line-height:1.6}
+.note.amber{border:1px solid var(--amber-line);background:var(--amber-soft);color:#92400E}
+.note.green{border:1px solid var(--g-line);background:var(--g-soft);color:#065F46}
+
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--ink);color:#fff;font-size:13px;
+  padding:12px 18px;border-radius:11px;box-shadow:0 10px 30px rgba(15,23,42,.25);opacity:0;pointer-events:none;
+  transition:all .2s;z-index:60;max-width:90vw}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1100px){
+  .side{display:none} .page{padding-inline:18px} .sheet{padding:20px 18px}
+  .cols{grid-template-columns:24px 1fr 1fr;row-gap:8px}
+  .thead{display:none}
+  .expand{padding-left:16px}
+  .vcols{grid-template-columns:1.5fr 1fr 1fr}
+  .vhead{display:none}
+  .kv{grid-template-columns:1fr 1fr}
+  .vcard .vb{grid-template-columns:1fr}
+}
+
+/* ================= Stock Out app additions ================= */
+.subnav{display:flex;gap:4px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px;width:fit-content;box-shadow:var(--shadow)}
+.subnav button{padding:9px 16px;border-radius:9px;font-size:13.3px;font-weight:600;color:var(--mut);border:0;background:none}
+.subnav button:hover{color:var(--ink)}
+.subnav button.on{background:var(--ink);color:#fff}
+.rolebox{display:flex;align-items:center;gap:8px;font-size:12.8px;color:var(--mut)}
+.rolebox select{appearance:none;-webkit-appearance:none;padding:7px 28px 7px 11px;border:1.5px solid var(--line-2);border-radius:8px;font-size:12.8px;
+  font-weight:600;color:var(--ink);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394A3B8' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat right 10px center}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px 20px}
+.split{display:grid;grid-template-columns:1.1fr 1fr;gap:20px;align-items:start}
+
+.field label{display:block;font-size:12.3px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+.field label .req{color:var(--red)}
+.inp{width:100%;padding:10px 13px;border:1.5px solid var(--line-2);border-radius:9px;background:#fff;font-size:13.6px;color:var(--ink);outline:none}
+.inp:focus{border-color:var(--g-b);box-shadow:0 0 0 3px rgba(16,185,129,.12)}
+.inp.mono{font-family:var(--mono)}
+.inp.bad{border-color:var(--red)}
+.inp.good{border-color:var(--g-b)}
+.hint{font-size:11.8px;margin-top:6px;min-height:16px}
+.hint.ok{color:var(--g)} .hint.bad{color:var(--red)} .hint.mut{color:var(--faint)}
+.numbox{display:flex;gap:8px;align-items:stretch}
+.numbox .inp{font-family:var(--mono);font-size:15px;font-weight:700}
+
+/* action cards on overview */
+.action{display:flex;gap:16px;align-items:flex-start;border:1.5px solid var(--line);border-radius:15px;padding:20px 22px;background:#fff;text-align:left;width:100%;transition:border-color .15s, box-shadow .15s}
+.action:hover{border-color:var(--g-b);box-shadow:0 6px 20px rgba(5,150,105,.08)}
+.action .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex:none}
+.action .t{font-size:15.5px;font-weight:700;color:var(--ink)}
+.action .d{font-size:12.8px;color:var(--mut);margin-top:3px;line-height:1.5}
+.flow{display:flex;align-items:center;gap:10px;font-size:12.3px;color:var(--mut);flex-wrap:wrap}
+.flow .s{display:flex;align-items:center;gap:7px}
+.flow .n{width:20px;height:20px;border-radius:50%;background:var(--sunk-2);color:var(--ink-2);font-size:10.5px;font-weight:700;display:grid;place-items:center}
+
+/* party autocomplete */
+.acwrap{position:relative}
+.acdd{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 12px 30px rgba(15,23,42,.12);z-index:30;overflow:hidden;display:none;max-height:280px;overflow-y:auto}
+.acdd.on{display:block}
+.acitem{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
+.acitem:last-child{border-bottom:0}
+.acitem:hover,.acitem.hi{background:var(--g-soft)}
+.acitem .n{font-weight:600;font-size:13.3px}
+.acitem .m{font-size:11.6px;color:var(--mut)}
+.pbadge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px}
+.pbadge.linked{background:var(--g-soft);color:var(--g);border:1px solid var(--g-line)}
+.pbadge.new{background:var(--blue-soft);color:var(--blue);border:1px solid var(--blue-line)}
+.pbadge.changed{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber-line)}
+
+/* scan panel */
+.scanhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.method{display:inline-flex;background:var(--sunk-2);border:1px solid var(--line);border-radius:11px;padding:4px;gap:3px}
+.method button{display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:8px;font-size:12.8px;font-weight:600;color:var(--mut);border:0;background:none}
+.method button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.scaninput{position:relative}
+.scaninput .mag{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--g);pointer-events:none}
+.scaninput input{width:100%;padding:14px 16px 14px 46px;border:2px solid var(--g-line);background:var(--g-soft);border-radius:12px;font-size:14.5px;font-family:var(--mono);color:var(--ink);outline:none}
+.scaninput input:focus{border-color:var(--g-b)}
+.gunstate{display:flex;align-items:center;gap:12px;border:1.5px solid var(--g-line);background:var(--g-soft);border-radius:12px;padding:12px 16px;margin-bottom:10px}
+.gunstate .pulse{width:10px;height:10px;border-radius:50%;background:var(--g);box-shadow:0 0 0 0 rgba(5,150,105,.5);animation:pulse 1.6s infinite}
+.gunstate.idle{border-color:var(--line);background:var(--sunk)}
+.gunstate.idle .pulse{background:var(--faint);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(5,150,105,.45)}70%{box-shadow:0 0 0 9px rgba(5,150,105,0)}100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}}
+.cam{position:relative;width:100%;height:210px;border-radius:14px;background:#0F172A;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cam .frame{position:relative;width:130px;height:130px;border:2.5px solid rgba(255,255,255,.85);border-radius:14px;box-shadow:0 0 0 999px rgba(15,23,42,.35)}
+.cam .cap{position:absolute;bottom:10px;left:0;right:0;text-align:center;color:#CBD5E1;font-size:11.5px}
+.democ{margin-top:12px}
+.democ .lb{font-size:11.3px;color:var(--faint);margin-bottom:7px}
+.tagchip{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line-2);background:#fff;border-radius:8px;padding:6px 10px;font-size:11.6px;font-family:var(--mono);font-weight:600;color:var(--ink-2);margin:0 6px 6px 0}
+.tagchip:hover{border-color:var(--g);color:var(--ink)}
+.tagchip .k{font-family:var(--sans);font-size:9.5px;font-weight:700;letter-spacing:.04em;padding:1px 5px;border-radius:4px;background:var(--sunk-2);color:var(--mut)}
+.feedback{margin-top:12px;min-height:0}
+.fb{display:flex;align-items:flex-start;gap:9px;border-radius:10px;padding:10px 13px;font-size:12.8px;line-height:1.5}
+.fb.ok{background:var(--g-soft);border:1px solid var(--g-line);color:#065F46}
+.fb.bad{background:var(--red-soft);border:1px solid var(--red-line);color:#7F1D1D}
+.fb.warn{background:var(--amber-soft);border:1px solid var(--amber-line);color:#92400E}
+
+/* quantity panel after a scan */
+.qpanel{border:1.5px solid var(--blue-line);background:var(--blue-soft);border-radius:13px;padding:14px 16px;margin-top:14px}
+.qpanel .qh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px}
+.qrow{display:grid;grid-template-columns:1.5fr 1fr 120px;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:6px}
+.qrow.focus{border-color:var(--g-b);box-shadow:0 0 0 3px rgba(16,185,129,.14)}
+.qrow input{width:100%;padding:8px 10px;border:1.5px solid var(--line-2);border-radius:8px;font-family:var(--mono);font-weight:700;font-size:14px;text-align:right;outline:none}
+.qrow input:focus{border-color:var(--g-b)}
+
+/* generic table */
+.gt{border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.gh,.gr{display:grid;gap:12px;align-items:center;padding:11px 16px}
+.gh{background:var(--sunk);border-bottom:1px solid var(--line);font-size:9.8px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.gr{border-bottom:1px solid var(--line);font-size:13px}
+.gr:last-child{border-bottom:0}
+.gr:hover{background:#FCFDFE}
+.gr.ticked{background:var(--g-soft)}
+.gr .qty{width:86px;padding:7px 9px;border:1.5px solid var(--line-2);border-radius:8px;font-family:var(--mono);font-weight:700;text-align:right;outline:none}
+.gr .qty:focus{border-color:var(--g-b)}
+.x{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:#fff;color:var(--faint);display:grid;place-items:center}
+.x:hover{color:var(--red);border-color:var(--red-line);background:var(--red-soft)}
+
+/* checkbox */
+.cb{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line-2);background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;padding:0}
+.cb svg{display:none}
+.cb.on{background:var(--g);border-color:var(--g)}
+.cb.on svg{display:block}
+
+/* gathered list */
+.ggroup{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:10px}
+.ggroup .gg{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.ggroup .ge{display:grid;grid-template-columns:1.6fr 1.2fr .6fr .7fr 28px;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);font-size:12.3px}
+.ggroup .ge:last-child{border-bottom:0}
+.kind{font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.kind.set{background:var(--g-soft);color:var(--g)}
+.kind.semi{background:var(--violet-soft);color:var(--violet)}
+.kind.child{background:var(--blue-soft);color:var(--blue)}
+.kind.loose{background:var(--amber-soft);color:var(--amber)}
+.extra{font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:5px;background:var(--violet-soft);color:var(--violet);border:1px solid var(--violet-line)}
+
+/* summary bar */
+.sumbar{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.sumbar .s .v{font-family:var(--mono);font-weight:700;font-size:18px}
+.sumbar .s .l{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+
+/* lock state */
+.lockrow{display:flex;align-items:center;gap:8px;font-size:12.3px;color:var(--mut)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.dark:hover{background:#1E293B}
+
+/* modal */
+.mwrap{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:20px}
+.mwrap.on{display:flex}
+.modal{width:min(520px,100%);background:#fff;border-radius:16px;box-shadow:0 30px 80px rgba(15,23,42,.3);overflow:hidden}
+.modal .mh{padding:20px 22px 4px;font-size:17px;font-weight:700}
+.modal .mb{padding:8px 22px 18px;font-size:13.3px;color:var(--ink-2);line-height:1.6}
+.modal .mf{padding:14px 22px;background:var(--sunk);border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.diff{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:10px}
+.diff .dr{display:grid;grid-template-columns:.8fr 1fr 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12.3px}
+.diff .dr:last-child{border-bottom:0}
+.diff .dr.h{background:var(--sunk);font-size:9.8px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.diff .old{color:var(--faint);text-decoration:line-through}
+.diff .new{color:var(--ink);font-weight:600}
+
+/* printable doc */
+.doc{background:#fff;color:#0F172A}
+.doc .dh{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0F172A;padding-bottom:14px}
+.doc .dt{font-size:20px;font-weight:700}
+.doc .ds{font-size:12px;color:#64748B;margin-top:2px}
+.doc .dno .k{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748B;text-align:right}
+.doc .dno .v{font-family:var(--mono);font-size:16px;font-weight:700;text-align:right}
+.doc .dmeta{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 20px;margin:16px 0 18px;font-size:12.5px}
+.doc .dmeta .k{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748B}
+.doc .dmeta .v{font-weight:600;margin-top:2px}
+.dtbl{width:100%;border-collapse:collapse;font-size:12.3px}
+.dtbl th{text-align:left;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#475569;border-bottom:1.5px solid #0F172A;padding:7px 8px}
+.dtbl td{border-bottom:1px solid #E2E8F0;padding:8px}
+.dtbl .n{text-align:right;font-family:var(--mono)}
+.dtbl tr.dg td{background:#F1F5F9;font-weight:700;font-size:11.5px;padding:6px 8px}
+.dtbl tr.tot td{border-top:1.5px solid #0F172A;border-bottom:0;font-weight:700}
+.dsign{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:52px}
+.dsign div{border-top:1px solid #0F172A;padding-top:6px;font-size:11px;color:#475569;text-align:center}
+.dfoot{margin-top:22px;font-size:10px;color:#94A3B8;display:flex;justify-content:space-between}
+.docwrap{border:1px solid var(--line);border-radius:14px;padding:34px 38px;background:#fff}
+
+/* print preview modal */
+.pmodal{position:fixed;inset:0;z-index:90;background:rgba(15,23,42,.55);display:none;flex-direction:column;align-items:center;overflow-y:auto;padding:24px 16px 40px}
+.pmodal.on{display:flex}
+.pbar{width:min(820px,100%);display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;color:#fff}
+.pbar .t{font-weight:600;font-size:14px}
+.sheetA4{width:min(820px,100%);background:#fff;border-radius:6px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:44px 48px}
+
+@media (max-width:1100px){
+  .split,.grid2{grid-template-columns:1fr}
+  .grid3{grid-template-columns:1fr 1fr}
+  .gh{display:none}
+}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff}
+  body > *:not(#pmodal){display:none !important}
+  #pmodal{position:static;display:block !important;background:none;padding:0;overflow:visible}
+  #pmodal .pbar{display:none !important}
+  .sheetA4{box-shadow:none;border-radius:0;padding:0;width:100%}
+  .doc .dmeta{grid-template-columns:repeat(3,1fr) !important}
+}
+#iBody{display:flex;flex-direction:column;gap:20px}
+.qrow input::-webkit-outer-spin-button,.qrow input::-webkit-inner-spin-button,
+.gr .qty::-webkit-outer-spin-button,.gr .qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qrow input,.gr .qty{-moz-appearance:textfield}
+
+/* ================= Gallery ================= */
+.gmodes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.gmodes button{display:flex;align-items:center;gap:12px;text-align:left;border:1.5px solid var(--line);background:#fff;border-radius:13px;padding:13px 15px;transition:border-color .15s,background .15s}
+.gmodes button:hover{border-color:var(--g-line)}
+.gmodes button.on{border-color:var(--g);background:var(--g-soft)}
+.gmodes .gmi{width:38px;height:38px;border-radius:10px;background:var(--sunk-2);color:var(--ink-2);display:grid;place-items:center;flex:none}
+.gmodes button.on .gmi{background:var(--g);color:#fff}
+.gmodes b{display:block;font-size:13.8px;color:var(--ink)}
+.gmodes span span{font-size:11.8px;color:var(--mut)}
+.gfetch{display:flex;gap:10px;align-items:stretch}
+.gfetch .btn{padding-inline:20px}
+.linkbtn{background:none;border:0;padding:0;color:var(--blue);font-weight:700;font-family:var(--mono);text-decoration:underline;cursor:pointer}
+.gempty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:34px 20px}
+.gempty .gicon{width:56px;height:56px;border-radius:16px;background:var(--sunk-2);color:var(--faint);display:grid;place-items:center;margin-bottom:6px}
+.gempty b{font-size:15px}
+.gempty > span{font-size:13px;color:var(--mut);max-width:48ch}
+.grecent{margin-top:14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px}
+.grecent .lb{font-size:11.5px;color:var(--faint);margin-right:8px}
+.gctx{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid var(--line);background:var(--sunk);border-radius:13px;padding:14px 18px;margin-bottom:16px;flex-wrap:wrap}
+.gtools{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.gselall{display:flex;align-items:center;gap:10px;font-size:13.3px;font-weight:600;cursor:pointer}
+.cb[disabled]{opacity:.4;cursor:not-allowed}
+.gdesign + .gdesign{margin-top:22px}
+.gdh{font-size:13.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.gdh span{color:var(--mut);font-size:12.5px;margin-left:4px}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.gcard{border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;transition:border-color .12s,box-shadow .12s}
+.gcard.on{border-color:var(--g);box-shadow:0 0 0 3px rgba(16,185,129,.14)}
+.gimg{position:relative;aspect-ratio:4/5;background:var(--sunk-2);cursor:zoom-in;overflow:hidden}
+.gimg img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s}
+.gcard:hover .gimg img{transform:scale(1.03)}
+.gcb{position:absolute;top:10px;left:10px;width:26px;height:26px;border-radius:8px;box-shadow:0 2px 6px rgba(15,23,42,.25)}
+.gtag{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;letter-spacing:.05em;background:var(--violet);color:#fff;padding:3px 8px;border-radius:6px}
+.gmeta{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px 4px;font-size:13px}
+.gfoot{padding:0 12px 11px;font-size:11.6px;color:var(--mut)}
+.gcard.nophoto .gimg{cursor:default}
+.gnp{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--faint);font-size:12px;text-align:center;
+  background:repeating-linear-gradient(45deg,var(--sunk-2),var(--sunk-2) 10px,#fff 10px,#fff 20px)}
+.gbar{position:sticky;bottom:16px;z-index:20;display:none}
+.gbar.on{display:block}
+.gbar-in{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:var(--ink);color:#fff;border-radius:14px;padding:12px 16px 12px 20px;box-shadow:0 14px 40px rgba(15,23,42,.3)}
+.gtoggle{display:flex;align-items:center;gap:7px;font-size:12.6px;color:#E2E8F0;cursor:pointer}
+.gtoggle input{accent-color:var(--g-b);width:15px;height:15px}
+.btn.ghost{background:transparent;border-color:rgba(255,255,255,.28);color:#fff}
+.btn.ghost:hover{background:rgba(255,255,255,.1)}
+.glb{position:fixed;inset:0;z-index:95;background:rgba(15,23,42,.9);display:none;align-items:center;justify-content:center;padding:24px}
+.glb.on{display:flex}
+.glb-in{position:relative;max-width:min(560px,100%);width:100%}
+.glb-in img{width:100%;border-radius:14px;display:block;max-height:74vh;object-fit:contain;background:#fff}
+.glb-x{position:absolute;top:-6px;right:-6px;transform:translate(50%,-50%);width:38px;height:38px;border-radius:50%;background:#fff;border:0;color:var(--ink);display:grid;place-items:center;z-index:2}
+.glb-nav{position:absolute;top:42%;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.92);border:0;color:var(--ink);display:grid;place-items:center}
+.glb-nav.l{left:-60px} .glb-nav.r{right:-60px}
+.glb-nav[disabled]{opacity:.3;cursor:default}
+.glb-cap{display:flex;justify-content:space-between;align-items:center;gap:12px;color:#fff;margin-top:12px;flex-wrap:wrap}
+@media (max-width:900px){ .gmodes{grid-template-columns:1fr} .gfetch{flex-direction:column} .glb-nav.l{left:6px} .glb-nav.r{right:6px} }
+</style>
+</head>
+<body>
+<div class="app-shell" id="appShell">
+  <aside class="side">
+    <div class="grp">Master Data</div>
+    <a><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Design Master</a>
+    <div class="grp">Inventory</div>
+    <a><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M17 7 7 17M7 17h7M7 17v-7"/></svg>Stock In</a>
+    <a><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5"/></svg>Current Stock</a>
+    <a><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 19h2v2h-2z"/></svg>QR Center</a>
+    <a><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>Stock History</a>
+    <a class="on" id="navStockOut"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 17 17 7M10 7h7v7"/></svg>Stock Out</a>
+    <a><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8h13l-3-3M21 16H8l3 3"/></svg>Stock Transformation</a>
+    <div class="grp">Sales</div>
+    <a><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>Order Forms</a>
+    <a id="navGallery"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>Gallery</a>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <button class="collapse" aria-label="Collapse"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg></button>
+      <span class="crumb">Stock Mgmt &nbsp;/&nbsp; Stock Out</span>
+      <span class="sp rolebox">Signed in as
+        <select id="role" aria-label="Role"><option value="staff">Staff</option><option value="owner">Owner</option></select></span>
+    </div>
+    <div class="page stack" id="app"></div>
+  </div>
+</div>
+
+<div class="mwrap" id="mwrap"><div class="modal" role="dialog" aria-modal="true">
+  <div class="mh" id="mTitle"></div><div class="mb" id="mBody"></div><div class="mf" id="mFoot"></div></div></div>
+
+<div class="pmodal" id="pmodal" role="dialog" aria-label="Print preview">
+  <div class="pbar"><span class="t" id="pTitle">Print preview</span>
+    <div style="display:flex;gap:8px;"><button class="btn sm" id="pClose">Close</button>
+    <button class="btn pri sm" id="pPrint"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / Save as PDF</button></div></div>
+  <div class="sheetA4" id="pSheet"></div>
+</div>
+
+<div class="glb" id="glb" role="dialog" aria-label="Photo viewer"></div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+function $(s, r){ return (r||document).querySelector(s); }
+function $all(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function sum(a, f){ return a.reduce(function(s,x){ return s + f(x); }, 0); }
+function inr(n){ return "\u20b9" + Number(n).toLocaleString("en-IN", {maximumFractionDigits:2}); }
+function norm(s){ return String(s||"").trim().toUpperCase(); }
+function todayStr(){ return "25-09-26"; }
+var TODAY = new Date(2026, 8, 25);
+function parseDMY(s){ var p = s.split("-"); return new Date(2000 + +p[2], +p[1]-1, +p[0]); }
+function longDate(s){ return parseDMY(s).toLocaleDateString("en-IN", {day:"2-digit", month:"short", year:"numeric"}); }
+function nowTime(){ var d = new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+
+var ICON = {
+  plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M18 6 6 18M6 6l12 12"/>', check:'<path d="M20 6 9 17l-5-5"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  keyboard:'<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+  camera:'<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="4"/>',
+  gun:'<path d="M3 7h13l2 4H9l-1 7H5l1-7H3z"/><path d="M18 11h3"/>',
+  print:'<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+  download:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
+  pencil:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  invoice:'<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h7M9 17h5"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+  back:'<path d="m15 18-6-6 6-6"/>', arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  alert:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>'
+};
+function icon(n, s, w){ return '<svg width="'+(s||15)+'" height="'+(s||15)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||2)+'">'+ICON[n]+'</svg>'; }
+
+var toastT = null;
+function toast(msg){ var t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove("on"); }, 2800); }
+
+/* generic modal: actions = [{label, kind, fn}] */
+function modal(title, bodyHtml, actions){
+  $("#mTitle").innerHTML = title; $("#mBody").innerHTML = bodyHtml;
+  $("#mFoot").innerHTML = actions.map(function(a, i){
+    return '<button class="btn '+(a.kind||"")+'" data-mi="'+i+'">'+a.label+'</button>'; }).join("");
+  $all("[data-mi]", $("#mFoot")).forEach(function(b){
+    b.onclick = function(){ var a = actions[+b.dataset.mi]; closeModal(); if (a.fn) a.fn(); };
+  });
+  $("#mwrap").classList.add("on");
+  var pri = $("#mFoot .pri"); if (pri) pri.focus();
+}
+function closeModal(){ $("#mwrap").classList.remove("on"); }
+
+function downloadCSV(filename, rows){
+  var csv = rows.map(function(r){ return r.map(function(c){
+    c = String(c==null?"":c); return /[",\n]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c; }).join(","); }).join("\r\n");
+  var blob = new Blob(["\ufeff"+csv], {type:"text/csv;charset=utf-8"});
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* =====================================================================
+   DATA: design catalogue (from Design Master)
+   ===================================================================== */
+var DESIGNS = {
+  KP100:{ name:"Floral Anarkali", sizes:["S","M","L","XL"], rate:200,
+    variants:{ MID:{name:"Midnight Blue",hex:"#1E293B"}, CRM:{name:"Crimson Red",hex:"#DC2626"},
+               RNI:{name:"Rani Pink",hex:"#EC4899"}, BLK:{name:"Black",hex:"#0F172A"} } },
+  FL205:{ name:"Paisley Straight", sizes:["S","M","L","XL"], rate:375,
+    variants:{ BLU:{name:"Blue",hex:"#2563EB"}, GRN:{name:"Green",hex:"#16A34A"}, GLD:{name:"Gold",hex:"#CA8A04",photo:false} } },
+  KP240:{ name:"Straight Kurti", sizes:["S","M","L","XL"], rate:310,
+    variants:{ BLK:{name:"Black",hex:"#0F172A"}, MRN:{name:"Maroon",hex:"#7F1D1D"} } },
+  KP310:{ name:"A-Line Kurti", sizes:["S","M","L"], rate:268,
+    variants:{ RST:{name:"Rust Orange",hex:"#B45309"}, SKY:{name:"Sky Blue",hex:"#0EA5E9"} } }
+};
+function vName(d, v){ return DESIGNS[d].variants[v].name; }
+function vHex(d, v){ return DESIGNS[d].variants[v].hex; }
+function key(d, v){ return d+"/"+v; }
+function unkey(k){ var p = k.split("/"); return {design:p[0], variant:p[1]}; }
+
+/* =====================================================================
+   DATA: physical inventory. Every piece is tracked; a parent / semi QR
+   is just a group of pieces, so pieces are never counted twice.
+   ===================================================================== */
+var PIECES = {};   // id -> {id, design, variant, size, parent, sold:null|invoiceNo}
+var UNITS  = {};   // id -> {id, kind:'set'|'semi', design, variant, pieces:[ids]}
+var seq = {};
+function nx(k, pad){ seq[k] = (seq[k]||0) + 1; return String(seq[k]).padStart(pad, "0"); }
+function addSet(d, v, n){ for (var i=0;i<n;i++){ var id = "SET-"+d+"-"+v+"-"+nx("S"+d+v,3);
+  UNITS[id] = {id:id, kind:"set", design:d, variant:v, pieces:[]};
+  DESIGNS[d].sizes.forEach(function(sz){ var pid = id+"-"+sz;
+    PIECES[pid] = {id:pid, design:d, variant:v, size:sz, parent:id, sold:null}; UNITS[id].pieces.push(pid); }); } }
+function addSemi(d, v, comp, n){ for (var i=0;i<n;i++){ var id = "SEMI-"+d+"-"+v+"-"+nx("M"+d+v,3);
+  UNITS[id] = {id:id, kind:"semi", design:d, variant:v, pieces:[]};
+  comp.forEach(function(sz){ var pid = id+"-"+sz;
+    PIECES[pid] = {id:pid, design:d, variant:v, size:sz, parent:id, sold:null}; UNITS[id].pieces.push(pid); }); } }
+function addLoose(d, v, sz, n){ for (var i=0;i<n;i++){ var id = "LSE-"+d+"-"+v+"-"+nx("L"+d+v,4);
+  PIECES[id] = {id:id, design:d, variant:v, size:sz, parent:null, sold:null}; } }
+
+addSet("KP100","MID",5); addSemi("KP100","MID",["S","M","L"],1); addLoose("KP100","MID","S",2); addLoose("KP100","MID","M",1);
+addSet("KP100","CRM",3);
+addSet("KP100","RNI",2); addLoose("KP100","RNI","M",1);
+/* KP100 Black: zero stock on purpose — shows "out of stock" in demand vs available */
+addSet("FL205","BLU",4); addSet("FL205","GRN",2); addSemi("FL205","GLD",["M","L"],1);
+addSet("KP240","BLK",4); addSet("KP240","MRN",1); addLoose("KP240","MRN","XL",2);
+addLoose("KP310","RST","S",5); addLoose("KP310","RST","M",5); addLoose("KP310","RST","L",4); addLoose("KP310","SKY","S",2);
+
+function inStockPieces(d, v, exclude){
+  return Object.keys(PIECES).filter(function(id){
+    var p = PIECES[id]; return p.design===d && p.variant===v && !p.sold && !(exclude && exclude[id]);
+  });
+}
+function availablePcs(d, v, exclude){ return inStockPieces(d, v, exclude).length; }
+
+/* Resolve any typed / scanned code. Works for parent set, semi set, child piece,
+   loose piece, design code (KP100) and design+variant (KP100-MID). */
+function resolveCode(raw){
+  var c = norm(raw); if (!c) return null;
+  if (UNITS[c]) { var u = UNITS[c]; return {kind:u.kind, id:c, design:u.design, variant:u.variant, pieces:u.pieces.slice()}; }
+  if (PIECES[c]) { var p = PIECES[c]; return {kind:p.parent ? "child" : "loose", id:c, design:p.design, variant:p.variant, pieces:[c], size:p.size}; }
+  if (DESIGNS[c]) return {kind:"design", id:c, design:c, variant:null};
+  var m = c.match(/^([A-Z0-9]+)-([A-Z]{2,4})$/);
+  if (m && DESIGNS[m[1]] && DESIGNS[m[1]].variants[m[2]]) return {kind:"variant", id:c, design:m[1], variant:m[2]};
+  return null;
+}
+function kindLabel(k, n){
+  return k==="set" ? "Complete set" : k==="semi" ? "Semi set" : k==="child" ? "Set piece" : k==="loose" ? "Loose piece" : "Design";
+}
+
+/* =====================================================================
+   DATA: party master, order forms, invoices
+   ===================================================================== */
+var PARTY_FIELDS = [["name","Party name"],["mobile","Mobile"],["city","City"],["gst","GST No."],["transport","Transport"],["agent","Agent"]];
+var PARTIES = [
+  {id:"P1", name:"Meera Textiles", mobile:"98250 11210", city:"Surat", gst:"24AAECM1234F1Z5", transport:"Shree Balaji Roadways", agent:"Ramesh Bhai"},
+  {id:"P2", name:"Anjali Collections", mobile:"97240 58884", city:"Ahmedabad", gst:"24AABCA7788K1Z9", transport:"Gujarat Cargo Movers", agent:"Kiran Shah"},
+  {id:"P3", name:"Suresh Garments", mobile:"99040 33220", city:"Surat", gst:"24AAFCS4321L1Z3", transport:"Shree Balaji Roadways", agent:"Ramesh Bhai"},
+  {id:"P4", name:"Rani Wholesale", mobile:"96011 47110", city:"Rajkot", gst:"24AAPCR5678H1Z2", transport:"Patel Transport Co.", agent:"Vikas Patel"}
+];
+var partySeq = 5;
+function partyById(id){ return PARTIES.filter(function(p){ return p.id===id; })[0]; }
+function partyByName(n){ return PARTIES.filter(function(p){ return norm(p.name)===norm(n); })[0]; }
+function snapParty(p){ var o = {}; PARTY_FIELDS.forEach(function(f){ o[f[0]] = p[f[0]] || ""; }); return o; }
+
+var ORDERS = [];
+var INVOICES = [];
+function orderByNo(no){ return ORDERS.filter(function(o){ return norm(o.no)===norm(no); })[0]; }
+function invoiceByNo(no){ return INVOICES.filter(function(i){ return norm(i.no)===norm(no); })[0]; }
+
+(function seed(){
+  ORDERS.push({ no:"OF-1021", date:"18-09-26", partyId:"P3", party:snapParty(partyById("P3")), notes:"",
+    items:[{design:"KP240", variant:"BLK", qty:4}], status:"invoiced", invoiceNo:"INV-2026-041", by:"Rohit K.", updated:"18-09-26" });
+  ORDERS.push({ no:"OF-1022", date:"24-09-26", partyId:"P1", party:snapParty(partyById("P1")), notes:"Wants pastel shades if Black not available.",
+    items:[{design:"KP100",variant:"MID",qty:12},{design:"KP100",variant:"CRM",qty:8},{design:"KP100",variant:"BLK",qty:4},{design:"FL205",variant:"BLU",qty:8}],
+    status:"open", invoiceNo:null, by:"Anita", updated:"24-09-26" });
+  ORDERS.push({ no:"OF-1023", date:"25-09-26", partyId:"P2", party:snapParty(partyById("P2")), notes:"",
+    items:[{design:"KP310",variant:"RST",qty:10},{design:"KP240",variant:"MRN",qty:6}],
+    status:"open", invoiceNo:null, by:"Anita", updated:"25-09-26" });
+
+  // one past invoice that has already consumed a KP240 Black set
+  var u = UNITS["SET-KP240-BLK-001"];
+  u.pieces.forEach(function(pid){ PIECES[pid].sold = "INV-2026-041"; });
+  INVOICES.push({ no:"INV-2026-041", date:"18-09-26", orderNo:"OF-1021", partyId:"P3", party:snapParty(partyById("P3")),
+    entries:[{scanId:"SET-KP240-BLK-001", kind:"set", design:"KP240", variant:"BLK", pieces:u.pieces.slice(), method:"QR Gun", time:"16:42"}],
+    ticks:{"KP240/BLK":true}, by:"Rohit K.", editedBy:null, updated:"18-09-26" });
+})();
+
+/* aggregate scanned entries -> invoice lines */
+function aggregate(entries){
+  var map = {}, order = [];
+  entries.forEach(function(e){
+    var k = key(e.design, e.variant);
+    if (!map[k]){ map[k] = {design:e.design, variant:e.variant, pcs:0, sets:0, semis:0, singles:0, sizes:{}}; order.push(k); }
+    var a = map[k]; a.pcs += e.pieces.length;
+    if (e.kind==="set") a.sets++; else if (e.kind==="semi") a.semis++; else a.singles++;
+    e.pieces.forEach(function(pid){ var s = PIECES[pid].size; a.sizes[s] = (a.sizes[s]||0) + 1; });
+  });
+  return order.map(function(k){ var a = map[k]; a.rate = DESIGNS[a.design].rate; a.amount = a.pcs * a.rate; return a; });
+}
+function invoiceTotals(inv){ var lines = aggregate(inv.entries);
+  return { lines:lines, pcs:sum(lines, function(l){ return l.pcs; }), amount:sum(lines, function(l){ return l.amount; }) }; }
+function orderPcs(o){ return sum(o.items, function(i){ return i.qty; }); }
+
+/* =====================================================================
+   SHARED: unique number field (order form no / invoice no)
+   ===================================================================== */
+function wireUniqueField(inputSel, hintSel, existsFn, selfNo, label){
+  var inp = $(inputSel), hint = $(hintSel);
+  function check(){
+    var v = norm(inp.value);
+    inp.classList.remove("bad","good");
+    if (!v){ hint.className = "hint mut"; hint.textContent = "Type the "+label+" exactly as written in your book."; return false; }
+    if (existsFn(v) && v !== norm(selfNo||"")){
+      inp.classList.add("bad"); hint.className = "hint bad"; hint.innerHTML = icon("alert",12,2.2)+" "+esc(v)+" already exists &mdash; use a different number."; return false; }
+    inp.classList.add("good"); hint.className = "hint ok"; hint.innerHTML = icon("check",12,2.6)+" "+esc(v)+" is available."; return true;
+  }
+  inp.addEventListener("input", check);
+  check();
+  return check;
+}
+function suggestNext(list, prefix){
+  var max = 0; list.forEach(function(x){ var m = String(x.no).match(/(\d+)$/); if (m) max = Math.max(max, +m[1]); });
+  var digits = (list[0] && String(list[0].no).match(/(\d+)$/)) ? String(list[0].no).match(/(\d+)$/)[1].length : 4;
+  return prefix + String(max + 1).padStart(digits, "0");
+}
+
+/* =====================================================================
+   SHARED: party block with Party Master two-way sync
+   ===================================================================== */
+function partyBlockHtml(pfx){
+  var f = PARTY_FIELDS.map(function(p, i){
+    if (p[0]==="name"){
+      return '<div class="field acwrap"><label>Party name <span class="req">*</span></label>'+
+        '<input class="inp" id="'+pfx+'_name" autocomplete="off" placeholder="Start typing party name or mobile">'+
+        '<div class="acdd" id="'+pfx+'_dd"></div></div>';
+    }
+    return '<div class="field"><label>'+p[1]+'</label><input class="inp'+(p[0]==="gst"||p[0]==="mobile"?" mono":"")+'" id="'+pfx+'_'+p[0]+'" autocomplete="off"></div>';
+  }).join("");
+  return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">'+
+    '<div><h2>Party details</h2><p class="small-sub">Pick a saved party to fill everything automatically &mdash; every field stays editable.</p></div>'+
+    '<span id="'+pfx+'_badge"></span></div><div class="grid3">'+f+'</div>';
+}
+
+function PartyCtl(pfx, initial){
+  var st = { partyId:null };
+  function field(k){ return $("#"+pfx+"_"+k); }
+  function read(){ var o = {}; PARTY_FIELDS.forEach(function(f){ o[f[0]] = field(f[0]).value.trim(); }); return o; }
+  function fill(o){ PARTY_FIELDS.forEach(function(f){ field(f[0]).value = o[f[0]] || ""; }); }
+  function changes(){
+    var p = st.partyId && partyById(st.partyId); if (!p) return [];
+    var cur = read();
+    return PARTY_FIELDS.filter(function(f){ return (p[f[0]]||"") !== cur[f[0]]; }).map(function(f){
+      return {k:f[0], label:f[1], old:p[f[0]]||"", val:cur[f[0]]}; });
+  }
+  function badge(){
+    var b = $("#"+pfx+"_badge"); if (!b || !field("name")) return; var name = field("name").value.trim();
+    if (!name){ b.innerHTML = ""; return; }
+    if (!st.partyId){ b.innerHTML = '<span class="pbadge new">'+icon("plus",11,2.6)+'New party &mdash; will be added to Party Master</span>'; return; }
+    var ch = changes();
+    b.innerHTML = ch.length
+      ? '<span class="pbadge changed">'+icon("pencil",11,2.2)+ch.length+' field'+(ch.length===1?"":"s")+' changed from Party Master</span>'
+      : '<span class="pbadge linked">'+icon("check",11,2.6)+'Filled from Party Master</span>';
+  }
+  function select(p){ st.partyId = p.id; fill(p); dd(false); badge(); field("mobile").focus(); }
+  var hi = -1, matches = [];
+  function dd(show){
+    var box = $("#"+pfx+"_dd");
+    if (!box) return;
+    if (!show){ box.classList.remove("on"); hi = -1; return; }
+    var q = field("name").value.trim().toLowerCase();
+    matches = !q ? PARTIES.slice(0, 6) : PARTIES.filter(function(p){
+      return p.name.toLowerCase().indexOf(q) >= 0 || p.mobile.replace(/\s/g,"").indexOf(q.replace(/\s/g,"")) >= 0; }).slice(0, 6);
+    if (!matches.length){ box.innerHTML = '<div class="acitem" style="cursor:default;"><div class="m">No saved party matches &mdash; it will be created as a new party.</div></div>'; box.classList.add("on"); return; }
+    box.innerHTML = matches.map(function(p, i){
+      return '<div class="acitem'+(i===hi?" hi":"")+'" data-pi="'+i+'"><div><div class="n">'+esc(p.name)+'</div><div class="m">'+esc(p.city)+' &middot; '+esc(p.mobile)+'</div></div>'+
+        '<div class="m mono">'+esc(p.gst)+'</div></div>'; }).join("");
+    box.classList.add("on");
+    $all("[data-pi]", box).forEach(function(el){ el.onmousedown = function(e){ e.preventDefault(); select(matches[+el.dataset.pi]); }; });
+  }
+
+  var nameInp = field("name");
+  var blurT = null;
+  nameInp.addEventListener("input", function(){ clearTimeout(blurT);
+    var p = st.partyId && partyById(st.partyId);
+    if (p && norm(p.name) !== norm(nameInp.value)) st.partyId = null;  // typed a different name: treat as another party
+    hi = -1; dd(true); badge();
+  });
+  nameInp.addEventListener("focus", function(){ clearTimeout(blurT); dd(true); });
+  nameInp.addEventListener("blur", function(){ blurT = setTimeout(function(){ dd(false); }, 120); });
+  nameInp.addEventListener("keydown", function(e){
+    var box = $("#"+pfx+"_dd"); if (!box || !box.classList.contains("on") || !matches.length) return;
+    if (e.key==="ArrowDown"){ e.preventDefault(); hi = Math.min(hi+1, matches.length-1); dd(true); }
+    else if (e.key==="ArrowUp"){ e.preventDefault(); hi = Math.max(hi-1, 0); dd(true); }
+    else if (e.key==="Enter" && hi >= 0){ e.preventDefault(); select(matches[hi]); }
+    else if (e.key==="Escape"){ dd(false); }
+  });
+  PARTY_FIELDS.forEach(function(f){ if (f[0]!=="name") field(f[0]).addEventListener("input", badge); });
+
+  if (initial){ fill(initial.party); st.partyId = initial.partyId && partyById(initial.partyId) ? initial.partyId : null; }
+  badge();
+
+  /* Called on save. Resolves the party against Party Master, asking when needed,
+     then calls done(partyId, snapshot). */
+  function commit(done){
+    var cur = read();
+    if (!cur.name){ toast("Enter the party name."); field("name").focus(); return; }
+    if (!st.partyId){
+      var same = partyByName(cur.name);
+      if (same){ st.partyId = same.id; }
+      else {
+        var np = {id:"P"+(partySeq++)}; PARTY_FIELDS.forEach(function(f){ np[f[0]] = cur[f[0]]; });
+        PARTIES.push(np); st.partyId = np.id; badge();
+        toast(cur.name+" added to Party Master.");
+        return done(np.id, snapParty(np));
+      }
+    }
+    var ch = changes();
+    if (!ch.length) return done(st.partyId, cur);
+    var rows = ch.map(function(c){ return '<div class="dr"><span>'+c.label+'</span><span class="old">'+esc(c.old||"\u2014")+'</span><span class="new">'+esc(c.val||"\u2014")+'</span></div>'; }).join("");
+    modal("Update Party Master?",
+      'You changed <b>'+ch.length+' field'+(ch.length===1?"":"s")+'</b> for <b>'+esc(cur.name)+'</b>. Should Party Master keep these changes for future orders too?'+
+      '<div class="diff"><div class="dr h"><span>Field</span><span>In Party Master</span><span>On this document</span></div>'+rows+'</div>',
+      [ {label:"Cancel"},
+        {label:"Use for this document only", fn:function(){ done(st.partyId, cur); }},
+        {label:"Update Party Master", kind:"pri", fn:function(){
+          var p = partyById(st.partyId); PARTY_FIELDS.forEach(function(f){ p[f[0]] = cur[f[0]]; });
+          toast("Party Master updated for "+cur.name+"."); badge(); done(st.partyId, cur); }} ]);
+  }
+  return { commit:commit, read:read, fill:function(pid){ var p = partyById(pid); if (p) select(p); } };
+}
+
+/* =====================================================================
+   SHARED: 3-method scan panel (Manual Set ID / QR Scanner / QR Gun)
+   ===================================================================== */
+var CAM = { stream:null, timer:null, last:"", lastT:0 };
+function stopCamera(){
+  if (CAM.timer){ clearInterval(CAM.timer); CAM.timer = null; }
+  if (CAM.stream){ CAM.stream.getTracks().forEach(function(t){ t.stop(); }); CAM.stream = null; }
+}
+
+/* opts: {pfx, title, hint, onCode(raw, methodLabel), demoTags():[{id,label}] } */
+function ScanPanel(host, opts){
+  var method = opts.method || "manual";
+  var pfx = opts.pfx;
+  function render(){
+    stopCamera();
+    var body;
+    if (method === "manual"){
+      body = '<div class="scaninput"><span class="mag">'+icon("keyboard",18,2)+'</span>'+
+        '<input id="'+pfx+'_in" autocomplete="off" spellcheck="false" placeholder="'+esc(opts.manualPh)+'"></div>'+
+        '<div class="hint mut">Type or paste the ID and press <b>Enter</b>.</div>';
+    } else if (method === "camera"){
+      var supported = ("BarcodeDetector" in window) && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+      body = '<div class="cam" id="'+pfx+'_cam"><video id="'+pfx+'_vid" playsinline muted></video><div class="frame"></div>'+
+        '<div class="cap" id="'+pfx+'_camcap">'+(supported ? "Tap Start camera, then point at the QR tag" : "Live camera scanning isn\u2019t supported in this browser")+'</div></div>'+
+        '<div style="display:flex;gap:8px;margin-top:10px;">'+
+          (supported ? '<button class="btn sm pri" id="'+pfx+'_camgo">'+icon("camera",13,2)+'Start camera</button><button class="btn sm" id="'+pfx+'_camstop">Stop</button>' :
+          '<span class="small-sub">Use Chrome on Android or the QR Gun. The demo tags below work everywhere.</span>')+
+        '</div>';
+    } else {
+      body = '<div class="gunstate" id="'+pfx+'_gs"><span class="pulse"></span><div style="flex:1;"><b id="'+pfx+'_gst">Ready &mdash; pull the trigger</b>'+
+        '<div class="small-sub" style="font-size:11.6px;">The QR Gun types into the field below. Keep it focused while scanning.</div></div></div>'+
+        '<div class="scaninput"><span class="mag">'+icon("gun",18,2)+'</span>'+
+        '<input id="'+pfx+'_in" autocomplete="off" spellcheck="false" placeholder="Waiting for scanner input&hellip;"></div>';
+    }
+    host.innerHTML =
+      '<div class="scanhead"><div><h2>'+opts.title+'</h2><p class="small-sub">'+opts.hint+'</p></div>'+
+      '<div class="method" id="'+pfx+'_m">'+
+        '<button data-m="manual"'+(method==="manual"?' class="on"':'')+'>'+icon("keyboard",14,2)+'Manual Set ID</button>'+
+        '<button data-m="camera"'+(method==="camera"?' class="on"':'')+'>'+icon("camera",14,2)+'QR Scanner</button>'+
+        '<button data-m="gun"'+(method==="gun"?' class="on"':'')+'>'+icon("gun",14,2)+'QR Gun</button>'+
+      '</div></div>'+ body +
+      '<div class="democ" id="'+pfx+'_demo"></div>'+
+      '<div class="feedback" id="'+pfx+'_fb"></div>';
+
+    $all("[data-m]", $("#"+pfx+"_m")).forEach(function(b){ b.onclick = function(){ method = b.dataset.m; render(); }; });
+    var inp = $("#"+pfx+"_in");
+    if (inp){
+      inp.addEventListener("keydown", function(e){
+        if (e.key === "Enter"){ e.preventDefault(); var v = inp.value; inp.value = ""; if (v.trim()) opts.onCode(v, label()); }
+      });
+      if (method === "gun"){
+        inp.addEventListener("focus", function(){ $("#"+pfx+"_gs").classList.remove("idle"); $("#"+pfx+"_gst").innerHTML = "Ready &mdash; pull the trigger"; });
+        inp.addEventListener("blur", function(){ $("#"+pfx+"_gs").classList.add("idle"); $("#"+pfx+"_gst").innerHTML = "Paused &mdash; click the field to resume scanning"; });
+      }
+      setTimeout(function(){ inp.focus(); }, 0);
+    }
+    var go = $("#"+pfx+"_camgo"), stop = $("#"+pfx+"_camstop");
+    if (go) go.onclick = startCam;
+    if (stop) stop.onclick = function(){ stopCamera(); $("#"+pfx+"_camcap").textContent = "Camera stopped"; };
+    renderDemo();
+  }
+  function label(){ return method==="manual" ? "Manual" : method==="camera" ? "QR Scanner" : "QR Gun"; }
+  function startCam(){
+    var vid = $("#"+pfx+"_vid"), cap = $("#"+pfx+"_camcap");
+    navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(stream){
+      CAM.stream = stream; vid.srcObject = stream; vid.play(); cap.textContent = "Scanning\u2026 hold the tag inside the frame";
+      var det = new window.BarcodeDetector({formats:["qr_code","code_128"]});
+      CAM.timer = setInterval(function(){
+        det.detect(vid).then(function(codes){
+          if (!codes.length) return;
+          var v = codes[0].rawValue, t = Date.now();
+          if (v === CAM.last && t - CAM.lastT < 2500) return;
+          CAM.last = v; CAM.lastT = t; opts.onCode(v, "QR Scanner");
+        }).catch(function(){});
+      }, 350);
+    }).catch(function(){ cap.textContent = "Camera permission denied \u2014 allow camera access or use the QR Gun."; });
+  }
+  function renderDemo(){
+    var box = $("#"+pfx+"_demo"); if (!box) return;
+    if (method === "manual"){ box.innerHTML = ""; return; }
+    var tags = opts.demoTags();
+    box.innerHTML = '<div class="lb">Demo mode &mdash; tap a tag to simulate '+(method==="camera"?"the camera reading":"a trigger pull on")+' it:</div>'+
+      (tags.map(function(t){ return '<button class="tagchip" data-demo="'+esc(t.id)+'"><span class="k">'+esc(t.k)+'</span>'+esc(t.id)+'</button>'; }).join("") ||
+       '<span class="small-sub">No tags left in stock to demo.</span>');
+    $all("[data-demo]", box).forEach(function(b){ b.onclick = function(){ opts.onCode(b.dataset.demo, label()); var i = $("#"+pfx+"_in"); if (i) i.focus(); }; });
+  }
+  function feedback(kind, html){ var fb = $("#"+pfx+"_fb"); if (fb) fb.innerHTML = '<div class="fb '+kind+'">'+icon(kind==="ok"?"check":"alert",15,2.4)+'<div>'+html+'</div></div>'; }
+  function focus(){ var i = $("#"+pfx+"_in"); if (i) i.focus(); }
+  render();
+  return { feedback:feedback, focus:focus, refreshDemo:renderDemo };
+}
+
+/* expose to part 2 */
+window.__SO = { $:$, $all:$all, esc:esc, sum:sum, inr:inr, norm:norm, todayStr:todayStr, TODAY:TODAY, parseDMY:parseDMY, longDate:longDate,
+  nowTime:nowTime, icon:icon, toast:toast, modal:modal, closeModal:closeModal, downloadCSV:downloadCSV,
+  DESIGNS:DESIGNS, vName:vName, vHex:vHex, key:key, unkey:unkey, PIECES:PIECES, UNITS:UNITS, inStockPieces:inStockPieces,
+  availablePcs:availablePcs, resolveCode:resolveCode, kindLabel:kindLabel, PARTIES:PARTIES, PARTY_FIELDS:PARTY_FIELDS,
+  partyById:partyById, snapParty:snapParty, ORDERS:ORDERS, INVOICES:INVOICES, orderByNo:orderByNo, invoiceByNo:invoiceByNo,
+  aggregate:aggregate, invoiceTotals:invoiceTotals, orderPcs:orderPcs, wireUniqueField:wireUniqueField, suggestNext:suggestNext,
+  partyBlockHtml:partyBlockHtml, PartyCtl:PartyCtl, ScanPanel:ScanPanel, stopCamera:stopCamera,
+  newPartyId:function(){ return "P"+(partySeq++); } };
+})();
+
+</script>
+<script>
+(function(){
+"use strict";
+var X = window.__SO;
+var $ = X.$, $all = X.$all, esc = X.esc, sum = X.sum, inr = X.inr, norm = X.norm, icon = X.icon, toast = X.toast;
+var DESIGNS = X.DESIGNS, ORDERS = X.ORDERS, INVOICES = X.INVOICES;
+var key = X.key, vName = X.vName, vHex = X.vHex;
+
+/* ---------------------------------------------------------------------
+   Photos. In the real app each variant's photo comes from Design Master.
+   Here we draw a stand-in once per variant and cache it; a variant marked
+   photo:false simulates a variant that was registered without a photo.
+   --------------------------------------------------------------------- */
+var CACHE = {};
+function hasPhoto(d, v){ return DESIGNS[d].variants[v].photo !== false; }
+function shade(hex, amt){
+  var n = parseInt(hex.slice(1), 16), r = (n>>16)+amt, g = ((n>>8)&255)+amt, b = (n&255)+amt;
+  function c(x){ return Math.max(0, Math.min(255, x)); }
+  return "rgb("+c(r)+","+c(g)+","+c(b)+")";
+}
+function photo(d, v){
+  if (!hasPhoto(d, v)) return null;
+  var k = key(d, v); if (CACHE[k]) return CACHE[k];
+  var W = 480, H = 600, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  var x = cv.getContext("2d"), hex = vHex(d, v);
+  var bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#F8FAFC"); bg.addColorStop(1, "#E2E8F0");
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  // kurti silhouette
+  x.beginPath();
+  x.moveTo(190, 70); x.quadraticCurveTo(240, 110, 290, 70);            // neckline
+  x.lineTo(350, 95); x.lineTo(410, 215); x.lineTo(365, 238); x.lineTo(335, 175); // right sleeve
+  x.lineTo(352, 430); x.lineTo(392, 540); x.lineTo(88, 540); x.lineTo(128, 430); // flared hem
+  x.lineTo(145, 175); x.lineTo(115, 238); x.lineTo(70, 215); x.lineTo(130, 95); x.closePath();
+  var body = x.createLinearGradient(80, 0, 400, 0); body.addColorStop(0, shade(hex, -18)); body.addColorStop(.5, hex); body.addColorStop(1, shade(hex, -28));
+  x.fillStyle = body; x.fill();
+  // print motif, clipped to the garment
+  x.save(); x.clip();
+  x.globalAlpha = .18; x.fillStyle = "#fff";
+  var seedN = d.charCodeAt(2) + v.charCodeAt(0);
+  for (var yy = 110; yy < 560; yy += 38) for (var xx = 60 + ((yy/38)%2)*19; xx < 420; xx += 38){
+    x.beginPath();
+    if (seedN % 2) { x.arc(xx, yy, 6, 0, Math.PI*2); } else { x.ellipse(xx, yy, 9, 4, Math.PI/4, 0, Math.PI*2); }
+    x.fill();
+  }
+  x.globalAlpha = .22; x.fillStyle = "#fff"; x.fillRect(80, 400, 320, 10);   // border band
+  x.restore();
+  // label strip
+  x.fillStyle = "rgba(15,23,42,.86)"; x.fillRect(0, H - 56, W, 56);
+  x.fillStyle = "#fff"; x.font = "700 22px Inter, sans-serif"; x.fillText(d, 22, H - 22);
+  x.font = "500 17px Inter, sans-serif"; x.fillStyle = "#CBD5E1";
+  var w = x.measureText(d).width; x.fillText("\u00b7  " + vName(d, v), 34 + w, H - 23);
+  return (CACHE[k] = cv.toDataURL("image/jpeg", .9));
+}
+function dataUrlToFile(url, name){
+  var parts = url.split(","), mime = parts[0].match(/:(.*?);/)[1], bin = atob(parts[1]), arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], name, {type:mime});
+}
+function fileName(it){ return it.design + "-" + it.variant + "-" + vName(it.design, it.variant).replace(/\s+/g, "-") + ".jpg"; }
+
+/* ---------------------------------------------------------------------
+   State
+   --------------------------------------------------------------------- */
+var G = { mode:"order", fetched:null, items:[], sel:{}, rates:false, q:"", design:"", stock:"all" };
+
+function itemsFromOrder(o){
+  var seen = {}, out = [];
+  o.items.forEach(function(i){ var k = key(i.design, i.variant);
+    if (seen[k]){ seen[k].qty += i.qty; return; }
+    out.push(seen[k] = {design:i.design, variant:i.variant, qty:i.qty, label:i.qty+" pcs requested"}); });
+  return out;
+}
+function itemsFromInvoice(inv){
+  var order = X.orderByNo(inv.orderNo), wanted = {};
+  if (order) order.items.forEach(function(i){ wanted[key(i.design, i.variant)] = true; });
+  return X.aggregate(inv.entries).map(function(l){
+    return {design:l.design, variant:l.variant, qty:l.pcs, label:l.pcs+" pcs billed", extra:!wanted[key(l.design,l.variant)]}; });
+}
+function itemsAll(){
+  var out = [];
+  Object.keys(DESIGNS).forEach(function(d){ Object.keys(DESIGNS[d].variants).forEach(function(v){
+    var av = X.availablePcs(d, v); out.push({design:d, variant:v, qty:av, label: av ? av+" pcs in stock" : "Out of stock"}); }); });
+  return out;
+}
+
+/* ---------------------------------------------------------------------
+   View
+   --------------------------------------------------------------------- */
+function render(params, go){
+  params = params || {};
+  if (params.mode) G.mode = params.mode;
+
+  $("#app").innerHTML =
+    '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">'+
+      '<div><h1>Gallery</h1><p class="sub">Pull up the photos of every design and variant in an order form or invoice, pick the ones you want, and send them to the client.</p></div>'+
+    '</div>'+
+    '<div class="gmodes" id="gModes">'+
+      modeBtn("order", "doc", "By Order Form", "Enter an order form number")+
+      modeBtn("invoice", "invoice", "By Invoice", "Enter an invoice number")+
+      modeBtn("all", "search", "All designs", "Browse and filter everything")+
+    '</div>'+
+    '<div id="gFetch" style="margin-top:18px;"></div></div>'+
+    '<div id="gResult"></div>'+
+    '<div class="gbar" id="gBar"></div>';
+
+  $all("#gModes [data-gm]").forEach(function(b){ b.onclick = function(){
+    if (G.mode === b.dataset.gm) return;
+    G.mode = b.dataset.gm; G.fetched = null; G.items = []; G.sel = {};
+    $all("#gModes [data-gm]").forEach(function(x){ x.classList.toggle("on", x === b); });
+    fetchUi(); results(); }; });
+
+  fetchUi();
+  if (params.no){ $("#gNo").value = params.no; doFetch(); }
+  else results();
+
+  /* ---------------- fetch bar ---------------- */
+  function fetchUi(){
+    var box = $("#gFetch");
+    if (G.mode === "all"){
+      G.fetched = {title:"All designs"}; G.items = itemsAll(); if (!Object.keys(G.sel).length) selectAll(false);
+      box.innerHTML =
+        '<div class="hsearch"><span class="mag">'+icon("search",19,2)+'</span>'+
+        '<input id="gQ" autocomplete="off" placeholder="Search by design code, design name or variant colour"></div>'+
+        '<div class="filters">'+
+          '<select class="fsel" id="gDesign"><option value="">All designs</option>'+Object.keys(DESIGNS).map(function(d){
+            return '<option value="'+d+'">'+d+' &middot; '+esc(DESIGNS[d].name)+'</option>'; }).join("")+'</select>'+
+          '<div class="seg" id="gStock">'+[["all","All"],["in","In stock"],["out","Out of stock"]].map(function(s){
+            return '<button data-gs="'+s[0]+'"'+(G.stock===s[0]?' class="on"':'')+'>'+s[1]+'</button>'; }).join("")+'</div>'+
+          '<button class="fclear" id="gClear" style="display:none;">Clear filters</button>'+
+          '<span class="rcount" id="gCount"></span></div>';
+      $("#gQ").value = G.q; $("#gDesign").value = G.design;
+      $("#gQ").addEventListener("input", function(){ G.q = this.value; results(); });
+      $("#gDesign").onchange = function(){ G.design = this.value; results(); };
+      $all("#gStock [data-gs]").forEach(function(b){ b.onclick = function(){ G.stock = b.dataset.gs;
+        $all("#gStock [data-gs]").forEach(function(x){ x.classList.toggle("on", x === b); }); results(); }; });
+      $("#gClear").onclick = function(){ G.q = ""; G.design = ""; G.stock = "all"; fetchUi(); results(); };
+      return;
+    }
+    var isO = G.mode === "order";
+    box.innerHTML =
+      '<div class="gfetch acwrap">'+
+        '<div class="scaninput" style="flex:1;"><span class="mag">'+icon(isO?"doc":"invoice",18,2)+'</span>'+
+        '<input id="gNo" autocomplete="off" spellcheck="false" placeholder="'+(isO?"Type the order form number, e.g. OF-1022":"Type the invoice number, e.g. INV-2026-041")+'"></div>'+
+        '<button class="btn pri" id="gGo">Fetch photos</button>'+
+        '<div class="acdd" id="gDD" style="right:150px;"></div>'+
+      '</div>'+
+      '<div class="hint mut" id="gHint">'+(isO ? "Case doesn\u2019t matter. Start typing to see matching order forms." : "Case doesn\u2019t matter. Start typing to see matching invoices.")+'</div>';
+    var inp = $("#gNo"), hi = -1, list = [];
+    function dd(show){
+      var boxDD = $("#gDD"); if (!boxDD) return; if (!show){ boxDD.classList.remove("on"); hi = -1; return; }
+      var q = norm(inp.value);
+      var src = isO ? ORDERS : INVOICES;
+      list = src.filter(function(r){ return !q || norm(r.no).indexOf(q) >= 0 || norm(r.party.name).indexOf(q) >= 0; }).slice().reverse().slice(0, 6);
+      if (!list.length){ boxDD.classList.remove("on"); return; }
+      boxDD.innerHTML = list.map(function(r, i){
+        var sub = isO ? r.party.name+" \u00b7 "+r.items.length+" variant"+(r.items.length>1?"s":"")+" \u00b7 "+(r.status==="invoiced"?"Invoiced":"Open")
+                      : r.party.name+" \u00b7 order "+r.orderNo+" \u00b7 "+X.invoiceTotals(r).pcs+" pcs";
+        return '<div class="acitem'+(i===hi?" hi":"")+'" data-gi="'+i+'"><div><div class="n mono">'+esc(r.no)+'</div><div class="m">'+esc(sub)+'</div></div><div class="m">'+esc(r.date)+'</div></div>'; }).join("");
+      boxDD.classList.add("on");
+      $all("[data-gi]", boxDD).forEach(function(el){ el.onmousedown = function(e){ e.preventDefault(); inp.value = list[+el.dataset.gi].no; dd(false); doFetch(); }; });
+    }
+    var blurT = null;
+    inp.addEventListener("input", function(){ clearTimeout(blurT); hi = -1; dd(true); });
+    inp.addEventListener("focus", function(){ clearTimeout(blurT); dd(true); });
+    inp.addEventListener("blur", function(){ blurT = setTimeout(function(){ dd(false); }, 120); });
+    inp.addEventListener("keydown", function(e){
+      var open = $("#gDD").classList.contains("on");
+      if (e.key === "ArrowDown" && open){ e.preventDefault(); hi = Math.min(hi+1, list.length-1); dd(true); }
+      else if (e.key === "ArrowUp" && open){ e.preventDefault(); hi = Math.max(hi-1, 0); dd(true); }
+      else if (e.key === "Enter"){ e.preventDefault(); if (open && hi >= 0) inp.value = list[hi].no; dd(false); doFetch(); }
+      else if (e.key === "Escape") dd(false);
+    });
+    $("#gGo").onclick = function(){ dd(false); doFetch(); };
+    setTimeout(function(){ inp.focus(); }, 0);
+  }
+
+  function doFetch(){
+    var inp = $("#gNo"), h = $("#gHint"), raw = inp.value, no = norm(raw);
+    G.fetched = null; G.items = []; G.sel = {};
+    if (!no){ h.className = "hint bad"; h.innerHTML = icon("alert",12,2.2)+" Enter "+(G.mode==="order"?"an order form":"an invoice")+" number first."; results(); inp.focus(); return; }
+    var rec = G.mode === "order" ? X.orderByNo(no) : X.invoiceByNo(no);
+    if (!rec){
+      // close matches: same digits, or contains what was typed
+      var src = G.mode === "order" ? ORDERS : INVOICES, digits = no.replace(/\D/g, "");
+      var near = src.filter(function(r){ var n = norm(r.no); return (digits && n.replace(/\D/g,"").indexOf(digits) >= 0) || n.indexOf(no) >= 0; }).slice(0, 4);
+      h.className = "hint bad";
+      h.innerHTML = icon("alert",12,2.2)+" No "+(G.mode==="order"?"order form":"invoice")+" <b>"+esc(no)+"</b> found."+
+        (near.length ? " Did you mean "+near.map(function(r){ return '<button class="linkbtn" data-near="'+esc(r.no)+'">'+esc(r.no)+'</button>'; }).join(", ")+"?" : "");
+      $all("[data-near]", h).forEach(function(b){ b.onclick = function(){ inp.value = b.dataset.near; doFetch(); }; });
+      results(); return;
+    }
+    inp.value = rec.no;
+    G.fetched = rec; G.items = G.mode === "order" ? itemsFromOrder(rec) : itemsFromInvoice(rec);
+    selectAll(true);
+    var withPhoto = G.items.filter(function(i){ return hasPhoto(i.design, i.variant); }).length;
+    h.className = "hint ok";
+    h.innerHTML = icon("check",12,2.6)+" Fetched <b>"+esc(rec.no)+"</b> &middot; "+esc(rec.party.name)+" &middot; "+withPhoto+" photo"+(withPhoto===1?"":"s");
+    results();
+  }
+
+  /* ---------------- results ---------------- */
+  function visibleItems(){
+    if (G.mode !== "all") return G.items;
+    var q = G.q.trim().toLowerCase();
+    return G.items.filter(function(i){
+      if (G.design && i.design !== G.design) return false;
+      if (G.stock === "in" && !i.qty) return false;
+      if (G.stock === "out" && i.qty) return false;
+      if (q && (i.design+" "+DESIGNS[i.design].name+" "+vName(i.design,i.variant)).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  function selectAll(on){ G.sel = {}; if (on) G.items.forEach(function(i){ if (hasPhoto(i.design, i.variant)) G.sel[key(i.design,i.variant)] = true; }); }
+  function selected(){ return G.items.filter(function(i){ return G.sel[key(i.design,i.variant)]; }); }
+
+  function results(){
+    var box = $("#gResult");
+    if (G.mode !== "all" && !G.fetched){
+      var src = G.mode === "order" ? ORDERS : INVOICES;
+      var recent = src.slice().reverse().slice(0, 5);
+      box.innerHTML = '<div class="sheet"><div class="gempty">'+
+        '<div class="gicon">'+icon(G.mode==="order"?"doc":"invoice",26,1.6)+'</div>'+
+        '<b>'+(G.mode==="order" ? "Enter an order form number to see its photos" : "Enter an invoice number to see its photos")+'</b>'+
+        '<span>'+(G.mode==="order" ? "Every design and variant the customer asked for will appear here." : "Every design and variant actually billed will appear here, including extras.")+'</span>'+
+        (recent.length ? '<div class="grecent"><span class="lb">Recent</span>'+recent.map(function(r){
+          return '<button class="tagchip" data-recent="'+esc(r.no)+'"><span class="k">'+esc(r.party.name.split(" ")[0])+'</span>'+esc(r.no)+'</button>'; }).join("")+'</div>' : '')+
+        '</div></div>';
+      $all("[data-recent]", box).forEach(function(b){ b.onclick = function(){ $("#gNo").value = b.dataset.recent; doFetch(); }; });
+      bar(); return;
+    }
+
+    var vis = visibleItems();
+    if (G.mode === "all"){
+      $("#gCount").textContent = vis.length+" of "+G.items.length+" variants";
+      $("#gClear").style.display = (G.q || G.design || G.stock !== "all") ? "" : "none";
+    }
+    var noPhoto = vis.filter(function(i){ return !hasPhoto(i.design, i.variant); });
+    var selectable = vis.filter(function(i){ return hasPhoto(i.design, i.variant); });
+    var allOn = selectable.length && selectable.every(function(i){ return G.sel[key(i.design,i.variant)]; });
+
+    var summary = "";
+    if (G.mode === "order"){
+      var o = G.fetched;
+      summary = ctxCard("Order form", o.no, o.party.name, X.longDate(o.date)+" &middot; "+X.orderPcs(o)+" pcs requested &middot; "+(o.status==="invoiced"?"Invoiced as "+esc(o.invoiceNo):"Open"), "orderView", o.no);
+    } else if (G.mode === "invoice"){
+      var inv = G.fetched, t = X.invoiceTotals(inv);
+      summary = ctxCard("Invoice", inv.no, inv.party.name, X.longDate(inv.date)+" &middot; order "+esc(inv.orderNo)+" &middot; "+t.pcs+" pcs &middot; "+inr(t.amount), "invoiceView", inv.no);
+    }
+
+    var grouped = [], gmap = {};
+    vis.forEach(function(i){ if (!gmap[i.design]){ gmap[i.design] = []; grouped.push(i.design); } gmap[i.design].push(i); });
+
+    box.innerHTML = '<div class="sheet">'+ summary +
+      '<div class="gtools"><label class="gselall"><button class="cb'+(allOn?" on":"")+'" id="gAll" aria-label="Select all"'+(selectable.length?"":" disabled")+'>'+icon("check",12,3)+'</button>'+
+        '<span>Select all <span style="color:var(--faint);">('+selectable.length+')</span></span></label>'+
+        '<span class="small-sub" id="gSelTxt"></span></div>'+
+      (noPhoto.length ? '<div class="fb warn" style="margin-bottom:14px;">'+icon("alert",15,2.4)+'<div><b>'+noPhoto.length+' variant'+(noPhoto.length>1?"s have":" has")+' no photo</b> in Design Master ('+
+        noPhoto.map(function(i){ return esc(i.design)+" "+esc(vName(i.design,i.variant)); }).join(", ")+'). '+(noPhoto.length>1?"They":"It")+' can&rsquo;t be shared until a photo is added.</div></div>' : '')+
+      (vis.length ? grouped.map(function(d){
+        return '<div class="gdesign"><div class="gdh"><b>'+esc(d)+'</b> <span>'+esc(DESIGNS[d].name)+' &middot; '+inr(DESIGNS[d].rate)+' / pc</span></div>'+
+          '<div class="ggrid">'+gmap[d].map(card).join("")+'</div></div>'; }).join("")
+        : '<div class="empty"><b>No variants match</b>Try another search or clear the filters.</div>')+
+    '</div>';
+
+    var ga = $("#gAll"); if (ga) ga.onclick = function(){
+      var turnOn = !ga.classList.contains("on");
+      selectable.forEach(function(i){ var k = key(i.design,i.variant); if (turnOn) G.sel[k] = true; else delete G.sel[k]; });
+      results(); };
+    $all("[data-gsel]", box).forEach(function(b){ b.onclick = function(e){ e.stopPropagation(); var k = b.dataset.gsel;
+      if (G.sel[k]) delete G.sel[k]; else G.sel[k] = true; results(); }; });
+    $all("[data-gopen]", box).forEach(function(el){ el.onclick = function(){ lightbox(el.dataset.gopen); }; });
+    $all("[data-gshare1]", box).forEach(function(b){ b.onclick = function(e){ e.stopPropagation();
+      share(G.items.filter(function(i){ return key(i.design,i.variant) === b.dataset.gshare1; })); }; });
+    $all("[data-gdl1]", box).forEach(function(b){ b.onclick = function(e){ e.stopPropagation();
+      download(G.items.filter(function(i){ return key(i.design,i.variant) === b.dataset.gdl1; })); }; });
+    $all("[data-goto]", box).forEach(function(b){ b.onclick = function(){ go(b.dataset.goto, {no:b.dataset.no}); }; });
+    bar();
+  }
+
+  function ctxCard(label, no, party, meta, view, id){
+    return '<div class="gctx"><div class="gctx-l"><span class="eyebrow">'+label+'</span>'+
+      '<div class="mono" style="font-size:17px;font-weight:700;">'+esc(no)+'</div>'+
+      '<div style="font-size:13px;color:var(--ink-2);margin-top:2px;"><b>'+esc(party)+'</b> &middot; '+meta+'</div></div>'+
+      '<button class="btn sm" data-goto="'+view+'" data-no="'+esc(id)+'">'+icon("eye",13,2)+'Open '+label.toLowerCase()+'</button></div>';
+  }
+
+  function card(i){
+    var k = key(i.design, i.variant), ph = photo(i.design, i.variant), on = !!G.sel[k];
+    if (!ph){
+      return '<div class="gcard nophoto"><div class="gimg"><div class="gnp">'+icon("alert",20,1.8)+'<span>No photo in<br>Design Master</span></div></div>'+
+        '<div class="gmeta"><div><b>'+esc(vName(i.design,i.variant))+'</b><div class="b2 mono">'+esc(i.design)+'-'+i.variant+'</div></div></div>'+
+        '<div class="gfoot"><span>'+esc(i.label)+'</span></div></div>';
+    }
+    return '<div class="gcard'+(on?" on":"")+'">'+
+      '<div class="gimg" data-gopen="'+k+'" title="View larger"><img src="'+ph+'" alt="'+esc(i.design+" "+vName(i.design,i.variant))+'" loading="lazy">'+
+        '<button class="cb gcb'+(on?" on":"")+'" data-gsel="'+k+'" aria-label="Select">'+icon("check",12,3)+'</button>'+
+        (i.extra ? '<span class="gtag">EXTRA</span>' : '')+'</div>'+
+      '<div class="gmeta"><div style="display:flex;align-items:center;gap:8px;min-width:0;"><span class="dot" style="background:'+vHex(i.design,i.variant)+'"></span>'+
+        '<div style="min-width:0;"><b>'+esc(vName(i.design,i.variant))+'</b><div class="b2 mono">'+esc(i.design)+'-'+i.variant+'</div></div></div>'+
+        '<div style="display:flex;gap:4px;"><button class="x" data-gdl1="'+k+'" title="Download">'+icon("download",13,2)+'</button>'+
+        '<button class="x" data-gshare1="'+k+'" title="Share this photo">'+icon("share",13,2)+'</button></div></div>'+
+      '<div class="gfoot"><span>'+esc(i.label)+'</span></div></div>';
+  }
+
+  /* ---------------- selection bar ---------------- */
+  function bar(){
+    var sel = selected(), b = $("#gBar");
+    if (!sel.length){ b.classList.remove("on"); b.innerHTML = ""; var t = $("#gSelTxt"); if (t) t.textContent = ""; return; }
+    var t2 = $("#gSelTxt"); if (t2) t2.textContent = sel.length+" selected";
+    b.innerHTML = '<div class="gbar-in"><div><b>'+sel.length+' photo'+(sel.length>1?"s":"")+' selected</b>'+
+      '<div style="font-size:11.8px;color:#CBD5E1;">'+(G.fetched && G.fetched.party ? "for "+esc(G.fetched.party.name) : "from all designs")+'</div></div>'+
+      '<label class="gtoggle"><input type="checkbox" id="gRates"'+(G.rates?" checked":"")+'> Include rates in message</label>'+
+      '<div style="display:flex;gap:8px;margin-left:auto;">'+
+        '<button class="btn sm ghost" id="gClearSel">Clear</button>'+
+        '<button class="btn sm ghost" id="gDl">'+icon("download",13,2)+'Download</button>'+
+        '<button class="btn sm pri" id="gShare">'+icon("share",13,2.2)+'Share '+sel.length+'</button></div></div>';
+    b.classList.add("on");
+    $("#gRates").onchange = function(){ G.rates = this.checked; };
+    $("#gClearSel").onclick = function(){ G.sel = {}; results(); };
+    $("#gDl").onclick = function(){ download(selected()); };
+    $("#gShare").onclick = function(){ share(selected()); };
+  }
+
+  /* ---------------- sharing ---------------- */
+  function message(list){
+    var head = G.mode === "order" && G.fetched ? "Designs for order form "+G.fetched.no+" ("+G.fetched.party.name+")"
+      : G.mode === "invoice" && G.fetched ? "Designs in invoice "+G.fetched.no+" ("+G.fetched.party.name+")" : "Our designs";
+    return head+":\n"+list.map(function(i){
+      return "\u2022 "+i.design+" "+DESIGNS[i.design].name+" \u2013 "+vName(i.design,i.variant)+(G.rates ? " \u2013 "+inr(DESIGNS[i.design].rate)+"/pc" : "");
+    }).join("\n");
+  }
+  function share(list){
+    list = list.filter(function(i){ return hasPhoto(i.design, i.variant); });
+    if (!list.length){ toast("Select at least one photo."); return; }
+    var text = message(list);
+    var files = list.map(function(i){ return dataUrlToFile(photo(i.design, i.variant), fileName(i)); });
+    if (navigator.share && navigator.canShare && navigator.canShare({files:files})){
+      navigator.share({files:files, text:text, title:"Designs"}).catch(function(err){
+        if (err && err.name === "AbortError") return;           // user closed the share sheet
+        fallback(list, text, "Your device couldn\u2019t share "+list.length+" photos at once. Try fewer, or use the options below.");
+      });
+      return;
+    }
+    var canOne = navigator.share && navigator.canShare && files.length > 1 && navigator.canShare({files:files.slice(0,1)});
+    if (canOne){
+      var max = 1; while (max < files.length && navigator.canShare({files:files.slice(0, max+1)})) max++;
+      fallback(list, text, "This device can share up to "+max+" photo"+(max>1?"s":"")+" at a time, and you\u2019ve selected "+files.length+". Share them in smaller batches, or download them all below.");
+      return;
+    }
+    fallback(list, text, null);
+  }
+  function fallback(list, text, reason){
+    X.modal("Share "+list.length+" photo"+(list.length>1?"s":""),
+      (reason ? '<div class="fb warn" style="margin-bottom:10px;">'+icon("alert",15,2.4)+'<div>'+esc(reason)+'</div></div>' :
+      '<p style="margin:0 0 10px;">This browser can&rsquo;t hand photos straight to WhatsApp or other apps. On a phone, open this page in Chrome or Safari to get the share sheet. Here you can:</p>')+
+      '<ol style="margin:0 0 12px;padding-left:18px;"><li><b>Download</b> the photos, then attach them in WhatsApp, Instagram or email.</li>'+
+      '<li><b>Copy the message</b> below and paste it with the photos.</li></ol>'+
+      '<textarea class="inp" id="gMsg" rows="5" style="font-size:12.3px;resize:vertical;">'+esc(text)+'</textarea>',
+      [ {label:"Close"},
+        {label:"Open WhatsApp (text)", fn:function(){ window.open("https://wa.me/?text="+encodeURIComponent(text), "_blank", "noopener"); }},
+        {label:"Copy message", fn:function(){ copy(text); }},
+        {label:"Download "+list.length+" photo"+(list.length>1?"s":""), kind:"pri", fn:function(){ download(list); }} ]);
+  }
+  function copy(text){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ toast("Message copied."); }, function(){ toast("Couldn\u2019t copy \u2014 select the text and copy it manually."); });
+    } else toast("Couldn\u2019t copy \u2014 select the text and copy it manually.");
+  }
+  function download(list){
+    list = list.filter(function(i){ return hasPhoto(i.design, i.variant); });
+    if (!list.length) return;
+    list.forEach(function(i, n){
+      setTimeout(function(){
+        var a = document.createElement("a"); a.href = photo(i.design, i.variant); a.download = fileName(i);
+        document.body.appendChild(a); a.click(); a.remove();
+      }, n * 250);   // spaced out so browsers don't block a burst of downloads
+    });
+    toast(list.length > 1 ? "Downloading "+list.length+" photos\u2026 if your browser asks, allow multiple downloads." : "Downloading "+fileName(list[0]));
+  }
+
+  /* ---------------- lightbox ---------------- */
+  function lightbox(k){
+    var list = visibleItems().filter(function(i){ return hasPhoto(i.design, i.variant); });
+    var idx = list.findIndex(function(i){ return key(i.design,i.variant) === k; });
+    if (idx < 0) return;
+    var lb = $("#glb");
+    function draw(){
+      var i = list[idx], kk = key(i.design, i.variant), on = !!G.sel[kk];
+      lb.innerHTML = '<div class="glb-in"><button class="glb-x" id="lbX" aria-label="Close">'+icon("x",18,2.2)+'</button>'+
+        '<button class="glb-nav l" id="lbP"'+(idx===0?" disabled":"")+' aria-label="Previous">'+icon("back",20,2.2)+'</button>'+
+        '<img src="'+photo(i.design, i.variant)+'" alt="">'+
+        '<button class="glb-nav r" id="lbN"'+(idx===list.length-1?" disabled":"")+' aria-label="Next">'+icon("arrow",20,2.2)+'</button>'+
+        '<div class="glb-cap"><div><b>'+esc(i.design)+' &middot; '+esc(vName(i.design,i.variant))+'</b><div style="font-size:12px;color:#CBD5E1;">'+esc(DESIGNS[i.design].name)+' &middot; '+esc(i.label)+' &middot; '+(idx+1)+' of '+list.length+'</div></div>'+
+        '<div style="display:flex;gap:8px;"><button class="btn sm ghost" id="lbSel">'+(on?icon("check",13,2.6)+"Selected":"Select")+'</button>'+
+        '<button class="btn sm pri" id="lbShare">'+icon("share",13,2.2)+'Share</button></div></div></div>';
+      $("#lbX").onclick = close; $("#lbP").onclick = function(){ if (idx > 0){ idx--; draw(); } };
+      $("#lbN").onclick = function(){ if (idx < list.length-1){ idx++; draw(); } };
+      $("#lbSel").onclick = function(){ if (G.sel[kk]) delete G.sel[kk]; else G.sel[kk] = true; draw(); results(); };
+      $("#lbShare").onclick = function(){ share([i]); };
+    }
+    function close(){ lb.classList.remove("on"); document.removeEventListener("keydown", keys, true); }
+    function keys(e){
+      if (!lb.classList.contains("on")) return;
+      if (e.key === "Escape"){ e.stopPropagation(); close(); }
+      else if (e.key === "ArrowLeft" && idx > 0){ idx--; draw(); }
+      else if (e.key === "ArrowRight" && idx < list.length-1){ idx++; draw(); }
+    }
+    lb.onclick = function(e){ if (e.target === lb) close(); };
+    document.addEventListener("keydown", keys, true);
+    lb.classList.add("on"); draw();
+  }
+}
+
+function modeBtn(m, ic, t, d){
+  return '<button data-gm="'+m+'"'+(G.mode===m?' class="on"':'')+'><span class="gmi">'+icon(ic,18,1.8)+'</span>'+
+    '<span><b>'+t+'</b><span>'+d+'</span></span></button>';
+}
+
+window.__GALLERY = { render:render, reset:function(){ G.fetched = null; G.items = []; G.sel = {}; } };
+})();
+
+</script>
+<script>
+(function(){
+"use strict";
+var X = window.__SO;
+var $ = X.$, $all = X.$all, esc = X.esc, sum = X.sum, inr = X.inr, norm = X.norm, icon = X.icon, toast = X.toast, modal = X.modal;
+var DESIGNS = X.DESIGNS, PIECES = X.PIECES, UNITS = X.UNITS, ORDERS = X.ORDERS, INVOICES = X.INVOICES, PARTIES = X.PARTIES;
+var key = X.key, vName = X.vName, vHex = X.vHex;
+
+/* =====================================================================
+   ROUTER + ROLE
+   ===================================================================== */
+var S = { view:"overview", params:{}, role:"staff" };
+var leaveHook = null;
+function go(view, params){
+  if (leaveHook){ var h = leaveHook; leaveHook = null; h(); }
+  X.stopCamera(); X.closeModal();
+  S.view = view; S.params = params || {};
+  render(); window.scrollTo(0, 0);
+}
+function isOwner(){ return S.role === "owner"; }
+$("#navStockOut").onclick = function(){ go("overview"); };
+$("#navGallery").onclick = function(){ window.__GALLERY.reset(); go("gallery", {mode:"order"}); };
+$("#role").onchange = function(){ S.role = this.value; toast("Signed in as "+(isOwner()?"Owner":"Staff")+"."); render(); };
+
+var TABS = [["overview","Overview"],["orders","Order Forms"],["invoices","Invoices"],["parties","Party Master"]];
+var TAB_OF = { overview:"overview", orders:"orders", orderEdit:"orders", orderView:"orders",
+  invoices:"invoices", invoiceEdit:"invoices", invoiceView:"invoices", parties:"parties" };
+function subnav(){
+  return '<div class="subnav" id="subnav">'+TABS.map(function(t){
+    return '<button data-tab="'+t[0]+'"'+(TAB_OF[S.view]===t[0]?' class="on"':'')+'>'+t[1]+'</button>'; }).join("")+'</div>';
+}
+function wireSubnav(){ $all("#subnav [data-tab]").forEach(function(b){ b.onclick = function(){ go(b.dataset.tab); }; }); }
+
+function render(){
+  var v = S.view;
+  $("#navStockOut").classList.toggle("on", v !== "gallery");
+  $("#navGallery").classList.toggle("on", v === "gallery");
+  $(".crumb").innerHTML = "Stock Mgmt &nbsp;/&nbsp; " + (v === "gallery" ? "Gallery" : "Stock Out");
+  if (v==="gallery"){ window.__GALLERY.render(S.params, go); return; }
+  if (v==="overview") viewOverview();
+  else if (v==="orders") viewOrders();
+  else if (v==="orderEdit") viewOrderEdit(S.params.no);
+  else if (v==="orderView") viewOrderDoc(S.params.no);
+  else if (v==="invoices") viewInvoices();
+  else if (v==="invoiceEdit") viewInvoiceEdit(S.params.no, S.params.orderNo);
+  else if (v==="invoiceView") viewInvoiceDoc(S.params.no);
+  else if (v==="parties") viewParties();
+  wireSubnav();
+}
+
+function chip(d, v){ return '<span class="vchip"><span class="dot" style="background:'+vHex(d,v)+'"></span>'+esc(d)+' &middot; '+esc(vName(d,v))+'</span>'; }
+function statusPill(o){ return o.status==="invoiced" ? '<span class="pill ok">Invoiced &middot; '+esc(o.invoiceNo)+'</span>' : '<span class="pill part">Open</span>'; }
+function head(title, sub, right){
+  return '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">'+
+    '<div><h1>'+title+'</h1><p class="sub">'+sub+'</p></div>'+(right||"")+'</div></div>';
+}
+
+/* =====================================================================
+   OVERVIEW
+   ===================================================================== */
+function viewOverview(){
+  var open = ORDERS.filter(function(o){ return o.status==="open"; });
+  var month = INVOICES.filter(function(i){ return X.parseDMY(i.date).getMonth()===X.TODAY.getMonth(); });
+  var pcsOut = sum(month, function(i){ return X.invoiceTotals(i).pcs; });
+  var value = sum(month, function(i){ return X.invoiceTotals(i).amount; });
+
+  var recentO = ORDERS.slice().reverse().slice(0, 4).map(function(o){
+    return '<div class="gr" style="grid-template-columns:1fr 1.3fr .7fr 1.1fr 90px;">'+
+      '<span class="b1">'+esc(o.no)+'</span><span>'+esc(o.party.name)+'</span><span class="num">'+X.orderPcs(o)+' pcs</span>'+
+      '<span>'+statusPill(o)+'</span><div style="text-align:right;">'+
+      (o.status==="open" ? '<button class="btn sm pri" data-inv="'+esc(o.no)+'">Invoice</button>' : '<button class="btn sm" data-ov="'+esc(o.no)+'">View</button>')+'</div></div>';
+  }).join("");
+  var recentI = INVOICES.slice().reverse().slice(0, 4).map(function(i){ var t = X.invoiceTotals(i);
+    return '<div class="gr" style="grid-template-columns:1.1fr 1.3fr .7fr .9fr 70px;">'+
+      '<span class="b1">'+esc(i.no)+'</span><span>'+esc(i.party.name)+'</span><span class="num">'+t.pcs+' pcs</span>'+
+      '<span class="num" style="font-weight:700;">'+inr(t.amount)+'</span><div style="text-align:right;"><button class="btn sm" data-iv="'+esc(i.no)+'">View</button></div></div>';
+  }).join("") || '<div class="empty">No invoices yet.</div>';
+
+  $("#app").innerHTML = subnav() +
+    head("Stock Out", "Note what the customer wants at the counter, then pick it from the godown and bill it &mdash; stock updates only when the invoice is generated.") +
+    '<div class="grid2">'+
+      '<button class="action" id="goNewOrder"><span class="ic" style="background:var(--blue-soft);color:var(--blue);">'+icon("doc",22,1.8)+'</span>'+
+        '<span><div class="t">New Order Form</div><div class="d">Scan the hanging designs the customer shortlists and note pieces per variant. Doesn&rsquo;t touch stock.</div></span></button>'+
+      '<button class="action" id="goNewInv"><span class="ic" style="background:var(--g-soft);color:var(--g);">'+icon("invoice",22,1.8)+'</span>'+
+        '<span><div class="t">New Invoice</div><div class="d">Fetch an order form as your checklist, scan the actual stock you pick, and bill it. Stock is deducted here.</div></span></button>'+
+    '</div>'+
+    '<div class="sheet"><div class="flow">'+
+      '<span class="s"><span class="n">1</span>Customer shortlists at the counter</span>'+icon("arrow",13,2)+
+      '<span class="s"><span class="n">2</span>Order Form (checklist)</span>'+icon("arrow",13,2)+
+      '<span class="s"><span class="n">3</span>Pick &amp; scan in the godown</span>'+icon("arrow",13,2)+
+      '<span class="s"><span class="n">4</span>Invoice &mdash; stock deducted</span></div>'+
+      '<div class="stats">'+
+        '<div class="stat"><div class="v" style="color:var(--blue)">'+open.length+'</div><div class="l">Order forms waiting to invoice</div></div>'+
+        '<div class="stat"><div class="v">'+month.length+'</div><div class="l">Invoices this month</div></div>'+
+        '<div class="stat"><div class="v">'+pcsOut+'</div><div class="l">Pieces dispatched this month</div></div>'+
+        '<div class="stat"><div class="v" style="color:var(--g)">'+inr(value)+'</div><div class="l">Invoiced this month</div></div>'+
+      '</div></div>'+
+    '<div class="grid2">'+
+      '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2>Recent order forms</h2>'+
+        '<button class="fclear" data-tabgo="orders">View all &rarr;</button></div><div class="gt">'+recentO+'</div></div>'+
+      '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2>Recent invoices</h2>'+
+        '<button class="fclear" data-tabgo="invoices">View all &rarr;</button></div><div class="gt">'+recentI+'</div></div>'+
+    '</div>';
+
+  $("#goNewOrder").onclick = function(){ go("orderEdit"); };
+  $("#goNewInv").onclick = function(){ go("invoiceEdit"); };
+  $all("[data-tabgo]").forEach(function(b){ b.onclick = function(){ go(b.dataset.tabgo); }; });
+  $all("[data-inv]").forEach(function(b){ b.onclick = function(){ go("invoiceEdit", {orderNo:b.dataset.inv}); }; });
+  $all("[data-ov]").forEach(function(b){ b.onclick = function(){ go("orderView", {no:b.dataset.ov}); }; });
+  $all("[data-iv]").forEach(function(b){ b.onclick = function(){ go("invoiceView", {no:b.dataset.iv}); }; });
+}
+
+/* =====================================================================
+   ORDER FORM — HISTORY
+   ===================================================================== */
+var OF = { q:"", st:"all" };
+function viewOrders(){
+  $("#app").innerHTML = subnav() +
+    head("Order Forms", "Every customer requirement noted at the counter. Open forms can still be edited; invoiced forms are locked.",
+      '<button class="btn pri" id="newO">'+icon("plus",15,2.2)+'New Order Form</button>') +
+    '<div class="sheet"><div class="hsearch"><span class="mag">'+icon("search",19,2)+'</span>'+
+      '<input id="oq" autocomplete="off" placeholder="Search by order form no., party, mobile or design code"></div>'+
+      '<div class="filters"><div class="seg" id="oseg"></div><span class="rcount" id="orc"></span></div>'+
+      '<div class="gt" style="margin-top:16px;"><div class="gh" style="grid-template-columns:1fr .8fr 1.4fr 2fr .7fr 1.2fr 230px;">'+
+      '<span>Order form</span><span>Date</span><span>Party</span><span>Designs &middot; variants</span><span>Pieces</span><span>Status</span><span></span></div>'+
+      '<div id="olist"></div></div></div>';
+  $("#oq").value = OF.q;
+  $("#oq").addEventListener("input", function(){ OF.q = this.value; list(); });
+  $("#newO").onclick = function(){ go("orderEdit"); };
+  function list(){
+    var q = OF.q.trim().toLowerCase();
+    var base = ORDERS.filter(function(o){
+      if (!q) return true;
+      return [o.no, o.party.name, o.party.mobile, o.party.city].concat(o.items.map(function(i){ return i.design+" "+vName(i.design,i.variant); }))
+        .join(" ").toLowerCase().indexOf(q) >= 0; });
+    var segs = [["all","All"],["open","Open"],["invoiced","Invoiced"]];
+    $("#oseg").innerHTML = segs.map(function(s){ var n = base.filter(function(o){ return s[0]==="all" || o.status===s[0]; }).length;
+      return '<button data-st="'+s[0]+'"'+(OF.st===s[0]?' class="on"':'')+'>'+s[1]+'<span class="n">'+n+'</span></button>'; }).join("");
+    $all("#oseg [data-st]").forEach(function(b){ b.onclick = function(){ OF.st = b.dataset.st; list(); }; });
+    var rows = base.filter(function(o){ return OF.st==="all" || o.status===OF.st; }).slice().reverse();
+    $("#orc").textContent = rows.length+" of "+ORDERS.length+" order forms";
+    $("#olist").innerHTML = rows.map(function(o){
+      return '<div class="gr" style="grid-template-columns:1fr .8fr 1.4fr 2fr .7fr 1.2fr 230px;">'+
+        '<span class="b1">'+esc(o.no)+'</span><span style="color:var(--mut);">'+esc(o.date)+'</span>'+
+        '<div>'+esc(o.party.name)+'<div class="b2">'+esc(o.party.city)+'</div></div>'+
+        '<div class="chips">'+o.items.map(function(i){ return chip(i.design, i.variant); }).join("")+'</div>'+
+        '<span class="num">'+X.orderPcs(o)+'</span><span>'+statusPill(o)+'</span>'+
+        '<div class="acts">'+
+          '<button class="btn sm" data-ov="'+esc(o.no)+'" title="View / print">'+icon("eye",13,2)+'View</button>'+
+          (o.status==="open" ? '<button class="btn sm" data-oe="'+esc(o.no)+'" title="Edit">'+icon("pencil",13,2)+'</button>'+
+            '<button class="btn sm pri" data-oi="'+esc(o.no)+'">Invoice</button>' : '')+
+        '</div></div>';
+    }).join("") || '<div class="empty"><b>No order forms match</b>Try another search, or create a new order form.</div>';
+    $all("[data-ov]", $("#olist")).forEach(function(b){ b.onclick = function(){ go("orderView", {no:b.dataset.ov}); }; });
+    $all("[data-oe]", $("#olist")).forEach(function(b){ b.onclick = function(){ go("orderEdit", {no:b.dataset.oe}); }; });
+    $all("[data-oi]", $("#olist")).forEach(function(b){ b.onclick = function(){ go("invoiceEdit", {orderNo:b.dataset.oi}); }; });
+  }
+  list();
+}
+
+/* =====================================================================
+   ORDER FORM — CREATE / EDIT
+   ===================================================================== */
+function viewOrderEdit(no){
+  var existing = no ? X.orderByNo(no) : null;
+  if (existing && existing.status !== "open"){ toast("Invoiced order forms are locked."); return go("orderView", {no:no}); }
+  var items = existing ? existing.items.map(function(i){ return {design:i.design, variant:i.variant, qty:i.qty}; }) : [];
+  var resolved = null;   // {design, focus}
+
+  $("#app").innerHTML = subnav() +
+    '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">'+
+      '<div><button class="fclear" id="oBack" style="padding-left:0;">'+icon("back",13,2)+' Order Forms</button>'+
+      '<h1>'+(existing ? "Edit Order Form" : "New Order Form")+'</h1>'+
+      '<p class="sub">A checklist of what the customer wants. Quantities can be more than the stock you have &mdash; nothing is deducted here.</p></div>'+
+      '<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">'+
+        '<div class="field" style="width:230px;"><label>Order form no. <span class="req">*</span></label>'+
+          '<div class="numbox"><input class="inp" id="oNo" autocomplete="off" placeholder="e.g. OF-1024"><button class="btn sm" id="oSug" title="Use the next number">Next no.</button></div>'+
+          '<div class="hint" id="oNoH"></div></div>'+
+        '<div class="field" style="width:150px;"><label>Date</label><input class="inp mono" id="oDate"></div>'+
+      '</div></div></div>'+
+    '<div class="sheet">'+X.partyBlockHtml("op")+'</div>'+
+    '<div class="sheet"><div id="oScan"></div><div id="oQty"></div></div>'+
+    '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">'+
+      '<div><h2>Requested items</h2><p class="small-sub">Required pieces per variant. Availability is live from stock and doesn&rsquo;t block anything.</p></div>'+
+      '<span class="small-sub" id="oSum"></span></div><div id="oItems"></div>'+
+      '<div class="field" style="margin-top:16px;"><label>Notes</label><input class="inp" id="oNotes" placeholder="Optional, e.g. customer prefers pastel shades"></div></div>'+
+    '<div class="sheet" style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">'+
+      '<button class="btn" id="oCancel">Cancel</button><button class="btn pri" id="oSave">'+icon("check",15,2.4)+(existing?"Save changes":"Save Order Form")+'</button></div>';
+
+  $("#oNo").value = existing ? existing.no : "";
+  $("#oDate").value = existing ? existing.date : X.todayStr();
+  $("#oNotes").value = existing ? existing.notes : "";
+  var checkNo = X.wireUniqueField("#oNo", "#oNoH", X.orderByNo, existing && existing.no, "order form number");
+  $("#oSug").onclick = function(){ $("#oNo").value = X.suggestNext(ORDERS, "OF-"); $("#oNo").dispatchEvent(new Event("input")); };
+  var party = X.PartyCtl("op", existing);
+  $("#oBack").onclick = $("#oCancel").onclick = function(){ go("orders"); };
+
+  var scan = X.ScanPanel($("#oScan"), {
+    pfx:"os", title:"Add designs", manualPh:"Set ID, QR ID or design code, e.g. SET-KP100-MID-001 or KP100",
+    hint:"Scan any hanging tag &mdash; parent, semi-set, child or loose &mdash; to pull up its design, then type pieces per variant.",
+    onCode:function(raw){
+      var r = X.resolveCode(raw);
+      if (!r){ scan.feedback("bad", "<b>"+esc(raw)+"</b> isn&rsquo;t a known tag or design code. Check the ID and try again."); return; }
+      resolved = {design:r.design, focus:r.variant};
+      scan.feedback("ok", "<b>"+esc(r.design)+" &middot; "+esc(DESIGNS[r.design].name)+"</b> found"+(r.variant? " from <b>"+esc(vName(r.design,r.variant))+"</b> tag":"")+". Enter the pieces below and press <b>Enter</b>.");
+      qtyPanel();
+    },
+    demoTags:function(){ return [{id:"SET-KP100-MID-002",k:"PARENT"},{id:"SET-KP100-CRM-001-M",k:"CHILD"},{id:"SEMI-FL205-GLD-001",k:"SEMI"},
+      {id:"LSE-KP310-RST-0003",k:"LOOSE"},{id:"SET-KP240-MRN-001",k:"PARENT"}]; }
+  });
+
+  function qtyPanel(){
+    var box = $("#oQty");
+    if (!resolved){ box.innerHTML = ""; return; }
+    var d = resolved.design, D = DESIGNS[d];
+    var vs = Object.keys(D.variants);
+    box.innerHTML = '<div class="qpanel"><div class="qh"><div><b>'+esc(d)+' &middot; '+esc(D.name)+'</b>'+
+      '<div class="small-sub">Pieces required for each variant &mdash; leave blank for variants they don&rsquo;t want.</div></div>'+
+      '<button class="x" id="qClose" title="Close">'+icon("x",13,2.2)+'</button></div>'+
+      vs.map(function(v){
+        var cur = items.filter(function(i){ return i.design===d && i.variant===v; })[0];
+        var av = X.availablePcs(d, v);
+        return '<div class="qrow'+(v===resolved.focus?" focus":"")+'"><div style="display:flex;align-items:center;gap:9px;"><span class="dot" style="background:'+vHex(d,v)+';width:10px;height:10px;"></span>'+
+          '<div><b>'+esc(vName(d,v))+'</b><div class="b2 mono">'+esc(d)+'-'+v+'</div></div></div>'+
+          '<span style="font-size:12px;color:'+(av?"var(--mut)":"var(--red)")+';">'+(av ? av+" pcs in stock" : "Out of stock")+'</span>'+
+          '<input type="number" min="0" data-qv="'+v+'" value="'+(cur?cur.qty:"")+'" placeholder="0"></div>';
+      }).join("")+
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;"><button class="btn sm" id="qCancel">Cancel</button>'+
+      '<button class="btn sm pri" id="qAdd">'+icon("check",13,2.4)+'Add to order</button></div></div>';
+    var inputs = $all("[data-qv]", box);
+    var focusInp = inputs.filter(function(i){ return i.dataset.qv===resolved.focus; })[0] || inputs[0];
+    focusInp.focus(); focusInp.select();
+    inputs.forEach(function(inp){ inp.addEventListener("keydown", function(e){ if (e.key==="Enter"){ e.preventDefault(); commit(); } else if (e.key==="Escape"){ close(); } }); });
+    $("#qAdd").onclick = commit; $("#qCancel").onclick = close; $("#qClose").onclick = close;
+    function commit(){
+      var added = 0;
+      inputs.forEach(function(inp){
+        var v = inp.dataset.qv, q = Math.max(0, parseInt(inp.value, 10) || 0);
+        var idx = items.findIndex(function(i){ return i.design===d && i.variant===v; });
+        if (q > 0){ if (idx >= 0) items[idx].qty = q; else items.push({design:d, variant:v, qty:q}); added += q; }
+        else if (idx >= 0) items.splice(idx, 1);
+      });
+      resolved = null; qtyPanel(); itemsTable();
+      scan.feedback("ok", added ? "Added <b>"+added+" pcs</b> of "+esc(d)+". Scan the next design." : "No pieces entered for "+esc(d)+".");
+      scan.focus();
+    }
+    function close(){ resolved = null; qtyPanel(); scan.focus(); }
+  }
+
+  function itemsTable(){
+    var box = $("#oItems");
+    var cols = "grid-template-columns:2fr 1fr 1fr 1.2fr 34px;";
+    if (!items.length){ box.innerHTML = '<div class="empty" style="border:1px dashed var(--line-2);border-radius:13px;"><b>No items yet</b>Scan a hanging tag above to start.</div>'; }
+    else {
+      box.innerHTML = '<div class="gt"><div class="gh" style="'+cols+'"><span>Design &middot; variant</span><span>Required pcs</span><span>In stock</span><span>Availability</span><span></span></div>'+
+        items.map(function(it, i){
+          var av = X.availablePcs(it.design, it.variant);
+          var pill = av >= it.qty ? '<span class="pill ok">Available</span>' : av === 0 ? '<span class="pill red">Out of stock</span>' : '<span class="pill warn">Short by '+(it.qty-av)+'</span>';
+          return '<div class="gr" style="'+cols+'"><div style="display:flex;align-items:center;gap:9px;"><span class="dot" style="background:'+vHex(it.design,it.variant)+'"></span>'+
+            '<div><b>'+esc(it.design)+'</b> '+esc(vName(it.design,it.variant))+'<div class="b2">'+esc(DESIGNS[it.design].name)+'</div></div></div>'+
+            '<input class="qty" type="number" min="1" data-iq="'+i+'" value="'+it.qty+'">'+
+            '<span class="num">'+av+'</span><span>'+pill+'</span>'+
+            '<button class="x" data-ix="'+i+'" title="Remove">'+icon("x",13,2.2)+'</button></div>';
+        }).join("")+'</div>';
+      $all("[data-iq]", box).forEach(function(inp){ inp.addEventListener("change", function(){
+        var q = parseInt(inp.value, 10) || 0; var i = +inp.dataset.iq;
+        if (q <= 0) items.splice(i, 1); else items[i].qty = q; itemsTable(); }); });
+      $all("[data-ix]", box).forEach(function(b){ b.onclick = function(){ items.splice(+b.dataset.ix, 1); itemsTable(); }; });
+    }
+    var designs = {}; items.forEach(function(i){ designs[i.design] = 1; });
+    $("#oSum").innerHTML = '<b>'+Object.keys(designs).length+'</b> designs &middot; <b>'+items.length+'</b> variants &middot; <b>'+sum(items, function(i){ return i.qty; })+'</b> pcs';
+  }
+  itemsTable();
+
+  $("#oSave").onclick = function(){
+    if (!checkNo()){ toast("Enter a unique order form number."); $("#oNo").focus(); return; }
+    if (!items.length){ toast("Add at least one design."); scan.focus(); return; }
+    party.commit(function(pid, snap){
+      var rec = { no:norm($("#oNo").value), date:$("#oDate").value.trim() || X.todayStr(), partyId:pid, party:snap,
+        notes:$("#oNotes").value.trim(), items:items.map(function(i){ return {design:i.design, variant:i.variant, qty:i.qty}; }),
+        status:"open", invoiceNo:null, by: existing ? existing.by : (isOwner()?"Owner":"Staff"), updated:X.todayStr() };
+      if (existing){ var ix = ORDERS.indexOf(existing); ORDERS[ix] = rec; toast("Order form "+rec.no+" updated."); }
+      else { ORDERS.push(rec); toast("Order form "+rec.no+" saved."); }
+      go("orderView", {no:rec.no});
+    });
+  };
+}
+
+/* =====================================================================
+   PRINTABLE DOCUMENTS
+   ===================================================================== */
+function metaCell(k, v){ return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
+function orderDocHtml(o){
+  var groups = [], seen = {};
+  o.items.forEach(function(i){ if (!seen[i.design]){ seen[i.design] = []; groups.push(i.design); } seen[i.design].push(i); });
+  var body = groups.map(function(d){
+    return '<tr class="dg"><td colspan="3">'+esc(d)+' &middot; '+esc(DESIGNS[d].name)+'</td></tr>'+
+      seen[d].map(function(i){ return '<tr><td>'+esc(vName(d,i.variant))+'</td><td class="mono" style="color:#64748B;">'+esc(d)+'-'+i.variant+'</td><td class="n"><b>'+i.qty+'</b></td></tr>'; }).join("");
+  }).join("");
+  var p = o.party;
+  return '<div class="doc"><div class="dh"><div><div class="dt">Order Form</div><div class="ds">Customer requirement &mdash; checklist for dispatch</div></div>'+
+    '<div class="dno"><div class="k">Order form no.</div><div class="v">'+esc(o.no)+'</div></div></div>'+
+    '<div class="dmeta">'+metaCell("Party", esc(p.name))+metaCell("Date", esc(X.longDate(o.date)))+metaCell("Mobile", esc(p.mobile||"\u2014"))+
+      metaCell("City", esc(p.city||"\u2014"))+metaCell("GST No.", esc(p.gst||"\u2014"))+metaCell("Transport", esc(p.transport||"\u2014"))+
+      metaCell("Agent", esc(p.agent||"\u2014"))+metaCell("Status", o.status==="invoiced" ? "Invoiced ("+esc(o.invoiceNo)+")" : "Open")+metaCell("Prepared by", esc(o.by))+'</div>'+
+    '<table class="dtbl"><thead><tr><th>Variant</th><th>Code</th><th class="n">Required pcs</th></tr></thead><tbody>'+body+
+    '<tr class="tot"><td colspan="2">Total required</td><td class="n">'+X.orderPcs(o)+'</td></tr></tbody></table>'+
+    (o.notes ? '<div style="margin-top:14px;font-size:12px;"><b>Notes:</b> '+esc(o.notes)+'</div>' : '')+
+    '<div class="dsign"><div>Prepared by</div><div>Customer</div><div>Checked by</div></div>'+
+    '<div class="dfoot"><span>'+esc(o.no)+'</span><span>Printed '+X.longDate(X.todayStr())+'</span></div></div>';
+}
+function invoiceDocHtml(inv){
+  var t = X.invoiceTotals(inv), p = inv.party;
+  var order = X.orderByNo(inv.orderNo);
+  var wanted = {}; if (order) order.items.forEach(function(i){ wanted[key(i.design,i.variant)] = i.qty; });
+  var groups = [], seen = {};
+  t.lines.forEach(function(l){ if (!seen[l.design]){ seen[l.design] = []; groups.push(l.design); } seen[l.design].push(l); });
+  var body = groups.map(function(d){
+    return '<tr class="dg"><td colspan="6">'+esc(d)+' &middot; '+esc(DESIGNS[d].name)+'</td></tr>'+
+      seen[d].map(function(l){
+        var sizes = DESIGNS[d].sizes.filter(function(s){ return l.sizes[s]; }).map(function(s){ return s+":"+l.sizes[s]; }).join("  ");
+        var comp = [l.sets?l.sets+" set"+(l.sets>1?"s":""):"", l.semis?l.semis+" semi":"", l.singles?l.singles+" pc"+(l.singles>1?"s":""):""].filter(Boolean).join(" + ");
+        return '<tr><td><b>'+esc(vName(d,l.variant))+'</b>'+(wanted[key(d,l.variant)]===undefined?' <span style="font-size:9.5px;color:#6D28D9;font-weight:700;">EXTRA</span>':'')+'</td>'+
+          '<td style="font-size:11px;color:#475569;">'+comp+'</td><td class="mono" style="font-size:11px;">'+sizes+'</td>'+
+          '<td class="n">'+l.pcs+'</td><td class="n">'+inr(l.rate)+'</td><td class="n"><b>'+inr(l.amount)+'</b></td></tr>';
+      }).join("");
+  }).join("");
+  return '<div class="doc"><div class="dh"><div><div class="dt">Invoice</div><div class="ds">Goods dispatched against order form '+esc(inv.orderNo)+'</div></div>'+
+    '<div class="dno"><div class="k">Invoice no.</div><div class="v">'+esc(inv.no)+'</div></div></div>'+
+    '<div class="dmeta">'+metaCell("Billed to", esc(p.name))+metaCell("Invoice date", esc(X.longDate(inv.date)))+metaCell("Order form", esc(inv.orderNo))+
+      metaCell("Mobile", esc(p.mobile||"\u2014"))+metaCell("City", esc(p.city||"\u2014"))+metaCell("GST No.", esc(p.gst||"\u2014"))+
+      metaCell("Transport", esc(p.transport||"\u2014"))+metaCell("Agent", esc(p.agent||"\u2014"))+metaCell("Prepared by", esc(inv.by)+(inv.editedBy?" \u00b7 edited by "+esc(inv.editedBy):""))+'</div>'+
+    '<table class="dtbl"><thead><tr><th>Variant</th><th>Packed as</th><th>Sizes</th><th class="n">Pcs</th><th class="n">Rate / pc</th><th class="n">Amount</th></tr></thead><tbody>'+body+
+    '<tr class="tot"><td colspan="3">Total</td><td class="n">'+t.pcs+'</td><td></td><td class="n">'+inr(t.amount)+'</td></tr></tbody></table>'+
+    '<div class="dsign"><div>Packed by</div><div>Checked by</div><div>Receiver&rsquo;s signature</div></div>'+
+    '<div class="dfoot"><span>'+esc(inv.no)+' &middot; '+esc(inv.orderNo)+'</span><span>Printed '+X.longDate(X.todayStr())+'</span></div></div>';
+}
+function openPrint(title, html){
+  $("#pTitle").textContent = title; $("#pSheet").innerHTML = html;
+  $("#pmodal").classList.add("on"); $("#pmodal").scrollTop = 0;
+}
+$("#pClose").onclick = function(){ $("#pmodal").classList.remove("on"); };
+$("#pPrint").onclick = function(){ window.print(); };
+$("#pmodal").addEventListener("click", function(e){ if (e.target === this) this.classList.remove("on"); });
+
+function orderCSV(o){
+  var rows = [["Order form no.", o.no],["Date", o.date],["Party", o.party.name],["Mobile", o.party.mobile],["City", o.party.city],
+    ["GST No.", o.party.gst],["Transport", o.party.transport],["Agent", o.party.agent],[],["Design","Design name","Variant","Code","Required pcs"]];
+  o.items.forEach(function(i){ rows.push([i.design, DESIGNS[i.design].name, vName(i.design,i.variant), i.design+"-"+i.variant, i.qty]); });
+  rows.push([],["Total","","","",X.orderPcs(o)]);
+  X.downloadCSV(o.no+".csv", rows);
+}
+function invoiceCSV(inv){
+  var t = X.invoiceTotals(inv);
+  var rows = [["Invoice no.", inv.no],["Date", inv.date],["Order form", inv.orderNo],["Party", inv.party.name],["Mobile", inv.party.mobile],
+    ["GST No.", inv.party.gst],[],["Design","Variant","Sets","Semi sets","Single pcs","Pieces","Rate / pc","Amount"]];
+  t.lines.forEach(function(l){ rows.push([l.design, vName(l.design,l.variant), l.sets, l.semis, l.singles, l.pcs, l.rate, l.amount]); });
+  rows.push([],["Total","","","","",t.pcs,"",t.amount],[],["Scanned tags"],["Tag ID","Type","Design","Variant","Pieces","Method"]);
+  inv.entries.forEach(function(e){ rows.push([e.scanId, X.kindLabel(e.kind), e.design, vName(e.design,e.variant), e.pieces.length, e.method]); });
+  X.downloadCSV(inv.no+".csv", rows);
+}
+
+function viewOrderDoc(no){
+  var o = X.orderByNo(no); if (!o) return go("orders");
+  $("#app").innerHTML = subnav() +
+    '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">'+
+      '<div><button class="fclear" id="dBack" style="padding-left:0;">'+icon("back",13,2)+' Order Forms</button>'+
+      '<h1 style="margin-top:2px;">'+esc(o.no)+' '+statusPill(o)+'</h1><p class="sub">'+esc(o.party.name)+' &middot; '+esc(X.longDate(o.date))+'</p></div>'+
+      '<div class="acts" style="flex-wrap:wrap;">'+
+        '<button class="btn" id="dPrint">'+icon("print",14,2)+'Print</button>'+
+        '<button class="btn" id="dCsv">'+icon("download",14,2)+'Download (Excel)</button>'+
+        '<button class="btn" id="dPhotos">'+icon("image",14,2)+'Photos</button>'+
+        (o.status==="open" ? '<button class="btn" id="dEdit">'+icon("pencil",14,2)+'Edit</button><button class="btn pri" id="dInv">'+icon("invoice",14,2)+'Create Invoice</button>'
+          : '<button class="btn pri" id="dSeeInv">View '+esc(o.invoiceNo)+'</button>')+
+      '</div></div></div>'+
+    '<div class="sheet"><div class="docwrap">'+orderDocHtml(o)+'</div></div>';
+  $("#dBack").onclick = function(){ go("orders"); };
+  $("#dPrint").onclick = function(){ openPrint("Order form "+o.no+" \u2014 print preview", orderDocHtml(o)); };
+  $("#dCsv").onclick = function(){ orderCSV(o); toast("Downloaded "+o.no+".csv"); };
+  $("#dPhotos").onclick = function(){ window.__GALLERY.reset(); go("gallery", {mode:"order", no:o.no}); };
+  if ($("#dEdit")) $("#dEdit").onclick = function(){ go("orderEdit", {no:o.no}); };
+  if ($("#dInv")) $("#dInv").onclick = function(){ go("invoiceEdit", {orderNo:o.no}); };
+  if ($("#dSeeInv")) $("#dSeeInv").onclick = function(){ go("invoiceView", {no:o.invoiceNo}); };
+}
+
+/* =====================================================================
+   INVOICE — CREATE / EDIT (the only step that changes stock)
+   ===================================================================== */
+function viewInvoiceEdit(editNo, presetOrder){
+  var editing = editNo ? X.invoiceByNo(editNo) : null;
+  if (editing && !isOwner()){ toast("Only the owner can edit invoices."); return go("invoiceView", {no:editNo}); }
+
+  var st = { order:null, ticks:{}, cart:[] };
+  var inCart = {};            // pieceId -> true
+  var restorePieces = null;   // for edit mode: pieces to re-mark as sold if the user leaves without saving
+
+  if (editing){
+    st.order = X.orderByNo(editing.orderNo);
+    st.ticks = JSON.parse(JSON.stringify(editing.ticks || {}));
+    st.cart = editing.entries.map(function(e){ return {scanId:e.scanId, kind:e.kind, design:e.design, variant:e.variant, pieces:e.pieces.slice(), method:e.method, time:e.time}; });
+    restorePieces = [];
+    st.cart.forEach(function(e){ e.pieces.forEach(function(pid){ PIECES[pid].sold = null; inCart[pid] = true; restorePieces.push(pid); }); });
+    leaveHook = function(){ restorePieces.forEach(function(pid){ PIECES[pid].sold = editing.no; }); };
+  }
+
+  $("#app").innerHTML = subnav() +
+    '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">'+
+      '<div><button class="fclear" id="iBack" style="padding-left:0;">'+icon("back",13,2)+' Invoices</button>'+
+      '<h1>'+(editing ? "Edit Invoice" : "New Invoice")+'</h1>'+
+      '<p class="sub">Fetch the order form as your checklist, then scan every set, semi set or piece you pick. Stock is deducted only when you generate the invoice.</p></div>'+
+      '<div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">'+
+        '<div class="field" style="width:240px;"><label>Invoice no. <span class="req">*</span></label>'+
+          '<div class="numbox"><input class="inp" id="iNo" autocomplete="off" placeholder="e.g. INV-2026-042"><button class="btn sm" id="iSug">Next no.</button></div>'+
+          '<div class="hint" id="iNoH"></div></div>'+
+        '<div class="field" style="width:140px;"><label>Date</label><input class="inp mono" id="iDate"></div>'+
+      '</div></div>'+
+      '<div class="field acwrap" style="max-width:520px;margin-top:6px;"><label>Order form no. <span class="req">*</span></label>'+
+        '<div class="numbox"><input class="inp" id="iOrd" autocomplete="off" placeholder="Type the order form number to fetch it"'+(editing?" disabled":"")+'>'+
+        '<button class="btn dark sm" id="iFetch"'+(editing?" disabled":"")+'>Fetch</button></div>'+
+        '<div class="acdd" id="iOrdDD"></div><div class="hint" id="iOrdH"></div></div>'+
+    '</div>'+
+    '<div id="iBody"></div>';
+
+  $("#iNo").value = editing ? editing.no : "";
+  $("#iDate").value = editing ? editing.date : X.todayStr();
+  var checkNo = X.wireUniqueField("#iNo", "#iNoH", X.invoiceByNo, editing && editing.no, "invoice number");
+  $("#iSug").onclick = function(){ $("#iNo").value = X.suggestNext(INVOICES, "INV-2026-"); $("#iNo").dispatchEvent(new Event("input")); };
+  $("#iBack").onclick = function(){ go(editing ? "invoiceView" : "invoices", editing ? {no:editing.no} : null); };
+
+  /* ---- order number fetch with suggestions ---- */
+  var ordInp = $("#iOrd");
+  function ordDD(show){
+    var box = $("#iOrdDD"); if (!box) return; if (!show){ box.classList.remove("on"); return; }
+    var q = norm(ordInp.value);
+    var list = ORDERS.filter(function(o){ return o.status==="open" && (!q || o.no.indexOf(q) >= 0 || norm(o.party.name).indexOf(q) >= 0); }).slice(0, 6);
+    if (!list.length){ box.classList.remove("on"); return; }
+    box.innerHTML = list.map(function(o){ return '<div class="acitem" data-ord="'+esc(o.no)+'"><div><div class="n mono">'+esc(o.no)+'</div><div class="m">'+esc(o.party.name)+' &middot; '+X.orderPcs(o)+' pcs</div></div><div class="m">'+esc(o.date)+'</div></div>'; }).join("");
+    box.classList.add("on");
+    $all("[data-ord]", box).forEach(function(el){ el.onmousedown = function(e){ e.preventDefault(); ordInp.value = el.dataset.ord; ordDD(false); fetchOrder(); }; });
+  }
+  var ordBlurT = null;
+  ordInp.addEventListener("input", function(){ clearTimeout(ordBlurT); ordDD(true); });
+  ordInp.addEventListener("focus", function(){ clearTimeout(ordBlurT); ordDD(true); });
+  ordInp.addEventListener("blur", function(){ ordBlurT = setTimeout(function(){ ordDD(false); }, 120); });
+  ordInp.addEventListener("keydown", function(e){ if (e.key==="Enter"){ e.preventDefault(); ordDD(false); fetchOrder(); } });
+  $("#iFetch").onclick = fetchOrder;
+
+  function fetchOrder(){
+    var no = norm(ordInp.value), h = $("#iOrdH");
+    var o = X.orderByNo(no);
+    if (!o){ h.className = "hint bad"; h.innerHTML = icon("alert",12,2.2)+" No order form "+esc(no||"")+" found."; return; }
+    if (o.status !== "open"){ h.className = "hint bad"; h.innerHTML = icon("alert",12,2.2)+" "+esc(o.no)+" is already invoiced as "+esc(o.invoiceNo)+"."; return; }
+    if (st.cart.length && st.order && st.order.no !== o.no){
+      modal("Switch order form?", "You&rsquo;ve already scanned <b>"+sum(st.cart,function(e){return e.pieces.length;})+" pcs</b> for "+esc(st.order.no)+". Switching keeps those scans but changes the checklist and party.",
+        [{label:"Cancel"},{label:"Switch", kind:"pri", fn:function(){ load(o); }}]); return;
+    }
+    load(o);
+  }
+  function load(o){
+    st.order = o; if (!editing) st.ticks = {};
+    ordInp.value = o.no;
+    var h = $("#iOrdH"); h.className = "hint ok"; h.innerHTML = icon("check",12,2.6)+" Fetched "+esc(o.no)+" &middot; "+esc(o.party.name)+" &middot; "+X.orderPcs(o)+" pcs requested";
+    body();
+  }
+
+  var party = null, scan = null;
+  function body(){
+    if (!st.order){
+      $("#iBody").innerHTML = '<div class="sheet"><div class="empty"><b>Fetch an order form to begin</b>The order form becomes your picking checklist &mdash; you can still add designs that aren&rsquo;t on it.</div></div>';
+      return;
+    }
+    $("#iBody").innerHTML =
+      '<div class="sheet">'+X.partyBlockHtml("ip")+'</div>'+
+      '<div class="split">'+
+        '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">'+
+          '<div><h2>Checklist &middot; '+esc(st.order.no)+'</h2><p class="small-sub">Tick each line as you find it in the godown. Demand vs available updates as you scan.</p></div>'+
+          '<span class="small-sub" id="ckSum"></span></div><div id="ckList"></div></div>'+
+        '<div class="sheet"><div id="iScan"></div></div>'+
+      '</div>'+
+      '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">'+
+        '<div><h2>Picked for this invoice</h2><p class="small-sub">Every scanned tag, grouped by design and variant. Remove a tag if it was scanned by mistake.</p></div></div>'+
+        '<div id="picked"></div></div>'+
+      '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">'+
+        '<div class="sumbar" id="iTotals"></div>'+
+        '<div style="display:flex;gap:10px;"><button class="btn" id="iCancel">Cancel</button>'+
+        '<button class="btn pri" id="iGen">'+icon("check",15,2.4)+(editing?"Save invoice changes":"Generate Invoice")+'</button></div></div></div>';
+
+    party = X.PartyCtl("ip", editing ? {party:editing.party, partyId:editing.partyId} : {party:st.order.party, partyId:st.order.partyId});
+    scan = X.ScanPanel($("#iScan"), {
+      pfx:"is", title:"Scan picked stock", manualPh:"Set ID or piece ID, e.g. SET-KP100-MID-003",
+      hint:"Parent = whole set, semi-set QR = its pieces, child or loose = 1 piece. Counted automatically.",
+      onCode:onScan, demoTags:demoTags
+    });
+    $("#iCancel").onclick = function(){ go(editing ? "invoiceView" : "invoices", editing ? {no:editing.no} : null); };
+    $("#iGen").onclick = generate;
+    refresh();
+  }
+
+  function demoTags(){
+    var wanted = st.order ? st.order.items.map(function(i){ return key(i.design,i.variant); }) : [];
+    var out = [], seenK = {};
+    function push(id, k){ if (out.length < 9 && !out.some(function(x){ return x.id===id; })) out.push({id:id, k:k}); }
+    // one parent, one loose/child per wanted variant, then a couple of extras
+    wanted.concat(Object.keys(DESIGNS).reduce(function(a, d){ return a.concat(Object.keys(DESIGNS[d].variants).map(function(v){ return key(d,v); })); }, []))
+    .forEach(function(k){
+      if (seenK[k]) return; seenK[k] = 1; var kv = X.unkey(k);
+      var u = Object.keys(UNITS).filter(function(id){ var x = UNITS[id]; return x.design===kv.design && x.variant===kv.variant &&
+        x.pieces.every(function(p){ return !PIECES[p].sold && !inCart[p]; }); })[0];
+      if (u) push(u, UNITS[u].kind==="set" ? "PARENT" : "SEMI");
+      var lp = Object.keys(PIECES).filter(function(id){ var p = PIECES[id]; return p.design===kv.design && p.variant===kv.variant && !p.parent && !p.sold && !inCart[id]; })[0];
+      if (lp) push(lp, "LOOSE");
+    });
+    return out;
+  }
+
+  function onScan(raw, method){
+    var r = X.resolveCode(raw);
+    if (!r){ return scan.feedback("bad", "<b>"+esc(raw)+"</b> isn&rsquo;t a known QR tag."); }
+    if (r.kind==="design" || r.kind==="variant"){ return scan.feedback("bad", "<b>"+esc(raw)+"</b> is a design code. At dispatch, scan or type the actual tag ID on the set or piece so the exact stock is deducted."); }
+    var soldTo = r.pieces.map(function(p){ return PIECES[p].sold; }).filter(Boolean);
+    var already = r.pieces.filter(function(p){ return inCart[p]; });
+    if (r.kind==="set" || r.kind==="semi"){
+      if (already.length === r.pieces.length) return scan.feedback("warn", "<b>"+esc(r.id)+"</b> is already on this invoice.");
+      if (soldTo.length || already.length){
+        var out = soldTo.length + already.length;
+        return scan.feedback("bad", "<b>"+esc(r.id)+"</b> has been opened &mdash; "+out+" of "+r.pieces.length+" pieces are already "+(soldTo.length?"sold":"scanned")+". Scan the remaining pieces individually.");
+      }
+    } else {
+      if (already.length) return scan.feedback("warn", "<b>"+esc(r.id)+"</b> is already on this invoice.");
+      if (soldTo.length) return scan.feedback("bad", "<b>"+esc(r.id)+"</b> was already sold on "+esc(soldTo[0])+".");
+      if (r.kind==="child"){
+        var parentInCart = st.cart.filter(function(e){ return e.pieces.indexOf(r.id) >= 0; })[0];
+        if (parentInCart) return scan.feedback("warn", "This piece is already counted through its set <b>"+esc(parentInCart.scanId)+"</b>.");
+      }
+    }
+    var entry = {scanId:r.id, kind:r.kind, design:r.design, variant:r.variant, pieces:r.pieces.slice(), method:method, time:X.nowTime()};
+    st.cart.push(entry); entry.pieces.forEach(function(p){ inCart[p] = true; });
+    var inOrder = st.order.items.some(function(i){ return i.design===r.design && i.variant===r.variant; });
+    var sizes = entry.pieces.map(function(p){ return PIECES[p].size; }).join(" \u00b7 ");
+    scan.feedback(inOrder ? "ok" : "warn", "<b>+"+entry.pieces.length+" pc"+(entry.pieces.length>1?"s":"")+"</b> &middot; "+esc(X.kindLabel(r.kind))+" "+esc(r.id)+" ("+sizes+") added to <b>"+esc(r.design)+" "+esc(vName(r.design,r.variant))+"</b>"+
+      (inOrder ? "." : " &mdash; <b>not on the order form</b>, added as an extra."));
+    refresh(); scan.refreshDemo(); scan.focus();
+  }
+
+  function gathered(d, v){ return sum(st.cart.filter(function(e){ return e.design===d && e.variant===v; }), function(e){ return e.pieces.length; }); }
+
+  function refresh(){
+    /* checklist */
+    var cols = "grid-template-columns:32px 1.7fr .7fr .8fr .8fr 1.2fr;";
+    var ticked = 0;
+    $("#ckList").innerHTML = '<div class="gt"><div class="gh" style="'+cols+'"><span></span><span>Design &middot; variant</span><span>Demand</span><span>Available</span><span>Picked</span><span>Status</span></div>'+
+      st.order.items.map(function(i){
+        var k = key(i.design, i.variant), g = gathered(i.design, i.variant), av = X.availablePcs(i.design, i.variant, inCart);
+        var on = !!st.ticks[k]; if (on) ticked++;
+        var need = i.qty - g, pill;
+        if (g >= i.qty) pill = '<span class="pill ok">'+(g>i.qty?"Picked "+(g-i.qty)+" extra":"Complete")+'</span>';
+        else if (av < need) pill = av===0 && g===0 ? '<span class="pill red">Out of stock</span>' : '<span class="pill red">Stock short by '+(need-av)+'</span>';
+        else pill = '<span class="pill warn">'+need+' more to pick</span>';
+        return '<div class="gr'+(on?" ticked":"")+'" style="'+cols+'"><button class="cb'+(on?" on":"")+'" data-tk="'+k+'" aria-label="Tick">'+icon("check",12,3)+'</button>'+
+          '<div style="display:flex;align-items:center;gap:9px;"><span class="dot" style="background:'+vHex(i.design,i.variant)+'"></span><div><b>'+esc(i.design)+'</b> '+esc(vName(i.design,i.variant))+'</div></div>'+
+          '<span class="num">'+i.qty+'</span><span class="num">'+av+'</span><span class="num" style="font-weight:700;color:'+(g?"var(--ink)":"var(--faint)")+';">'+g+'</span><span>'+pill+'</span></div>';
+      }).join("")+'</div>';
+    $("#ckSum").innerHTML = '<b>'+ticked+'</b> of '+st.order.items.length+' ticked';
+    $all("[data-tk]", $("#ckList")).forEach(function(b){ b.onclick = function(){ st.ticks[b.dataset.tk] = !st.ticks[b.dataset.tk]; refresh(); }; });
+
+    /* picked list */
+    var lines = X.aggregate(st.cart);
+    $("#picked").innerHTML = lines.map(function(l){
+      var inOrder = st.order.items.some(function(i){ return i.design===l.design && i.variant===l.variant; });
+      var ents = st.cart.filter(function(e){ return e.design===l.design && e.variant===l.variant; });
+      return '<div class="ggroup"><div class="gg"><div style="display:flex;align-items:center;gap:9px;"><span class="dot" style="background:'+vHex(l.design,l.variant)+';width:10px;height:10px;"></span>'+
+        '<b>'+esc(l.design)+' &middot; '+esc(vName(l.design,l.variant))+'</b>'+(inOrder?'':' <span class="extra">NOT ON ORDER FORM</span>')+'</div>'+
+        '<span class="mono" style="font-weight:700;">'+l.pcs+' pcs</span></div>'+
+        ents.map(function(e){ var sizes = e.pieces.map(function(p){ return PIECES[p].size; }).join(" ");
+          return '<div class="ge"><span class="mono" style="font-weight:600;">'+esc(e.scanId)+'</span>'+
+            '<span><span class="kind '+e.kind+'">'+esc(X.kindLabel(e.kind).toUpperCase())+'</span> <span class="mono" style="font-size:11px;color:var(--mut);">'+sizes+'</span></span>'+
+            '<span class="num">'+e.pieces.length+' pc'+(e.pieces.length>1?"s":"")+'</span><span style="font-size:11.3px;color:var(--faint);">'+esc(e.method)+'</span>'+
+            '<button class="x" data-rm="'+esc(e.scanId)+'" title="Remove">'+icon("x",12,2.2)+'</button></div>'; }).join("")+'</div>';
+    }).join("") || '<div class="empty" style="border:1px dashed var(--line-2);border-radius:13px;"><b>Nothing picked yet</b>Scan the first set or piece you pick from the godown.</div>';
+    $all("[data-rm]", $("#picked")).forEach(function(b){ b.onclick = function(){
+      var ix = st.cart.findIndex(function(e){ return e.scanId===b.dataset.rm; }); if (ix < 0) return;
+      st.cart[ix].pieces.forEach(function(p){ delete inCart[p]; }); st.cart.splice(ix, 1);
+      refresh(); scan.refreshDemo(); scan.feedback("warn", "Removed <b>"+esc(b.dataset.rm)+"</b> from this invoice."); }; });
+
+    /* totals */
+    var pcs = sum(lines, function(l){ return l.pcs; }), amt = sum(lines, function(l){ return l.amount; });
+    $("#iTotals").innerHTML = '<div class="s"><div class="v">'+lines.length+'</div><div class="l">Variants</div></div>'+
+      '<div class="s"><div class="v">'+st.cart.length+'</div><div class="l">Tags scanned</div></div>'+
+      '<div class="s"><div class="v">'+pcs+'</div><div class="l">Pieces</div></div>'+
+      '<div class="s"><div class="v" style="color:var(--g);">'+inr(amt)+'</div><div class="l">Invoice value</div></div>';
+  }
+
+  function generate(){
+    if (!checkNo()){ toast("Enter a unique invoice number."); $("#iNo").focus(); return; }
+    if (!st.cart.length){ toast("Scan at least one set or piece."); scan.focus(); return; }
+    var unticked = st.order.items.filter(function(i){ return !st.ticks[key(i.design,i.variant)]; });
+    var short = st.order.items.filter(function(i){ return gathered(i.design,i.variant) < i.qty; });
+    var lines = X.aggregate(st.cart), pcs = sum(lines, function(l){ return l.pcs; }), amt = sum(lines, function(l){ return l.amount; });
+    var extras = lines.filter(function(l){ return !st.order.items.some(function(i){ return i.design===l.design && i.variant===l.variant; }); });
+    party.commit(function(pid, snap){
+      var warn = [];
+      if (short.length) warn.push("<li><b>"+short.length+"</b> order line"+(short.length>1?"s are":" is")+" not fully picked ("+short.map(function(i){ return esc(i.design)+" "+esc(vName(i.design,i.variant)); }).join(", ")+").</li>");
+      if (unticked.length) warn.push("<li><b>"+unticked.length+"</b> checklist line"+(unticked.length>1?"s aren't":" isn't")+" ticked.</li>");
+      if (extras.length) warn.push("<li><b>"+extras.length+"</b> variant"+(extras.length>1?"s":"")+" not on the order form will be billed as extras.</li>");
+      modal(editing ? "Save changes to "+esc(norm($("#iNo").value))+"?" : "Generate invoice "+esc(norm($("#iNo").value))+"?",
+        "<b>"+pcs+" pieces</b> across "+lines.length+" variant"+(lines.length>1?"s":"")+" &middot; <b>"+inr(amt)+"</b> for <b>"+esc(snap.name)+"</b>.<br>"+
+        (editing ? "Stock will be adjusted to match the updated invoice." : "These pieces will be deducted from stock.")+
+        (warn.length ? '<ul style="margin:10px 0 0;padding-left:18px;color:#92400E;">'+warn.join("")+'</ul>' : ""),
+        [{label:"Back to picking"},{label: editing ? "Save changes" : "Generate Invoice", kind:"pri", fn:function(){ finish(pid, snap); }}]);
+    });
+  }
+
+  function finish(pid, snap){
+    var no = norm($("#iNo").value);
+    var rec = { no:no, date:$("#iDate").value.trim() || X.todayStr(), orderNo:st.order.no, partyId:pid, party:snap,
+      entries:st.cart.map(function(e){ return {scanId:e.scanId, kind:e.kind, design:e.design, variant:e.variant, pieces:e.pieces.slice(), method:e.method, time:e.time}; }),
+      ticks:JSON.parse(JSON.stringify(st.ticks)), by: editing ? editing.by : (isOwner()?"Owner":"Staff"),
+      editedBy: editing ? "Owner" : null, updated:X.todayStr() };
+    if (editing){
+      // pieces taken off the invoice return to stock (they're already unsold); keep scanned ones sold
+      leaveHook = null;
+      rec.entries.forEach(function(e){ e.pieces.forEach(function(p){ PIECES[p].sold = no; }); });
+      INVOICES[INVOICES.indexOf(editing)] = rec;
+      st.order.invoiceNo = no;
+      toast("Invoice "+no+" updated and stock adjusted.");
+    } else {
+      rec.entries.forEach(function(e){ e.pieces.forEach(function(p){ PIECES[p].sold = no; }); });
+      INVOICES.push(rec);
+      st.order.status = "invoiced"; st.order.invoiceNo = no;
+      toast("Invoice "+no+" generated \u2014 "+sum(rec.entries,function(e){return e.pieces.length;})+" pcs deducted from stock.");
+    }
+    go("invoiceView", {no:no});
+  }
+
+  if (editing) load(st.order);
+  else if (presetOrder){ ordInp.value = presetOrder; fetchOrder(); }
+  else { body(); setTimeout(function(){ $("#iNo").focus(); }, 0); }
+}
+
+/* =====================================================================
+   INVOICE — VIEW + HISTORY
+   ===================================================================== */
+function viewInvoiceDoc(no){
+  var inv = X.invoiceByNo(no); if (!inv) return go("invoices");
+  var t = X.invoiceTotals(inv);
+  $("#app").innerHTML = subnav() +
+    '<div class="sheet"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">'+
+      '<div><button class="fclear" id="vBack" style="padding-left:0;">'+icon("back",13,2)+' Invoices</button>'+
+      '<h1 style="margin-top:2px;">'+esc(inv.no)+'</h1><p class="sub">'+esc(inv.party.name)+' &middot; '+esc(X.longDate(inv.date))+' &middot; '+t.pcs+' pcs &middot; <b style="color:var(--ink);">'+inr(t.amount)+'</b></p></div>'+
+      '<div class="acts" style="flex-wrap:wrap;align-items:center;">'+
+        '<button class="btn" id="vPrint">'+icon("print",14,2)+'Print</button>'+
+        '<button class="btn" id="vCsv">'+icon("download",14,2)+'Download (Excel)</button>'+
+        '<button class="btn" id="vPhotos">'+icon("image",14,2)+'Photos</button>'+
+        '<button class="btn" id="vOrd">'+icon("doc",14,2)+esc(inv.orderNo)+'</button>'+
+        (isOwner() ? '<button class="btn pri" id="vEdit">'+icon("pencil",14,2)+'Edit invoice</button>'
+          : '<button class="btn" disabled title="Only the owner can edit invoices">'+icon("lock",14,2)+'Edit (owner only)</button>')+
+      '</div></div></div>'+
+    '<div class="sheet"><div class="docwrap">'+invoiceDocHtml(inv)+'</div></div>';
+  $("#vBack").onclick = function(){ go("invoices"); };
+  $("#vPrint").onclick = function(){ openPrint("Invoice "+inv.no+" \u2014 print preview", invoiceDocHtml(inv)); };
+  $("#vCsv").onclick = function(){ invoiceCSV(inv); toast("Downloaded "+inv.no+".csv"); };
+  $("#vPhotos").onclick = function(){ window.__GALLERY.reset(); go("gallery", {mode:"invoice", no:inv.no}); };
+  $("#vOrd").onclick = function(){ go("orderView", {no:inv.orderNo}); };
+  if ($("#vEdit")) $("#vEdit").onclick = function(){ go("invoiceEdit", {no:inv.no}); };
+}
+
+var IF = { q:"" };
+function viewInvoices(){
+  $("#app").innerHTML = subnav() +
+    head("Invoices", "Every dispatch billed and deducted from stock. Only the owner can edit an invoice.",
+      '<button class="btn pri" id="newI">'+icon("plus",15,2.2)+'New Invoice</button>') +
+    '<div class="sheet"><div class="hsearch"><span class="mag">'+icon("search",19,2)+'</span>'+
+      '<input id="iq" autocomplete="off" placeholder="Search by invoice no., order form no., party or design code"></div>'+
+      '<div class="filters"><span class="rcount" id="irc"></span></div>'+
+      '<div class="gt" style="margin-top:6px;"><div class="gh" style="grid-template-columns:1.1fr .8fr .9fr 1.4fr 1.8fr .6fr .9fr 200px;">'+
+      '<span>Invoice</span><span>Date</span><span>Order form</span><span>Party</span><span>Designs &middot; variants</span><span>Pcs</span><span>Amount</span><span></span></div>'+
+      '<div id="ilist"></div></div></div>';
+  $("#iq").value = IF.q;
+  $("#newI").onclick = function(){ go("invoiceEdit"); };
+  $("#iq").addEventListener("input", function(){ IF.q = this.value; list(); });
+  function list(){
+    var q = IF.q.trim().toLowerCase();
+    var rows = INVOICES.filter(function(i){ if (!q) return true;
+      return [i.no, i.orderNo, i.party.name, i.party.mobile].concat(i.entries.map(function(e){ return e.design+" "+vName(e.design,e.variant); })).join(" ").toLowerCase().indexOf(q) >= 0;
+    }).slice().reverse();
+    $("#irc").textContent = rows.length+" of "+INVOICES.length+" invoices";
+    $("#ilist").innerHTML = rows.map(function(i){ var t = X.invoiceTotals(i);
+      return '<div class="gr" style="grid-template-columns:1.1fr .8fr .9fr 1.4fr 1.8fr .6fr .9fr 200px;">'+
+        '<span class="b1">'+esc(i.no)+'</span><span style="color:var(--mut);">'+esc(i.date)+'</span><span class="mono" style="font-size:12.3px;">'+esc(i.orderNo)+'</span>'+
+        '<div>'+esc(i.party.name)+'<div class="b2">'+esc(i.party.city)+'</div></div>'+
+        '<div class="chips">'+t.lines.map(function(l){ return chip(l.design, l.variant); }).join("")+'</div>'+
+        '<span class="num">'+t.pcs+'</span><span class="num" style="font-weight:700;">'+inr(t.amount)+'</span>'+
+        '<div class="acts"><button class="btn sm" data-iv="'+esc(i.no)+'">'+icon("eye",13,2)+'View</button>'+
+        (isOwner() ? '<button class="btn sm" data-ie="'+esc(i.no)+'">'+icon("pencil",13,2)+'Edit</button>'
+                   : '<button class="btn sm" disabled title="Only the owner can edit invoices">'+icon("lock",13,2)+'</button>')+'</div></div>';
+    }).join("") || '<div class="empty"><b>No invoices match</b>Try another search.</div>';
+    $all("[data-iv]", $("#ilist")).forEach(function(b){ b.onclick = function(){ go("invoiceView", {no:b.dataset.iv}); }; });
+    $all("[data-ie]", $("#ilist")).forEach(function(b){ b.onclick = function(){ go("invoiceEdit", {no:b.dataset.ie}); }; });
+  }
+  list();
+}
+
+/* =====================================================================
+   PARTY MASTER
+   ===================================================================== */
+var PF = { q:"" };
+function viewParties(){
+  $("#app").innerHTML = subnav() +
+    head("Party Master", "Saved customers. Order forms and invoices fill from here, and can save changes back when you choose.",
+      '<button class="btn pri" id="newP">'+icon("plus",15,2.2)+'Add party</button>') +
+    '<div class="sheet"><div class="hsearch"><span class="mag">'+icon("search",19,2)+'</span>'+
+      '<input id="pq" autocomplete="off" placeholder="Search by party name, mobile, city or GST no."></div>'+
+      '<div class="filters"><span class="rcount" id="prc"></span></div>'+
+      '<div class="gt" style="margin-top:6px;"><div class="gh" style="grid-template-columns:1.5fr 1fr .8fr 1.3fr 1.3fr 1fr .8fr 80px;">'+
+      '<span>Party</span><span>Mobile</span><span>City</span><span>GST No.</span><span>Transport</span><span>Agent</span><span>Orders</span><span></span></div>'+
+      '<div id="plist"></div></div></div>';
+  $("#pq").value = PF.q;
+  $("#pq").addEventListener("input", function(){ PF.q = this.value; list(); });
+  $("#newP").onclick = function(){ partyForm(null); };
+  function list(){
+    var q = PF.q.trim().toLowerCase();
+    var rows = PARTIES.filter(function(p){ return !q || [p.name,p.mobile,p.city,p.gst].join(" ").toLowerCase().indexOf(q) >= 0; });
+    $("#prc").textContent = rows.length+" of "+PARTIES.length+" parties";
+    $("#plist").innerHTML = rows.map(function(p){
+      var n = ORDERS.filter(function(o){ return o.partyId===p.id; }).length;
+      return '<div class="gr" style="grid-template-columns:1.5fr 1fr .8fr 1.3fr 1.3fr 1fr .8fr 80px;">'+
+        '<b>'+esc(p.name)+'</b><span class="mono" style="font-size:12.3px;">'+esc(p.mobile)+'</span><span>'+esc(p.city)+'</span>'+
+        '<span class="mono" style="font-size:12px;">'+esc(p.gst)+'</span><span style="color:var(--ink-2);">'+esc(p.transport)+'</span><span>'+esc(p.agent)+'</span>'+
+        '<span class="num">'+n+'</span><div style="text-align:right;"><button class="btn sm" data-pe="'+p.id+'">'+icon("pencil",13,2)+'Edit</button></div></div>';
+    }).join("") || '<div class="empty"><b>No parties match</b></div>';
+    $all("[data-pe]", $("#plist")).forEach(function(b){ b.onclick = function(){ partyForm(b.dataset.pe); }; });
+  }
+  function partyForm(id){
+    var p = id ? X.partyById(id) : null;
+    modal(p ? "Edit party" : "Add party",
+      '<div class="grid2" style="gap:12px 14px;">'+X.PARTY_FIELDS.map(function(f){
+        return '<div class="field"><label>'+f[1]+(f[0]==="name"?' <span class="req">*</span>':'')+'</label><input class="inp" id="pf_'+f[0]+'" value="'+esc(p?p[f[0]]:"")+'"></div>'; }).join("")+'</div>',
+      [{label:"Cancel"},{label: p ? "Save party" : "Add party", kind:"pri", fn:function(){
+        var name = $("#pf_name").value.trim();
+        if (!name){ toast("Party name is required."); return partyForm(id); }
+        var dupe = PARTIES.filter(function(x){ return norm(x.name)===norm(name) && x.id!==id; })[0];
+        if (dupe){ toast(name+" already exists in Party Master."); return partyForm(id); }
+        var rec = p || {id:X.newPartyId()};
+        X.PARTY_FIELDS.forEach(function(f){ rec[f[0]] = $("#pf_"+f[0]).value.trim(); });
+        if (!p) PARTIES.push(rec);
+        toast(p ? "Party updated." : name+" added to Party Master."); list();
+      }}]);
+    setTimeout(function(){ var f = $("#pf_name"); if (f) f.focus(); }, 0);
+  }
+  list();
+}
+
+/* global keys */
+document.addEventListener("keydown", function(e){
+  if (e.key !== "Escape") return;
+  if ($("#pmodal").classList.contains("on")) $("#pmodal").classList.remove("on");
+  else if ($("#mwrap").classList.contains("on")) X.closeModal();
+});
+$("#mwrap").addEventListener("click", function(e){ if (e.target === this) X.closeModal(); });
+
+window.__SOAPP = { go:go, S:S };
+render();
+})();
+
+</script>
+</body>
+</html>

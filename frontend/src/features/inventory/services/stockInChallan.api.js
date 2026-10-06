@@ -23,3 +23,7 @@ export const updateStockInChallanApi = ({ id, ...body }) => stockInRequest(`/cha
 export const dropStockInChallanApi = ({ id, reason }) => stockInRequest(`/challans/${id}/drop`, { method: "POST", body: { reason } });
 
 export const logStockInChallanEventApi = ({ id, kind }) => stockInRequest(`/challans/${id}/events`, { method: "POST", body: { kind } });
+
+// Last QR serial issued per colour variant, so a new inward numbers its labels after them.
+export const getSerialCountersApi = (colorVariantIds) =>
+    stockInRequest(`/serial-counters?colorVariantIds=${colorVariantIds.join(",")}`);

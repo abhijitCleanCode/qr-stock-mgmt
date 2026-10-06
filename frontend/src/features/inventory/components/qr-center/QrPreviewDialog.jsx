@@ -35,7 +35,7 @@ const QrPreviewDialog = ({ item, onPrint, onClose }) => {
     <ActionModal openActionModal={open} setOpenActionModal={handleOpenChange} title="QR Code">
       <div className="flex flex-col items-center gap-4 p-4 sm:p-6">
         <div className="rounded-xl border border-border bg-white p-4">
-          <QrCodeImage value={buildQrValue(item.qr.payload)} size={180} canvasRef={canvasRef} />
+          <QrCodeImage value={item.qr.shortCode ?? buildQrValue(item.qr.payload)} size={180} canvasRef={canvasRef} />
         </div>
 
         <div className="flex flex-col items-center gap-0.5 text-center">

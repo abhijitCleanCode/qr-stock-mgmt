@@ -12,6 +12,15 @@ class StockInController {
             next(error);
         }
     };
+
+    getSerialCounters = async (req, res, next) => {
+        try {
+            const result = await this._stockInService.getSerialCounters(req.validatedQuery.colorVariantIds);
+            return res.status(200).json(new ApiResponse(200, result, "Serial counters fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    };
 }
 
 export default new StockInController();

@@ -2,12 +2,14 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import QrCodeImage from "../../qr-center/QrCodeImage";
-import { A4_PRESETS } from "../../../utils/qrTagStudio";
+import { A4_PRESETS, buildTagLines } from "../../../utils/qrTagStudio";
+
+const LINE_PX = { title: { fontSize: "3.6px", fontWeight: 700 }, muted: { fontSize: "3.1px" }, bold: { fontSize: "3.4px", fontWeight: 700 }, price: { fontSize: "3.4px", fontWeight: 700 } };
 
 // Real per-cell pagination — unlike a static sample grid, "used" cells for the start-at
 // skip and every non-skipped cell's actual queued tag, matching what Download PDF /
 // Send to printer will produce sheet-by-sheet.
-const A4SheetPreview = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
+const A4SheetPreview = ({ tags, a4Preset, startAt, buildTagData, fields, qrmm }) => {
   const grid = A4_PRESETS[a4Preset];
   const perSheet = grid.c * grid.r;
   const skip = Math.max(0, Number(startAt) - 1);
@@ -35,12 +37,9 @@ const A4SheetPreview = ({ tags, a4Preset, startAt, buildTagData, qrmm }) => {
       <div key={`tag-${i}`} className={`flex min-w-0 items-center gap-[2.5px] overflow-hidden border-[0.5px] p-[2px] ${bad ? "border-red-400 bg-red-50" : "border-slate-300"}`}>
         <QrCodeImage value={tag.code} size={cellQrPx} />
         <div className="min-w-0 overflow-hidden font-mono leading-tight">
-          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[3.6px] font-bold">{tag.code}</div>
-          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[3.1px] text-slate-600">{data.designCode} · {data.variantName}</div>
-          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[3.1px] text-slate-600">
-            {tag.kind === "parent" ? `${tag.isSemiSet ? "SEMI" : "SET"} ${tag.piecesPerSet}-PC` : `SIZE ${tag.size}`}
-          </div>
-          <div className="text-[3.4px] font-bold">{tag.kind === "parent" ? data.bundlePrice : data.piecePrice}</div>
+          {buildTagLines(tag, data, fields).map((line, n) => (
+            <div key={n} className={`overflow-hidden text-ellipsis whitespace-nowrap ${line.style === "muted" ? "text-slate-600" : ""}`} style={LINE_PX[line.style]}>{line.text}</div>
+          ))}
         </div>
       </div>
     );

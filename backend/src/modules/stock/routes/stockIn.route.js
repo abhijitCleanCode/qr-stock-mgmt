@@ -11,6 +11,7 @@ import {
     stockInDraftIdParamsSchema,
     stockInDraftSchema,
     stockInSchema,
+    stockInSerialCountersQuerySchema,
 } from "../validators/stockIn.validator.js";
 
 export const stockInRoutes = [
@@ -22,6 +23,11 @@ export const stockInRoutes = [
         validators: {
             post: validateRequest(stockInSchema),
         },
+    },
+    {
+        path: "/serial-counters",
+        controller: { get: stockInController.getSerialCounters },
+        validators: { get: validateRequest(stockInSerialCountersQuerySchema, "query") },
     },
     {
         path: "/dashboard",

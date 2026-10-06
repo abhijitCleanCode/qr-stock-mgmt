@@ -26,35 +26,34 @@ export const FIELD_DEFS = {
   parent: [
     { k: "firm", n: "Firm name header", on: true },
     { k: "design", n: "Design code", on: true, lock: true },
-    { k: "dname", n: "Design name", on: true },
+    { k: "dname", n: "Pattern name", on: true },
     { k: "variant", n: "Variant", on: true, lock: true },
     { k: "comp", n: "Size composition", on: true },
     { k: "setid", n: "Set ID", on: true, lock: true },
-    { k: "price", n: "Selling price — bundle", on: true },
+    { k: "price", n: "Selling price (per piece)", on: true },
     { k: "jobber", n: "Jobber name", on: false },
     { k: "date", n: "Inward date (FIFO clock)", on: true },
-    { k: "bar", n: "Code128 fallback strip", on: true },
   ],
   child: [
     { k: "firm", n: "Firm name header", on: true },
     { k: "design", n: "Design code", on: true, lock: true },
-    { k: "dname", n: "Design name", on: true },
+    { k: "dname", n: "Pattern name", on: true },
     { k: "variant", n: "Variant", on: true, lock: true },
     { k: "size", n: "Size", on: true, lock: true },
     { k: "parent", n: "Parent set ID link", on: true },
     { k: "pid", n: "Piece ID", on: true, lock: true },
-    { k: "price", n: "Selling price — piece", on: true },
+    { k: "price", n: "Selling price (per piece)", on: true },
     { k: "jobber", n: "Jobber name", on: false },
   ],
   loose: [
     { k: "firm", n: "Firm name header", on: true },
     { k: "design", n: "Design code", on: true, lock: true },
-    { k: "dname", n: "Design name", on: false },
+    { k: "dname", n: "Pattern name", on: false },
     { k: "variant", n: "Variant", on: true, lock: true },
     { k: "size", n: "Size", on: true, lock: true },
     { k: "origin", n: "Origin badge", on: true },
     { k: "pid", n: "Piece ID", on: true, lock: true },
-    { k: "price", n: "Selling price — piece", on: true },
+    { k: "price", n: "Selling price (per piece)", on: true },
     { k: "date", n: "Loose-since date", on: true },
   ],
 };
@@ -159,68 +158,79 @@ export function isSemiSet(bundleSizeCount, fullSetSizeCount) {
 // table. That's intentional: the queue table answers "how many sellable pieces do we expect
 // after QC"; this list answers "what will physically be created and printed for the
 // sets/bundles registered."
-export function buildTagList(variants, configs, strategy, perVariantSettings) {
+//
+// Serial numbers: every colour variant keeps two running counters on the backend (see
+// variant_serial_counters) — one for sets/semi sets, one for pieces (child + loose together).
+// `serialStarts[colorVariantId]` is the next free number of each; a new inward continues from
+// there instead of restarting at 1. The backend numbers EVERY registered unit in the order
+// below (sets, then semi sets; pieces in set, semi-set, loose order) whether or not its label is
+// printed, so unprinted units still consume a number here to keep the two sides in step.
+export function buildTagList(variants, configs, strategy, perVariantSettings, serialStarts = {}) {
   const tags = [];
   let seq = 0;
 
   for (const variant of variants) {
     const settings = perVariantSettings[variant.key] ?? { included: true, childTags: false, tagLoosePieces: true };
-    if (settings.included === false) continue;
+    const included = settings.included !== false;
 
     const config = configs[variant.key];
     const sizes = variant.sizes ?? [];
     const fullSetSizes = sizes.filter((size) => size.includedInSet);
     const childActive = strategy === "parentChild" || (strategy === "custom" && settings.childTags);
+    const parentPrinted = included && parentTagsActive(strategy);
+    const tagLoose = settings.tagLoosePieces !== false;
 
-    const parentActive = parentTagsActive(strategy);
+    let nextSet = serialStarts[variant.colorVariantId]?.set ?? 1;
+    let nextPiece = serialStarts[variant.colorVariantId]?.piece ?? 1;
+    const pieceTag = (base) => {
+      const serial = nextPiece++;
+      if (included && base.printed) tags.push({ id: ++seq, serial, ...base });
+    };
 
-    // SETs
-    for (let i = 1; parentActive && i <= variant.setsTotal; i++) {
-      const setSuffix = String(i).padStart(3, "0");
-      const parentId = `SET-${variant.code}-${setSuffix}`;
-      tags.push({
-        id: ++seq, kind: "parent", isSemiSet: false, code: parentId, variant,
-        composition: fullSetSizes.map((s) => s.sizeLabel), piecesPerSet: fullSetSizes.length,
-      });
-
-      if (childActive) {
-        fullSetSizes.forEach((size) => {
-          tags.push({ id: ++seq, kind: "child", code: `${parentId}-${size.sizeLabel}`, variant, size: size.sizeLabel, parentId });
-        });
-      }
-    }
-
-    // Semi sets / bundles
-    (parentActive ? (config?.bundles ?? []) : []).forEach((bundle, bundleIndex) => {
-      const compEntries = Object.entries(bundle.composition ?? {}).filter(([, qty]) => Number(qty) > 0);
-      const bundleSizeLabels = compEntries.map(([sizeId]) => sizes.find((s) => String(s.id) === String(sizeId))?.sizeLabel).filter(Boolean);
-      const semi = isSemiSet(bundleSizeLabels.length, fullSetSizes.length);
-
-      for (let i = 1; i <= (bundle.quantity || 0); i++) {
-        const parentId = `${semi ? "SEMI" : "SET"}-${variant.code}-B${bundleIndex + 1}-${String(i).padStart(3, "0")}`;
-        tags.push({
-          id: ++seq, kind: "parent", isSemiSet: semi, code: parentId,
-          variant, composition: bundleSizeLabels, piecesPerSet: bundleSizeLabels.length,
-        });
-
+    const addParent = (isSemi, composition, quantityOfEach) => {
+      for (let i = 0; i < quantityOfEach; i++) {
+        const serial = nextSet++;
+        const parentId = `${isSemi ? "SEMI" : "SET"}-${variant.code}-${padSerial(serial, 3)}`;
+        if (parentPrinted) {
+          tags.push({
+            id: ++seq, kind: "parent", isSemiSet: isSemi, code: parentId, serial, variant,
+            composition: composition.map((c) => c.sizeLabel), piecesPerSet: composition.length,
+          });
+        }
         if (childActive) {
-          compEntries.forEach(([sizeId, qty]) => {
-            const sizeLabel = sizes.find((s) => String(s.id) === String(sizeId))?.sizeLabel ?? "";
-            for (let q = 0; q < Number(qty); q++) {
-              tags.push({ id: ++seq, kind: "child", code: `${parentId}-${sizeLabel}`, variant, size: sizeLabel, parentId });
+          composition.forEach((piece) => {
+            for (let q = 0; q < piece.qty; q++) {
+              pieceTag({
+                printed: true, kind: "child", variant, size: piece.sizeLabel, parentId,
+                code: `${variant.code}-${padSerial(nextPiece, 4)}`,
+              });
             }
           });
         }
       }
+    };
+
+    // SETs — one piece per full-set size.
+    addParent(false, fullSetSizes.map((size) => ({ sizeLabel: size.sizeLabel, qty: 1 })), variant.setsTotal);
+
+    // Semi sets / bundles
+    (config?.bundles ?? []).forEach((bundle) => {
+      const compEntries = Object.entries(bundle.composition ?? {}).filter(([, qty]) => Number(qty) > 0);
+      if (compEntries.length === 0 || !(bundle.quantity > 0)) return;
+      const composition = compEntries
+        .map(([sizeId, qty]) => ({ sizeLabel: sizes.find((s) => String(s.id) === String(sizeId))?.sizeLabel, qty: Number(qty) }))
+        .filter((piece) => piece.sizeLabel);
+      const semi = isSemiSet(composition.length, fullSetSizes.length);
+      addParent(semi, composition, bundle.quantity);
     });
 
     // Loose pieces — always their own tag when tagged; untagged loose stock has no physical
     // tag at all (matches the backend leaving it as a fungible LOOSE_PIECE with no QR).
-    if (settings.tagLoosePieces !== false) {
+    if (tagLoose) {
       Object.entries(config?.loosePieces ?? {}).forEach(([sizeId, qty]) => {
         const sizeLabel = sizes.find((s) => String(s.id) === String(sizeId))?.sizeLabel ?? "";
-        for (let i = 1; i <= Number(qty || 0); i++) {
-          tags.push({ id: ++seq, kind: "loose", code: `LSE-${variant.code}-${sizeLabel}-${String(i).padStart(4, "0")}`, variant, size: sizeLabel });
+        for (let i = 0; i < Number(qty || 0); i++) {
+          pieceTag({ printed: true, kind: "loose", variant, size: sizeLabel, code: `LSE-${variant.code}-${padSerial(nextPiece, 4)}` });
         }
       });
     }
@@ -228,6 +238,8 @@ export function buildTagList(variants, configs, strategy, perVariantSettings) {
 
   return tags;
 }
+
+const padSerial = (serial, width) => String(serial).padStart(width, "0");
 
 // Real per-tag issues only — no fabricated examples.
 export function flagsForTag(engine, thermalPreset, a4Preset, typography, qrmm, fieldsOnCount) {
@@ -239,4 +251,29 @@ export function flagsForTag(engine, thermalPreset, a4Preset, typography, qrmm, f
   if (fieldsOnCount > capacity) flags.push({ level: "bad", text: `${fieldsOnCount} fields exceed label height` });
 
   return flags;
+}
+
+// Text lines for one A4/PDF label, honouring the Tag content checkboxes. Shared by the on-screen
+// sheet preview, the print sheet and the PDF so a toggle changes all three the same way.
+// Price is always per piece — never a set total — on parent, child and loose tags alike.
+export function buildTagLines(tag, data, fields) {
+  const f = fields[tag.kind] ?? {};
+  const isParent = tag.kind === "parent";
+  const lines = [];
+  if (f.firm) lines.push({ text: data.firm, style: "muted" });
+  lines.push({ text: tag.code, style: "title" });
+  lines.push({ text: `${f.design === false ? "" : `${data.designCode} · `}${data.variantName}`, style: "muted" });
+  if (f.dname && data.designName) lines.push({ text: data.designName, style: "muted" });
+  if (isParent) {
+    const label = tag.isSemiSet ? "SEMI" : "SET";
+    lines.push({ text: f.comp ? `${label}: ${data.composition} (${tag.piecesPerSet} Pcs)` : `${label} ${tag.piecesPerSet}-PC`, style: "bold" });
+  } else {
+    if (f.size) lines.push({ text: `SIZE ${tag.size}`, style: "bold" });
+    if (tag.kind === "child" && f.parent && tag.parentId) lines.push({ text: `PARENT: ${tag.parentId}`, style: "muted" });
+  }
+  if (f.jobber) lines.push({ text: data.jobber, style: "muted" });
+  if (f.price) lines.push({ text: `MRP ${data.piecePrice} / PC`, style: "price" });
+  if (tag.kind === "loose" && f.origin) lines.push({ text: "LOOSE — FROM JOBBER", style: "bold" });
+  if (f.date && (isParent || tag.kind === "loose")) lines.push({ text: `${tag.kind === "loose" ? "LOOSE SINCE" : "INWARD"} ${data.date}`, style: "muted" });
+  return lines;
 }

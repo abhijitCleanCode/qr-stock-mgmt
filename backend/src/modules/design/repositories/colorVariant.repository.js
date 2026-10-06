@@ -87,7 +87,23 @@ class ColorVariantRepository {
         }).from(colorVariant)
             .innerJoin(design, eq(colorVariant.designId, design.id))
             .where(and(...conditions))
-            .orderBy(design.code, colorVariant.colorName);
+            .orderBy(
+                // Searching: best match first — the design whose code was typed, then codes that
+                // start with / contain it, then name matches, then colour-only matches — instead
+                // of plain A–Z, which buried the searched design under alphabetically earlier
+                // designs that only matched on colour.
+                ...(keyword
+                    ? [sql`case
+                        when lower(${design.code}) = lower(${keyword}) then 0
+                        when ${design.code} ilike ${`${keyword}%`} then 1
+                        when ${design.code} ilike ${`%${keyword}%`} then 2
+                        when ${design.name} ilike ${`%${keyword}%`} then 3
+                        else 4
+                    end`]
+                    : []),
+                design.code,
+                colorVariant.colorName,
+            );
     }
 
     async findByDesignIds(designIds) {

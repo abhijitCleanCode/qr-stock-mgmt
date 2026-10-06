@@ -38,7 +38,7 @@ export function buildConfirmedLabelLines(item, content = {}) {
   }
 
   if (f.jobber) lines.push({ text: content.jobber ?? "UNASSIGNED", style: "muted" });
-  if (f.price) lines.push({ text: `MRP ${inr(isParent ? price * piecesPerSet : price)}${isParent ? " (SET)" : ""}`, style: "price" });
+  if (f.price) lines.push({ text: `MRP ${inr(price)} / PC`, style: "price" });
   if (kind === "loose" && f.origin) lines.push({ text: "LOOSE — FROM JOBBER", style: "bold" });
   if (f.date && content.date) lines.push({ text: `${kind === "loose" ? "LOOSE SINCE" : "INWARD"} ${content.date}`, style: "muted" });
 
