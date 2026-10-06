@@ -8,6 +8,7 @@ import stockInCalculatorService from "./stockInCalculator.service.js";
 import stockInPersistence from "./stockInPersistence.service.js";
 import stockInResultMapper from "../mapper/stockInResultMapper.js";
 import stockQrService from "./stockQr.service.js";
+import variantSerialCounterRepository from "../repositories/variantSerialCounter.repository.js";
 import stockHistoryService from "./stockHistory.service.js";
 import printJobRepository from "../repositories/printJob.repository.js";
 import printJobItemRepository from "../repositories/printJobItem.repository.js";
@@ -64,6 +65,7 @@ class StockInService {
     _stockHistoryService = stockHistoryService;
     _printJobRepository = printJobRepository;
     _printJobItemRepository = printJobItemRepository;
+    _variantSerialCounterRepository = variantSerialCounterRepository;
     _stockInDraftRepository = stockInDraftRepository;
     _stockInChallanRepository = stockInChallanRepository;
 
@@ -148,6 +150,45 @@ class StockInService {
         });
     }
 
+    // `expectedStart` is what the Tag Studio printed on the labels; if another inward has moved the
+    // counters since, the labels no longer match the saved serials, so the whole request rolls
+    // back and the user reprints rather than getting two different numbers for one piece.
+    async _assignSerials(tx, colorVariantId, expectedStart, { setItems, pieceItems }) {
+        if (setItems.length === 0 && pieceItems.length === 0) return { sets: [], pieces: [] };
+
+        const byId = (a, b) => a.id - b.id;
+        const sets = [...setItems].sort(byId);
+        const pieces = [...pieceItems].sort(byId);
+        const start = await this._variantSerialCounterRepository.reserve(tx, colorVariantId, { sets: sets.length, pieces: pieces.length });
+
+        const mismatch = (expectedStart?.set !== undefined && sets.length > 0 && expectedStart.set !== start.setStart)
+            || (expectedStart?.piece !== undefined && pieces.length > 0 && expectedStart.piece !== start.pieceStart);
+        if (mismatch) {
+            throw new ApiError(
+                "QR serial numbers for this design colour changed since the labels were generated. Go back to QR Tag Studio and print the labels again.",
+                409,
+                "QR_SERIAL_CHANGED"
+            );
+        }
+
+        await this._variantSerialCounterRepository.assignSerials(tx, [
+            ...sets.map((item, index) => ({ stockItemId: item.id, serialNo: start.setStart + index })),
+            ...pieces.map((item, index) => ({ stockItemId: item.id, serialNo: start.pieceStart + index })),
+        ]);
+
+        return { sets: sets.length, pieces: pieces.length, ...start };
+    }
+
+    async getSerialCounters(colorVariantIds) {
+        const rows = await this._variantSerialCounterRepository.findByVariantIds(db, colorVariantIds);
+        const byId = new Map(rows.map((row) => [row.colorVariantId, row]));
+        return colorVariantIds.map((colorVariantId) => ({
+            colorVariantId,
+            lastSetSerial: byId.get(colorVariantId)?.lastSetSerial ?? 0,
+            lastPieceSerial: byId.get(colorVariantId)?.lastPieceSerial ?? 0,
+        }));
+    }
+
     async _registerVariantStockIn(tx, designId, variantInput) {
         // 1. Validate request and load required variant context
         const validateStockIn = await this._stockInValidator.validate(tx, designId, variantInput);
@@ -204,6 +245,13 @@ class StockInService {
             designCode: validateStockIn.variant.designCode,
             designName: validateStockIn.variant.designName,
             colorName: validateStockIn.variant.colorName,
+        });
+
+        // 3.9 NEW: running QR serials for this variant — sets/semi sets and tagged pieces each
+        // continue after the last number ever issued for the variant (see variant_serial_counters).
+        await this._assignSerials(tx, validateStockIn.variant.id, variantInput.serialStart, {
+            setItems: stockItems.filter((item) => item.type === "SET" || item.type === "BUNDLE"),
+            pieceItems: taggedPieces.map((row) => row.stockItem),
         });
 
         // 4. update current inventory

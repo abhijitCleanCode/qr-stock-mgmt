@@ -3,20 +3,6 @@ import QrCodeImage from "../../qr-center/QrCodeImage";
 const KIND_BRACKET = { parent: "PARENT SET", child: "GARMENT PIECE", loose: "LOOSE PIECE" };
 const FONT_SCALE = { compact: 0.85, standard: 1, large: 1.18 };
 
-// Deterministic "barcode" bars — a cosmetic Code128-style flourish under the parent tag
-// (matches the reference mock, which is equally decorative there: it never encodes real
-// data, only the QR above it does).
-function barcodeBars(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  const bars = [];
-  for (let i = 0; i < 40; i++) {
-    hash = (hash * 1103515245 + 12345) >>> 0;
-    bars.push(hash % 2 === 0 ? 2 : 1);
-  }
-  return bars;
-}
-
 export default function LabelTag({ kind, data, fields, qrmm, typography, qrValue }) {
   const fs = FONT_SCALE[typography];
   const f = fields[kind];
@@ -40,7 +26,7 @@ export default function LabelTag({ kind, data, fields, qrmm, typography, qrValue
             <>
               {f.comp && <div className="mt-0.5 text-[8.5px] font-bold">{data.isSemiSet ? "SEMI" : "SET"}: {data.composition} ({data.piecesPerSet} Pcs)</div>}
               {f.jobber && <div className="text-[5.6px] tracking-wide text-slate-500">{data.jobber}</div>}
-              {f.price && <div className="mt-0.5 text-[8px] font-bold">MRP {data.bundlePrice}</div>}
+              {f.price && <div className="mt-0.5 text-[8px] font-bold">MRP {data.piecePrice} / PC</div>}
               {f.date && <div className="text-[5.6px] tracking-wide text-slate-500">INWARD {data.date}</div>}
             </>
           )}
@@ -51,7 +37,7 @@ export default function LabelTag({ kind, data, fields, qrmm, typography, qrValue
                 <div className="text-[5.6px] tracking-wide text-slate-500">PARENT: {data.parentSetId}</div>
               )}
               {f.jobber && <div className="text-[5.6px] tracking-wide text-slate-500">{data.jobber}</div>}
-              {f.price && <div className="mt-0.5 text-[8px] font-bold">MRP {data.piecePrice}</div>}
+              {f.price && <div className="mt-0.5 text-[8px] font-bold">MRP {data.piecePrice} / PC</div>}
               {kind === "loose" && f.origin && (
                 <div className="mt-0.5 inline-block border-[0.7px] border-black px-[3px] py-[0.5px] text-[5.8px] font-bold tracking-wide">
                   LOOSE — FROM JOBBER
@@ -64,13 +50,6 @@ export default function LabelTag({ kind, data, fields, qrmm, typography, qrValue
       </div>
       <div className="mt-1 flex items-end justify-between gap-1.5 border-t border-slate-200 pt-0.5">
         <span className="text-[6px] tracking-wide text-slate-600">{data.pieceId}</span>
-        {kind === "parent" && f.bar && (
-          <div className="flex h-[11px] flex-1 items-stretch justify-end gap-[0.8px] overflow-hidden">
-            {barcodeBars(data.pieceId).map((w, i) => (
-              <span key={i} className="block bg-black" style={{ width: `${w}px` }} />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );

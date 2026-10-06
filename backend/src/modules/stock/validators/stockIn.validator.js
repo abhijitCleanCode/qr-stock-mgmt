@@ -72,6 +72,9 @@ const variantEntrySchema = z
         bundles: z.array(bundleSchema).default([]),
         loosePieces: z.array(loosePieceSchema).default([]),
         tagging: taggingSchema.default({ strategy: "parent", childTagsEnabled: false, tagLoosePieces: false }),
+        // First QR serial the Tag Studio printed for this variant (sets / pieces); checked against
+        // the live counters so labels printed from stale numbers are rejected, not saved.
+        serialStart: z.object({ set: positiveInt.optional(), piece: positiveInt.optional() }).optional(),
     })
     .superRefine((variant, ctx) => {
         const hasSets = variant.totalSetsReceived > 0;
@@ -218,4 +221,13 @@ export const stockInChallanDropSchema = z.object({
 
 export const stockInChallanEventSchema = z.object({
     kind: z.enum(["PRINT", "PDF"]),
+});
+
+// --- QR serial counters ---
+
+export const stockInSerialCountersQuerySchema = z.object({
+    colorVariantIds: z
+        .string()
+        .transform((value) => value.split(",").map((id) => Number(id.trim())))
+        .pipe(z.array(positiveInt).min(1).max(200)),
 });

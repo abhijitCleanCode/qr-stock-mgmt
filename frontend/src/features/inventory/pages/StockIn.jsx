@@ -10,6 +10,7 @@ import ConfirmedA4QrPrintSheet from "../components/stock-in/qrTagStudio/Confirme
 import { useStockInWizard } from "../hooks/useStockInWizard";
 import { useVariantStockConfigs } from "../hooks/useVariantStockConfigs";
 import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNextStockInSerialApi } from "../hooks/useStockInChallansApi";
 import { useWizardKeyboardNav } from "../hooks/useWizardKeyboardNav";
 import { getQrCenterRegistrationDetailApi } from "../services/qrCenter.api.js";
@@ -138,6 +139,7 @@ const StockIn = () => {
     [selectedVariants, qrPerVariantSettings, tagLoose],
   );
 
+  const queryClient = useQueryClient();
   const { mutateAsync: registerStockIn, isPending } = useStockInRegisterApi();
 
   const handleAddVariant = (variant) => {
@@ -334,6 +336,7 @@ const StockIn = () => {
       qcByKey,
       printOnConfirm: printOnConfirm && Boolean(printerId),
       printerId,
+      serialStarts: printConfig.serialStarts,
     });
 
     if (payload.designs.length === 0) {
@@ -430,6 +433,8 @@ const StockIn = () => {
       resetAll();
       navigate("/stock-in");
     } catch (error) {
+      // If the serial numbers moved under us, the studio refetches them and re-numbers its labels.
+      queryClient.invalidateQueries({ queryKey: ["stock-in", "serial-counters"] });
       toast.error(error?.message ?? "Couldn't register stock. Please try again.");
     }
   };
@@ -606,6 +611,7 @@ const StockIn = () => {
             onPrinterChange={setPrinter}
             onTestPrint={handleTestPrint}
             onSetPrintOnConfirm={setPrintOnConfirm}
+            onPrintConfigChange={setPrintConfig}
             printed={tagsPrinted}
             onPrintedChange={setTagsPrinted}
           />
