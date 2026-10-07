@@ -71,3 +71,21 @@ export const getQrCenterReferenceApi = () => qrCenterRequest("/reference");
 
 export const generateQrApi = (stockItemIds) =>
     qrCenterRequest("/generate", { method: "POST", body: { stockItemIds } });
+
+/* ------------------------------------------------------------------------
+ * QR Center — stock-in history (one batch per stock-in challan)
+ * ---------------------------------------------------------------------- */
+
+export const getQrBatchesApi = ({ page = 1, limit = 20, keyword, designId, colorVariantId, status, sort } = {}) =>
+    qrCenterRequest("/batches", { params: { page, limit, keyword, designId, colorVariantId, status, sort } });
+
+export const getQrBatchApi = (batchId) => qrCenterRequest(`/batches/${batchId}`);
+
+// Makes sure every tag the chosen strategy covers has a code and returns the labels to print.
+// Nothing is marked printed yet — see confirmQrBatchPrintApi.
+export const issueQrBatchApi = (batchId, { parentChild, loose, transactionIds, reprint }) =>
+    qrCenterRequest(`/batches/${batchId}/issue`, { method: "POST", body: { parentChild, loose, transactionIds, reprint } });
+
+// Records that the issued labels were really printed.
+export const confirmQrBatchPrintApi = (batchId, { stockItemQrIds, printerId }) =>
+    qrCenterRequest(`/batches/${batchId}/confirm-print`, { method: "POST", body: { stockItemQrIds, printerId } });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQrCenterListApi } from "../../../hooks/useQrCenterListApi.js";
+import { useQrBatchListApi } from "../../../hooks/useQrBatchListApi.js";
 import HistoryFilterBar from "./HistoryFilterBar.jsx";
 import HistoryRow from "./HistoryRow.jsx";
 import { cn } from "@/lib/utils";
@@ -7,35 +7,37 @@ import { EmptyState, LIST_SCROLL, ListBox, Sheet } from "../shared/primitives.js
 
 const EMPTY_FILTERS = { designId: "", colorVariantId: "", sort: "new" };
 
-export default function HistorySection({ designs, onConfigure, onView, challanNo = "", onClearChallan }) {
+const COLUMNS = ["Challan / Date", "Design · Variant", "Sets", "Tags", "Print status", "Action"];
+
+export default function HistorySection({ designs, onOpen, challanNo = "", onClearChallan }) {
     const [filters, setFilters] = useState(EMPTY_FILTERS);
     const [statusFilter, setStatusFilter] = useState("all");
     const sectionRef = useRef(null);
-    // The list API's keyword is a substring match (and needs 2+ chars); rows are then narrowed
-    // to the exact challan so "DC-1" doesn't also show "DC-10".
-    const { data: response, isLoading } = useQrCenterListApi({
+    // The list API's keyword is a substring match; rows are then narrowed to the exact challan so
+    // "DC-1" doesn't also show "DC-10".
+    const { data: response, isLoading, isError, error } = useQrBatchListApi({
         ...filters,
-        keyword: challanNo.length >= 2 ? challanNo : undefined,
+        status: statusFilter,
+        keyword: challanNo || undefined,
         limit: 50,
     });
-    const allRows = (response?.data ?? []).filter((r) => !challanNo || r.challanNo === challanNo);
-    const rows = statusFilter === "all" ? allRows : allRows.filter((r) => r.printStatus === statusFilter);
+    const rows = (response?.data ?? []).filter((r) => !challanNo || r.challanNo === challanNo);
 
     useEffect(() => {
         if (challanNo) sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, [challanNo]);
 
     return (
-        <Sheet>
-            <div>
+        <Sheet className="scroll-mt-4">
+            <div ref={sectionRef}>
                 <h2 className="mb-1 text-[16.5px] font-bold tracking-[-.005em]">Stock-in history</h2>
                 <p className="mb-4 max-w-[86ch] text-[13.5px] text-slate-500">Every inward batch and what was printed for it. A batch whose tags were skipped can be configured and printed here at any time — the stock is already registered, only the labels are missing.</p>
             </div>
 
             {challanNo && (
-                <div className="qrc2-sec-sub" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span>Showing tags for challan <b>{challanNo}</b></span>
-                    <button className="qrc2-fclear" onClick={onClearChallan}>Show all batches</button>
+                <div className="mb-3 flex flex-wrap items-center gap-2.5 text-[13px] text-slate-500">
+                    <span>Showing tags for challan <b className="text-slate-900">{challanNo}</b></span>
+                    <button type="button" className="font-semibold text-emerald-700 hover:underline" onClick={onClearChallan}>Show all batches</button>
                 </div>
             )}
 
@@ -43,22 +45,24 @@ export default function HistorySection({ designs, onConfigure, onView, challanNo
                 designs={designs}
                 filters={filters}
                 onChange={setFilters}
-                onClear={() => setFilters(EMPTY_FILTERS)}
+                onClear={() => { setFilters(EMPTY_FILTERS); setStatusFilter("all"); }}
                 statusFilter={statusFilter}
                 onStatusChange={setStatusFilter}
                 resultCount={rows.length}
             />
 
-            <ListBox className={cn("mt-4", LIST_SCROLL)}>
+            <ListBox className="mt-4">
+                <div role="row" className="hidden grid-cols-[1.1fr_1.5fr_.65fr_.85fr_1fr_168px] items-center gap-x-3.5 border-b border-slate-200 bg-slate-50 px-[18px] py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 xl:grid">
+                    {COLUMNS.map((name, index) => <span key={name} role="columnheader" className={index === COLUMNS.length - 1 ? "text-right" : undefined}>{name}</span>)}
+                </div>
                 {isLoading && <EmptyState>Loading…</EmptyState>}
-                {!isLoading && rows.length === 0 && (
+                {isError && <EmptyState title="Couldn't load the history">{error?.message}</EmptyState>}
+                {!isLoading && !isError && rows.length === 0 && (
                     <EmptyState title="No batches match">
                         Try a different filter, or clear them to see the full history.
                     </EmptyState>
                 )}
-                {rows.map((row) => (
-                    <HistoryRow key={`${row.registrationType}-${row.registrationId}`} row={row} onConfigure={onConfigure} onView={onView} />
-                ))}
+                {rows.map((row) => <HistoryRow key={row.batchId} row={row} onOpen={onOpen} />)}
             </ListBox>
         </Sheet>
     );

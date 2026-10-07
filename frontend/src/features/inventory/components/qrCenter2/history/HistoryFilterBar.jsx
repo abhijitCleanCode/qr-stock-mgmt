@@ -23,13 +23,14 @@ export default function HistoryFilterBar({ designs, filters, onChange, onClear, 
                         onChange={(designId) => onChange({ ...filters, designId, colorVariantId: "" })}
                     />
                 </div>
-                <FilterSelect value={filters.colorVariantId} onChange={(e) => onChange({ ...filters, colorVariantId: e.target.value })} disabled={!selectedDesign}>
+                <FilterSelect value={filters.colorVariantId} onChange={(e) => onChange({ ...filters, colorVariantId: e.target.value })} disabled={!selectedDesign} aria-label="Variant">
                     <option value="">All variants</option>
                     {variants.map((v) => <option key={v.id} value={v.id}>{v.colorName}</option>)}
                 </FilterSelect>
-                <FilterSelect value={filters.sort} onChange={(e) => onChange({ ...filters, sort: e.target.value })}>
+                <FilterSelect value={filters.sort} onChange={(e) => onChange({ ...filters, sort: e.target.value })} aria-label="Sort">
                     <option value="new">Newest first</option>
                     <option value="old">Oldest first</option>
+                    <option value="tags">Most tags</option>
                 </FilterSelect>
                 <ClearFiltersButton onClick={onClear} />
                 <ResultCount>{resultCount} {resultCount === 1 ? "batch" : "batches"}</ResultCount>

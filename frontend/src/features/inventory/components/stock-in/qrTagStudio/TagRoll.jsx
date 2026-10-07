@@ -24,7 +24,7 @@ const TagRoll = ({ tags, buildTagData, fields, qrmm, typography, zoom, printerSh
               {String(index + 1).padStart(3, "0")}
             </span>
             <div className="min-w-0 flex-1 pb-3.5">
-              <LabelTag kind={tag.kind} data={buildTagData(tag)} fields={fields} qrmm={qrmm} typography={typography} qrValue={tag.code} />
+              <LabelTag kind={tag.kind} data={buildTagData(tag)} fields={fields} qrmm={qrmm} typography={typography} qrValue={tag.qrValue ?? tag.code} />
               {tag.flags?.map((flag, flagIndex) => (
                 <span key={flagIndex} className={`mt-1 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10.5px] font-bold ${FLAG_STYLES[flag.level]}`}>
                   {flag.level === "bad" ? "✕" : "⚠"} {flag.text}
