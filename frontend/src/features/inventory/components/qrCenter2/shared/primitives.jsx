@@ -92,6 +92,9 @@ export const FilterSelect = ({ className, children, ...props }) => (
 );
 
 // Bordered list container (search results, history rows, child pieces).
+// Pass to ListBox so a long list scrolls inside its box rather than stretching the page.
+export const LIST_SCROLL = "max-h-[60vh] overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(30,27,75,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#1E1B4B]/25 [&::-webkit-scrollbar-thumb:hover]:bg-[#1E1B4B]/40";
+
 export const ListBox = ({ className, children }) => (
     <div className={cn("overflow-hidden rounded-[13px] border border-slate-200", className)}>{children}</div>
 );

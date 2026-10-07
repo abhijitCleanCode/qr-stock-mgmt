@@ -14,12 +14,15 @@ class GalleryService {
     _colorVariantRepository = colorVariantRepository;
     _variantInventoryRepository = variantInventoryRepository;
 
-    _item({ colorVariantId, designId, designCode, designName, colorName, colorHex, imageUrl, label, availablePcs, isExtra }) {
+    _item({ colorVariantId, designId, designCode, designName, itemName, quality, colorName, colorHex, imageUrl, label, availablePcs, isExtra }) {
         return {
             colorVariantId,
             designId,
             designCode,
             designName,
+            // The Gallery's filter facets — designName is the pattern (see design.schema.js).
+            itemName: itemName ?? null,
+            quality: quality ?? null,
             colorName,
             colorHex,
             imageUrl: imageUrl ?? null,
@@ -75,7 +78,9 @@ class GalleryService {
         };
     }
 
-    // Every active variant, for browsing the whole catalogue rather than one document.
+    // Every active variant, for browsing the whole catalogue rather than one document. The
+    // Gallery screen sends no q/stock and filters on the client, so its facet counts can see the
+    // whole catalogue; both are still honoured for other callers.
     async all({ q, designId, stock } = {}) {
         const variants = await this._colorVariantRepository.findAllActiveWithDesign(db, { keyword: q?.trim() || undefined, designId });
 

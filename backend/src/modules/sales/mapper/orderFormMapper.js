@@ -61,6 +61,8 @@ class OrderFormMapper {
             designId: item.designId,
             designCode: item.designCode,
             designName: item.designName,
+            itemName: item.itemName ?? null,
+            quality: item.quality ?? null,
             colorName: item.colorName,
             colorHex: item.colorHex,
             imageUrl: item.imageUrl,

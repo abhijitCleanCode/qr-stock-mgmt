@@ -1,7 +1,19 @@
-import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box, RefreshCw, ArrowUpRight, Images } from "lucide-react";
+import { Palette, ArrowDownLeft, RotateCcwClock, QrCode, Box, RefreshCw, ArrowUpRight, Images, Home } from "lucide-react";
 
 export const getMenuList = ({ pathname }) => {
     return [
+        {
+            groupLabel: "",
+            menus: [
+                {
+                    href: "/",
+                    label: "Home",
+                    icon: Home,
+                    active: pathname === "/",
+                    submenus: [],
+                },
+            ],
+        },
         {
             groupLabel: "Master Data",
             menus: [

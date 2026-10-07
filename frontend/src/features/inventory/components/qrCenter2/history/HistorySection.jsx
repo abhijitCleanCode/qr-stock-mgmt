@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQrCenterListApi } from "../../../hooks/useQrCenterListApi.js";
 import HistoryFilterBar from "./HistoryFilterBar.jsx";
 import HistoryRow from "./HistoryRow.jsx";
-import { EmptyState, ListBox, Sheet } from "../shared/primitives.jsx";
+import { cn } from "@/lib/utils";
+import { EmptyState, LIST_SCROLL, ListBox, Sheet } from "../shared/primitives.jsx";
 
 const EMPTY_FILTERS = { designId: "", colorVariantId: "", sort: "new" };
 
@@ -48,7 +49,7 @@ export default function HistorySection({ designs, onConfigure, onView, challanNo
                 resultCount={rows.length}
             />
 
-            <ListBox className="mt-4">
+            <ListBox className={cn("mt-4", LIST_SCROLL)}>
                 {isLoading && <EmptyState>Loading…</EmptyState>}
                 {!isLoading && rows.length === 0 && (
                     <EmptyState title="No batches match">

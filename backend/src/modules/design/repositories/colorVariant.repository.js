@@ -83,6 +83,8 @@ class ColorVariantRepository {
             designId: design.id,
             designCode: design.code,
             designName: design.name,
+            itemName: design.itemName,
+            quality: design.quality,
             unitPrice: design.defaultSellingPricePerPiece,
         }).from(colorVariant)
             .innerJoin(design, eq(colorVariant.designId, design.id))
