@@ -56,6 +56,10 @@ export const stockItem = pgTable("stock_items", {
     // A piece inside a unit is counted as part of that unit, never on its own.
     parentStockItemId: integer("parent_stock_item_id").references(() => stockItem.id, { onDelete: "set null" }),
 
+    // Running per-variant QR serial (see variant_serial_counters): sets/semi sets and tagged
+    // pieces number separately. Null for untagged pooled loose stock.
+    serialNo: integer("serial_no"),
+
     custodyType: stockItemCustodyEnum("custody_type").default("STOCK").notNull(),
     // Salesperson / customer / tailor holding the piece — free text (no people master exists).
     custodyHolder: varchar("custody_holder", { length: 150 }),

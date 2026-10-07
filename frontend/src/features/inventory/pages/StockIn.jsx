@@ -1,3 +1,4 @@
+import { buildConfirmedLabelLines } from "../utils/confirmedLabelLines";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "react-toastify";
@@ -9,6 +10,7 @@ import ConfirmedA4QrPrintSheet from "../components/stock-in/qrTagStudio/Confirme
 import { useStockInWizard } from "../hooks/useStockInWizard";
 import { useVariantStockConfigs } from "../hooks/useVariantStockConfigs";
 import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNextStockInSerialApi } from "../hooks/useStockInChallansApi";
 import { useWizardKeyboardNav } from "../hooks/useWizardKeyboardNav";
 import { getQrCenterRegistrationDetailApi } from "../services/qrCenter.api.js";
@@ -104,6 +106,7 @@ const StockIn = () => {
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
   const [printer, setPrinter] = useState("A4 Laser Printer (4×10 · 40-Up)");
   const [printOnConfirm, setPrintOnConfirm] = useState(false);
+  const [tagsPrinted, setTagsPrinted] = useState(false);
   const [printConfig, setPrintConfig] = useState({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   const [confirmedQrPrint, setConfirmedQrPrint] = useState(null);
   // Physical dispatch is handled by the local print agent; the backend printer registry is
@@ -136,12 +139,15 @@ const StockIn = () => {
     [selectedVariants, qrPerVariantSettings, tagLoose],
   );
 
+  const queryClient = useQueryClient();
   const { mutateAsync: registerStockIn, isPending } = useStockInRegisterApi();
 
   const handleAddVariant = (variant) => {
     const key = getVariantKey(variant);
     setSelectedVariants((prev) => (prev.some((item) => getVariantKey(item) === key) ? prev : [...prev, variant]));
     ensureConfig(variant);
+    // The design already records who makes it, so entering a design fills the jobber in.
+    if (variant.jobberName) setJobber({ id: variant.jobberId ?? null, name: variant.jobberName });
   };
 
   const omitKey = (record, key) =>
@@ -171,6 +177,7 @@ const StockIn = () => {
     setTagLoose(true);
     setQrPerVariantSettings({});
     setPrintOnConfirm(false);
+    setTagsPrinted(false);
     setPrintConfig({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   };
 
@@ -329,6 +336,7 @@ const StockIn = () => {
       qcByKey,
       printOnConfirm: printOnConfirm && Boolean(printerId),
       printerId,
+      serialStarts: printConfig.serialStarts,
     });
 
     if (payload.designs.length === 0) {
@@ -393,6 +401,9 @@ const StockIn = () => {
             });
           });
 
+          // The local print agent can't import this app's code, so it gets the finished label lines.
+          for (const printItem of printItems) printItem.labelLines = buildConfirmedLabelLines(printItem, printConfig);
+
           if (printItems.length === 0) throw new Error("No saved QR labels were returned for this inward.");
 
           try {
@@ -422,11 +433,17 @@ const StockIn = () => {
       resetAll();
       navigate("/stock-in");
     } catch (error) {
+      // If the serial numbers moved under us, the studio refetches them and re-numbers its labels.
+      queryClient.invalidateQueries({ queryKey: ["stock-in", "serial-counters"] });
       toast.error(error?.message ?? "Couldn't register stock. Please try again.");
     }
   };
 
   const handleNext = () => {
+    if (wizard.activeStep === 3 && !tagsPrinted) {
+      toast.error("Send the tags to the printer before continuing.");
+      return;
+    }
     if (wizard.activeStep === 4) {
       handleConfirmInward();
       return;
@@ -594,8 +611,9 @@ const StockIn = () => {
             onPrinterChange={setPrinter}
             onTestPrint={handleTestPrint}
             onSetPrintOnConfirm={setPrintOnConfirm}
-            onSetPrintConfig={setPrintConfig}
-            onAdvance={wizard.next}
+            onPrintConfigChange={setPrintConfig}
+            printed={tagsPrinted}
+            onPrintedChange={setTagsPrinted}
           />
         )}
 
@@ -619,6 +637,7 @@ const StockIn = () => {
         activeStep={wizard.activeStep}
         onPrev={wizard.prev}
         onNext={handleNext}
+        nextDisabled={wizard.activeStep === 3 && !tagsPrinted}
         onSaveDraft={handleSaveDraft}
         isSubmitting={isPending}
         isSavingDraft={isSavingDraft}

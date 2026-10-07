@@ -2,6 +2,7 @@ import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 
 import { db } from "../../../database/index.js";
 import { design } from "../schemas/design.schema.js";
+import { jobber } from "../schemas/jobber.schema.js";
 
 // trim + lowercase, so "MB204", "mb204" and " MB204 " all resolve to the same design code.
 // Blank/absent code normalizes to null — designs without a code aren't deduplicated (mirrors
@@ -63,8 +64,11 @@ class DesignRepository {
                 quality: design.quality,
                 itemName: design.itemName,
                 defaultSellingPricePerPiece: design.defaultSellingPricePerPiece,
+                jobberId: design.jobberId,
+                jobberName: jobber.name,
             })
             .from(design)
+            .leftJoin(jobber, eq(design.jobberId, jobber.id))
             .where(or(ilike(design.code, `%${keyword}%`), ilike(design.name, `%${keyword}%`)))
             .limit(20);
     }

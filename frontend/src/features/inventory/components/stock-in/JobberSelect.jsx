@@ -20,6 +20,13 @@ const SEARCH_DEBOUNCE_MS = 250;
 // persists it yet), so it's kept as plain local state on the page.
 const JobberSelect = ({ value, onChange, placeholder = "Select Jobber...", id }) => {
   const [query, setQuery] = useState(value ?? "");
+  // `value` can change from outside (e.g. auto-filled from a design); typing already echoes
+  // the same text back, so this only fires for external changes.
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    if (value !== undefined && value !== query) setQuery(value ?? "");
+  }
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
   const keyword = debouncedQuery.trim();
   const shouldSearch = keyword.length >= MIN_JOBBER_SEARCH_LENGTH;

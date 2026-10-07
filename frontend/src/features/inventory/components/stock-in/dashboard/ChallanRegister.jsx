@@ -62,7 +62,7 @@ const Row = ({ challan, onView, onPrint, onPdf }) => {
   const navigate = useNavigate();
   const dropped = challan.status === "DROPPED";
 
-  const openQr = () => navigate("/qr-center");
+  const openQr = () => navigate(`/qr-center?challan=${encodeURIComponent(challan.challanNo)}`);
 
   return (
     <div

@@ -22,6 +22,7 @@ export * from "../modules/stock/schemas/stockOutEntry.schema.js";
 export * from "../modules/stock/schemas/stockGroup.schema.js";
 export * from "../modules/stock/schemas/stockItems.schema.js";
 export * from "../modules/stock/schemas/stockItemLineage.schema.js";
+export * from "../modules/stock/schemas/variantSerialCounter.schema.js";
 
 export * from "../modules/inventory/schemas/variantInventory.schema.js";
 export * from "../modules/inventory/schemas/variantStatusTransaction.schema.js";

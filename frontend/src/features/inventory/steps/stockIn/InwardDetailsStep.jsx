@@ -135,6 +135,7 @@ const InwardDetailsStep = ({
         <Field label="Jobber Delivery Challan No." htmlFor="challanNo" error={errors.challanNo}>
           <Input
             id="challanNo"
+            autoComplete="off"
             placeholder="e.g. DC-2026/9021"
             value={challanNo}
             onChange={(event) => onChallanNoChange(event.target.value)}
@@ -145,6 +146,7 @@ const InwardDetailsStep = ({
         <Field label="Issued Challan Number" htmlFor="issuedChallanNo" error={errors.issuedChallanNo}>
           <Input
             id="issuedChallanNo"
+            autoComplete="off"
             placeholder="Our challan for this job work, e.g. SF/ISS/0430"
             value={issuedChallanNo}
             onChange={(event) => onIssuedChallanNoChange(event.target.value)}
