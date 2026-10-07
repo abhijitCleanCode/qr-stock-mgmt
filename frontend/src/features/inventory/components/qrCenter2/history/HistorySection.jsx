@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQrBatchListApi } from "../../../hooks/useQrBatchListApi.js";
 import HistoryFilterBar from "./HistoryFilterBar.jsx";
 import HistoryRow from "./HistoryRow.jsx";
-import { EmptyState, ListBox, Sheet } from "../shared/primitives.jsx";
+import { cn } from "@/lib/utils";
+import { EmptyState, LIST_SCROLL, ListBox, Sheet } from "../shared/primitives.jsx";
 
 const EMPTY_FILTERS = { designId: "", colorVariantId: "", sort: "new" };
 

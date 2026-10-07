@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "react-toastify";
 import { AlertTriangle, Check, Download, FileText, Image as ImageIcon, Loader2, Receipt, Search, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useGalleryApi } from "../hooks/useSalesApi.js";
 import { inr } from "../utils/format.js";
 import PhotoLightbox from "../components/PhotoLightbox.jsx";
+import GalleryFilters from "../components/gallery/GalleryFilters.jsx";
+import { createMatcher, freshFilters } from "../utils/galleryFilters.js";
 
 const MODES = [
     { key: "orderForm", label: "By Order Form", hint: "Enter an order form number", Icon: FileText },
@@ -21,26 +22,28 @@ const Gallery = () => {
     const [mode, setMode] = useState(searchParams.get("mode") ?? "all");
     const [numberInput, setNumberInput] = useState(searchParams.get("number") ?? "");
     const [submittedNumber, setSubmittedNumber] = useState(searchParams.get("number") ?? "");
-    const [search, setSearch] = useState("");
-    const [stock, setStock] = useState("all");
+    // Filtering happens here, over whatever was fetched — the whole catalogue or one document —
+    // so each facet can show live counts. Reset whenever what's being filtered changes.
+    const [filters, setFilters] = useState(freshFilters);
     // colorVariantId → the selected gallery item itself (not just `true`), so a pick survives a
     // new search, filter or order/invoice lookup that no longer shows it — Share and Download
     // work from this, not from what's on screen. Starts empty: the salesperson picks.
     const [selected, setSelected] = useState({});
     const [lightboxIndex, setLightboxIndex] = useState(null);
 
-    const debouncedSearch = useDebouncedValue(search, 300);
-
     const { data: response, isPending, isError, error } = useGalleryApi(
-        { mode, number: submittedNumber, q: mode === "all" ? debouncedSearch : undefined, stock: mode === "all" ? stock : undefined },
+        { mode, number: submittedNumber },
         mode === "all" || Boolean(submittedNumber),
     );
 
     const items = useMemo(() => response?.data?.items ?? [], [response]);
     const source = response?.data?.source;
 
-    const selectable = items.filter((item) => item.hasPhoto);
-    const withoutPhoto = items.filter((item) => !item.hasPhoto);
+    const matches = useMemo(() => createMatcher(items, filters, mode), [items, filters, mode]);
+    const visible = useMemo(() => items.filter((item) => matches(item)), [items, matches]);
+
+    const selectable = visible.filter((item) => item.hasPhoto);
+    const withoutPhoto = visible.filter((item) => !item.hasPhoto);
     // Every pick so far, across searches — what Share/Download send.
     const chosen = Object.values(selected);
     const chosenDesignCount = new Set(chosen.map((item) => item.designId)).size;
@@ -64,17 +67,21 @@ const Gallery = () => {
         return next;
     });
 
+    const fetchNumber = (number) => { setSubmittedNumber(number); setFilters(freshFilters()); };
+
+    // Grouped by designId, not code: a code is only unique within a pattern, so two designs can
+    // share one — each gets its own group (the header shows its pattern to tell them apart).
     const grouped = useMemo(() => {
         const byDesign = new Map();
 
-        for (const item of items) {
-            const group = byDesign.get(item.designId) ?? { designCode: item.designCode, designName: item.designName, items: [] };
+        for (const item of visible) {
+            const group = byDesign.get(item.designId) ?? { designId: item.designId, designCode: item.designCode, designName: item.designName, items: [] };
             group.items.push(item);
             byDesign.set(item.designId, group);
         }
 
         return [...byDesign.values()];
-    }, [items]);
+    }, [visible]);
 
     const message = () => {
         const head = source?.kind === "orderForm" ? `Designs for order form ${source.number} (${source.party})`
@@ -148,7 +155,7 @@ const Gallery = () => {
                         <button
                             key={key}
                             type="button"
-                            onClick={() => { setMode(key); setSubmittedNumber(""); setNumberInput(""); }}
+                            onClick={() => { if (key === mode) return; setMode(key); fetchNumber(""); setNumberInput(""); }}
                             className={cn(
                                 "flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors",
                                 mode === key ? "border-emerald-500 bg-emerald-50/70" : "border-white/60 bg-white/50 hover:border-emerald-200",
@@ -168,54 +175,39 @@ const Gallery = () => {
                     ))}
                 </div>
 
-                <div className="mt-4">
-                    {mode === "all" ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="neu-pressed relative flex min-w-[240px] flex-1 items-center">
-                                <Search className="absolute left-4 h-5 w-5 text-gray-400" />
-                                <input
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Search by design code, design name or colour"
-                                    className="w-full border-none bg-transparent py-2 pl-12 pr-4 text-sm font-medium outline-none placeholder:text-gray-500"
-                                />
-                            </div>
-
-                            <div className="toolbar-neu flex gap-1 rounded-xl p-1">
-                                {[["all", "All"], ["in", "In stock"], ["out", "Out of stock"]].map(([key, label]) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => setStock(key)}
-                                        className={cn(
-                                            "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                                            stock === key ? "bg-white text-[#1E1B4B] shadow-sm" : "text-[#1E1B4B]/60 hover:text-[#1E1B4B]",
-                                        )}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
+                {mode !== "all" && (
+                    <div className="mt-4">
                         <div className="flex max-w-xl gap-2">
                             <input
                                 className="pill-input font-mono"
                                 value={numberInput}
                                 onChange={(event) => setNumberInput(event.target.value)}
-                                onKeyDown={(event) => { if (event.key === "Enter") setSubmittedNumber(numberInput.trim()); }}
+                                onKeyDown={(event) => { if (event.key === "Enter") fetchNumber(numberInput.trim()); }}
                                 placeholder={mode === "orderForm" ? "Type the order form number, e.g. OF-1022" : "Type the invoice number, e.g. INV-2026-041"}
                             />
                             <button
                                 type="button"
-                                onClick={() => setSubmittedNumber(numberInput.trim())}
+                                onClick={() => fetchNumber(numberInput.trim())}
                                 className="shrink-0 rounded-lg bg-[#00694C] px-5 text-xs font-semibold text-white hover:bg-[#00563e]"
                             >
                                 Fetch photos
                             </button>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
+
+                {!isError && items.length > 0 && (
+                    <div className="mt-4">
+                        <GalleryFilters
+                            items={items}
+                            filters={filters}
+                            onChange={setFilters}
+                            mode={mode}
+                            matches={matches}
+                            visibleCount={visible.length}
+                        />
+                    </div>
+                )}
             </div>
 
             {mode !== "all" && !submittedNumber ? (
@@ -296,12 +288,22 @@ const Gallery = () => {
 
                     {items.length === 0 ? (
                         <div className="p-10 text-center">
-                            <b className="block text-sm text-[#1E1B4B]">No designs match</b>
-                            <span className="text-sm text-[#1E1B4B]/55">Try another search or clear the filters.</span>
+                            <b className="block text-sm text-[#1E1B4B]">No designs here yet</b>
+                            <span className="text-sm text-[#1E1B4B]/55">Designs registered in Design Master will appear here.</span>
+                        </div>
+                    ) : visible.length === 0 ? (
+                        <div className="p-10 text-center">
+                            <b className="block text-sm text-[#1E1B4B]">No photos match these filters</b>
+                            <span className="text-sm text-[#1E1B4B]/55">
+                                Remove a filter chip above, or{" "}
+                                <button type="button" onClick={() => setFilters(freshFilters())} className="font-semibold text-[#00694C] hover:underline">
+                                    clear all filters
+                                </button>.
+                            </span>
                         </div>
                     ) : (
                         grouped.map((group) => (
-                            <div key={group.designCode} className="mb-6 last:mb-0">
+                            <div key={group.designId} className="mb-6 last:mb-0">
                                 <div className="mb-2.5 border-b border-white/60 pb-2 text-sm">
                                     <b className="text-[#1E1B4B]">{group.designCode}</b>
                                     <span className="ml-2 text-xs text-[#1E1B4B]/55">{group.designName}</span>

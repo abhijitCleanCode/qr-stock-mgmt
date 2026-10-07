@@ -1,7 +1,8 @@
-import { KindBadge, ListBox, EmptyState } from "../shared/primitives.jsx";
+import { cn } from "@/lib/utils";
+import { KindBadge, LIST_SCROLL, ListBox, EmptyState } from "../shared/primitives.jsx";
 import QrCodeImage from "../../qr-center/QrCodeImage.jsx";
 
-const Shell = ({ children }) => <ListBox className="mt-4">{children}</ListBox>;
+const Shell = ({ className, children }) => <ListBox className={cn("mt-4", className)}>{children}</ListBox>;
 
 export default function ResultList({ tags, onSelect, loading, hasQuery }) {
     if (!hasQuery) {
@@ -24,7 +25,7 @@ export default function ResultList({ tags, onSelect, loading, hasQuery }) {
         );
     }
     return (
-        <Shell>
+        <Shell className={LIST_SCROLL}>
             {tags.map((t) => (
                 <button
                     key={t.shortCode}

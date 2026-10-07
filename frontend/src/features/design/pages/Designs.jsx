@@ -38,7 +38,7 @@ const Designs = () => {
   const editDesign = (design) => navigate(`/designs/${design.id}/edit`);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1300px] flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <Sheet>
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>

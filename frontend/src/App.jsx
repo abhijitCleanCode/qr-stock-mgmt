@@ -24,12 +24,14 @@ import Invoices from "./features/sales/pages/Invoices";
 import InvoiceEditor from "./features/sales/pages/InvoiceEditor";
 import InvoiceDetail from "./features/sales/pages/InvoiceDetail";
 import Gallery from "./features/sales/pages/Gallery";
+import Home from "./pages/Home";
 
 const App = () => {
   return (
     <>
       <Routes>
         <Route element={<MainLayout />}>
+          <Route path="/" element={<Home />} />
           <Route path="/designs" element={<Designs />} />
           <Route path="/add-designs" element={<CreateDesign />} />
           <Route path="/designs/:id/edit" element={<EditDesign />} />

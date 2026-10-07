@@ -138,6 +138,8 @@ class InvoiceRepository {
             designId: design.id,
             designCode: design.code,
             designName: design.name,
+            itemName: design.itemName,
+            quality: design.quality,
         }).from(invoiceEntry)
             .innerJoin(colorVariant, eq(invoiceEntry.colorVariantId, colorVariant.id))
             .innerJoin(design, eq(colorVariant.designId, design.id))

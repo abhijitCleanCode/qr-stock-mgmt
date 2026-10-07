@@ -12,6 +12,8 @@ export function aggregateEntries(entries) {
             designId: entry.designId,
             designCode: entry.designCode,
             designName: entry.designName,
+            itemName: entry.itemName ?? null,
+            quality: entry.quality ?? null,
             colorName: entry.colorName,
             colorHex: entry.colorHex,
             imageUrl: entry.imageUrl,

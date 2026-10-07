@@ -138,6 +138,8 @@ class OrderFormRepository {
             designId: design.id,
             designCode: design.code,
             designName: design.name,
+            itemName: design.itemName,
+            quality: design.quality,
             unitPrice: design.defaultSellingPricePerPiece,
         }).from(orderFormItem)
             .innerJoin(colorVariant, eq(orderFormItem.colorVariantId, colorVariant.id))
