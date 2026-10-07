@@ -217,7 +217,9 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
         ) : rows.length === 0 ? (
           <div className="py-10 text-center text-sm text-slate-500"><b className="block text-[15px] text-slate-900">No challans match</b>Try another search or filter, or clear them.</div>
         ) : (
-          rows.map((challan) => <Row key={challan.id} challan={challan} onView={onView} onPrint={onPrint} onPdf={onPdf} />)
+          <div className="max-h-130 overflow-y-auto">
+            {rows.map((challan) => <Row key={challan.id} challan={challan} onView={onView} onPrint={onPrint} onPdf={onPdf} />)}
+          </div>
         )}
       </div>
 

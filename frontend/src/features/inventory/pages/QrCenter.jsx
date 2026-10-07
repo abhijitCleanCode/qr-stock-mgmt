@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
-import "../qrCenter2.theme.css";
 import QrCenterHeader from "../components/qrCenter2/QrCenterHeader.jsx";
+import { Sheet } from "../components/qrCenter2/shared/primitives.jsx";
 import SearchBar from "../components/qrCenter2/search/SearchBar.jsx";
 import FilterBar from "../components/qrCenter2/search/FilterBar.jsx";
 import ResultList from "../components/qrCenter2/search/ResultList.jsx";
@@ -41,10 +41,10 @@ const QrCenter = () => {
     const handleBackFromDetail = (nextCode) => setSelectedCode(nextCode ?? null);
 
     return (
-        <div className="qrc2-scope">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3.5 pb-10 text-sm text-slate-900 sm:gap-5 sm:pb-16">
             <QrCenterHeader />
 
-            <div className="qrc2-sheet">
+            <Sheet>
                 <SearchBar
                     value={query}
                     onChange={(v) => { setQuery(v); setSelectedCode(null); }}
@@ -74,7 +74,7 @@ const QrCenter = () => {
                         hasQuery={hasQuery}
                     />
                 )}
-            </div>
+            </Sheet>
 
             <HistorySection
                 designs={designs}

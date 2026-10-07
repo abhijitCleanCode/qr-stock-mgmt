@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Drawer from "./Drawer.jsx";
+import Drawer, { DrawerSummary } from "./Drawer.jsx";
+import { ActionButton, EmptyState, InfoNote, SectionLabel } from "../shared/primitives.jsx";
 import { useQrCenterBatchQueueApi } from "../../../hooks/useQrCenterBatchQueueApi.js";
 import { printBatchQueueApi } from "../../../services/qrCenterSearch.api.js";
 import { getQrCenterReferenceApi } from "../../../services/qrCenter.api.js";
@@ -43,29 +44,33 @@ export default function ConfigureBatchDrawer({ open, onClose, stockInTransaction
             subtitle={queue ? `${queue.registration.challanNo ?? `#${queue.registration.stockInTransactionId}`} · ${queue.registration.stockDate ?? ""}` : ""}
             footer={
                 <>
-                    <span className="qrc2-left"><b>{printable}</b> tag{printable === 1 ? "" : "s"} to print</span>
-                    <button className="qrc2-btn" onClick={onClose}>Cancel</button>
-                    <button className="qrc2-btn qrc2-pri" disabled={isLoading || submitting || printable === 0} onClick={handlePrint}>
+                    <DrawerSummary count={printable}>tag{printable === 1 ? "" : "s"} to print</DrawerSummary>
+                    <ActionButton onClick={onClose}>Cancel</ActionButton>
+                    <ActionButton variant="primary" disabled={isLoading || submitting || printable === 0} onClick={handlePrint}>
                         {submitting ? "Printing…" : "Print tags"}
-                    </button>
+                    </ActionButton>
                 </>
             }
         >
-            <div className="qrc2-callout qrc2-warn">
+            <div className="mb-5 rounded-[11px] border border-amber-200 bg-amber-50 px-4 py-[13px] text-[13px] leading-relaxed text-amber-800">
                 <b>Tags for this batch were skipped at stock-in.</b> The stock is already registered against inventory — printing now only produces the missing labels. Codes were issued when the batch was saved, so every tag below carries the id it has always had.
             </div>
 
-            {isLoading && <div className="qrc2-empty">Loading…</div>}
+            {isLoading && <EmptyState>Loading…</EmptyState>}
 
             {queue && (
-                <div className="qrc2-fg">
-                    <label>Generation queue</label>
-                    <div className="qrc2-qt">
-                        <table>
-                            <thead><tr><th>Design</th><th>Already coded, unprinted</th><th>No code yet</th><th>Loose (informational)</th></tr></thead>
+                <div className="mb-[22px]">
+                    <SectionLabel>Generation queue</SectionLabel>
+                    <div className="overflow-x-auto rounded-[11px] border border-slate-200">
+                        <table className="w-full border-collapse text-[12.3px]">
+                            <thead>
+                                <tr className="border-b border-slate-200 bg-slate-50 text-right text-[9.5px] font-bold uppercase tracking-[.07em] text-slate-400 *:px-2.5 *:py-2 sm:*:whitespace-nowrap">
+                                    <th className="text-left">Design</th><th>Already coded, unprinted</th><th>No code yet</th><th>Loose (informational)</th>
+                                </tr>
+                            </thead>
                             <tbody>
-                                <tr>
-                                    <td>{queue.registration.design.code} · {queue.registration.variant.colorName}</td>
+                                <tr className="text-right font-mono tabular-nums text-slate-700 *:px-2.5 *:py-[11px]">
+                                    <td className="text-left font-sans font-semibold text-slate-900">{queue.registration.design.code} · {queue.registration.variant.colorName}</td>
                                     <td>{queue.unprintedCount}</td>
                                     <td>{queue.missingQrCount}</td>
                                     <td>{queue.untaggedLooseCount}</td>
@@ -74,7 +79,7 @@ export default function ConfigureBatchDrawer({ open, onClose, stockInTransaction
                         </table>
                     </div>
                     {queue.untaggedLooseCount > 0 && (
-                        <div style={{ marginTop: 8, fontSize: "12.3px", color: "var(--qrc2-mut)" }}>
+                        <div className="mt-2 text-[12.3px] text-slate-500">
                             Loose pieces are pooled stock and aren't individually tagged from this drawer — tag them at Stock-In or via a Break Set flow instead.
                         </div>
                     )}
@@ -82,9 +87,7 @@ export default function ConfigureBatchDrawer({ open, onClose, stockInTransaction
             )}
 
             {!defaultPrinter && (
-                <div className="qrc2-note qrc2-info" style={{ marginTop: 16 }}>
-                    No active printer is configured — the print job will be recorded without one.
-                </div>
+                <InfoNote className="mt-4">No active printer is configured — the print job will be recorded without one.</InfoNote>
             )}
         </Drawer>
     );
