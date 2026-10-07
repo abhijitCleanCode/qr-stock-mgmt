@@ -4,7 +4,7 @@ import { ActionButton } from "../shared/primitives.jsx";
 
 // Generic slide-in drawer shell, ported from the reference mockup's .scrim/.drawer behavior —
 // no equivalent existed in the app's shared components, so this is net new.
-export default function Drawer({ open, onClose, title, subtitle, children, footer }) {
+export default function Drawer({ open, onClose, title, subtitle, children, footer, wide = false }) {
     useEffect(() => {
         if (!open) return undefined;
         const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -25,14 +25,15 @@ export default function Drawer({ open, onClose, title, subtitle, children, foote
                 role="dialog"
                 aria-label={title}
                 className={cn(
-                    "fixed inset-y-0 right-0 z-50 flex w-full max-w-[580px] flex-col bg-white text-sm text-slate-900 shadow-[-10px_0_40px_rgba(15,23,42,.14)] transition-transform duration-200 ease-[cubic-bezier(.3,.7,.3,1)] motion-reduce:transition-none dark:shadow-[-10px_0_40px_rgba(0,0,0,.5)]",
+                    "fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white text-sm text-slate-900 shadow-[-10px_0_40px_rgba(15,23,42,.14)] transition-transform duration-200 ease-[cubic-bezier(.3,.7,.3,1)] motion-reduce:transition-none dark:shadow-[-10px_0_40px_rgba(0,0,0,.5)]",
+                    wide ? "max-w-none lg:w-[min(1180px,94vw)]" : "max-w-[580px]",
                     open ? "translate-x-0" : "translate-x-full",
                 )}
             >
                 <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-4 sm:px-6 sm:py-5">
                     <div>
                         <h3 className="mb-0.5 text-lg font-bold tracking-[-.01em]">{title}</h3>
-                        <div className="text-[13px] text-slate-500">{subtitle}</div>
+                        <div className="font-mono text-[13px] text-slate-500">{subtitle}</div>
                     </div>
                     <ActionButton size="sm" onClick={onClose}>Close</ActionButton>
                 </div>

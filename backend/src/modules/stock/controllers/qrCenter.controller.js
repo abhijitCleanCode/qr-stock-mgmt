@@ -1,14 +1,52 @@
 import qrCenterService from "../services/qrCenter.service.js";
+import qrBatchService from "../services/qrBatch.service.js";
 import { ApiResponse } from "../../../core/apiResponse.js";
 
 class QrCenterController {
     _qrCenterService = qrCenterService;
+    _qrBatchService = qrBatchService;
 
     list = async (req, res, next) => {
         try {
             const response = await this._qrCenterService.listRegistrations(req.validatedQuery);
 
             return res.status(200).json(new ApiResponse(200, response.data, "Stock registrations fetched successfully.", response.meta));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    listBatches = async (req, res, next) => {
+        try {
+            const response = await this._qrBatchService.listBatches(req.validatedQuery);
+            return res.status(200).json(new ApiResponse(200, response.data, "Stock-in batches fetched.", response.meta));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getBatch = async (req, res, next) => {
+        try {
+            const response = await this._qrBatchService.getBatch(req.params.batchId);
+            return res.status(200).json(new ApiResponse(200, response, "Stock-in batch fetched."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    issueBatch = async (req, res, next) => {
+        try {
+            const response = await this._qrBatchService.issueBatch(req.params.batchId, req.body);
+            return res.status(200).json(new ApiResponse(200, response, "Batch tags ready to print."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    confirmBatchPrint = async (req, res, next) => {
+        try {
+            const response = await this._qrBatchService.confirmPrint(req.params.batchId, req.body);
+            return res.status(200).json(new ApiResponse(200, response, "Batch print recorded."));
         } catch (error) {
             next(error);
         }

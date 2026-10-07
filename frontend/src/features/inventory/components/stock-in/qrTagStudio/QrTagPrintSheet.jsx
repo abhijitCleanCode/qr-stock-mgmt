@@ -48,7 +48,7 @@ const ThermalPrintRoll = ({ tags, buildTagData, fields, qrmm, typography }) => (
   <div className="flex flex-col items-start gap-3">
     {tags.map((tag) => (
       <div key={tag.id} style={{ breakInside: "avoid" }}>
-        <LabelTag kind={tag.kind} data={buildTagData(tag)} fields={fields} qrmm={qrmm} typography={typography} qrValue={tag.code} />
+        <LabelTag kind={tag.kind} data={buildTagData(tag)} fields={fields} qrmm={qrmm} typography={typography} qrValue={tag.qrValue ?? tag.code} />
       </div>
     ))}
   </div>
@@ -83,7 +83,7 @@ const A4PrintPages = ({ tags, a4Preset, startAt, buildTagData, fields, qrmm }) =
           className="flex min-w-0 items-center overflow-hidden border border-slate-300 font-mono"
           style={{ width: `${grid.w}mm`, height: `${grid.h}mm`, padding: "1mm", gap: "1mm" }}
         >
-          <QrCodeImage value={tag.code} size={200} style={{ width: `${qrmm}mm`, height: `${qrmm}mm` }} className="shrink-0" />
+          <QrCodeImage value={tag.qrValue ?? tag.code} size={200} style={{ width: `${qrmm}mm`, height: `${qrmm}mm` }} className="shrink-0" />
           <div className="min-w-0 flex-1 overflow-hidden leading-tight">
             {buildTagLines(tag, data, fields).map((line, n) => (
               <div key={n} className={`overflow-hidden text-ellipsis whitespace-nowrap ${line.style === "muted" ? "text-slate-600" : ""}`} style={{ fontSize: LINE_MM[line.style], fontWeight: line.style === "muted" ? 400 : 700 }}>
