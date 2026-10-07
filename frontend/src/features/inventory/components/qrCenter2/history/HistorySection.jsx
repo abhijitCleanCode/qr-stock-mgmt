@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQrCenterListApi } from "../../../hooks/useQrCenterListApi.js";
 import HistoryFilterBar from "./HistoryFilterBar.jsx";
 import HistoryRow from "./HistoryRow.jsx";
+import { EmptyState, ListBox, Sheet } from "../shared/primitives.jsx";
 
 const EMPTY_FILTERS = { designId: "", colorVariantId: "", sort: "new" };
 
@@ -13,10 +14,10 @@ export default function HistorySection({ designs, onConfigure, onView }) {
     const rows = statusFilter === "all" ? allRows : allRows.filter((r) => r.printStatus === statusFilter);
 
     return (
-        <div className="qrc2-sheet">
+        <Sheet>
             <div>
-                <h2 className="qrc2-sec">Stock-in history</h2>
-                <p className="qrc2-sec-sub">Every inward batch and what was printed for it. A batch whose tags were skipped can be configured and printed here at any time — the stock is already registered, only the labels are missing.</p>
+                <h2 className="mb-1 text-[16.5px] font-bold tracking-[-.005em]">Stock-in history</h2>
+                <p className="mb-4 max-w-[86ch] text-[13.5px] text-slate-500">Every inward batch and what was printed for it. A batch whose tags were skipped can be configured and printed here at any time — the stock is already registered, only the labels are missing.</p>
             </div>
 
             <HistoryFilterBar
@@ -29,18 +30,17 @@ export default function HistorySection({ designs, onConfigure, onView }) {
                 resultCount={rows.length}
             />
 
-            <div className="qrc2-hwrap">
-                {isLoading && <div className="qrc2-empty" style={{ padding: 34 }}>Loading…</div>}
+            <ListBox className="mt-4">
+                {isLoading && <EmptyState>Loading…</EmptyState>}
                 {!isLoading && rows.length === 0 && (
-                    <div className="qrc2-empty" style={{ padding: 34 }}>
-                        <b>No batches match</b>
+                    <EmptyState title="No batches match">
                         Try a different filter, or clear them to see the full history.
-                    </div>
+                    </EmptyState>
                 )}
                 {rows.map((row) => (
                     <HistoryRow key={`${row.registrationType}-${row.registrationId}`} row={row} onConfigure={onConfigure} onView={onView} />
                 ))}
-            </div>
-        </div>
+            </ListBox>
+        </Sheet>
     );
 }

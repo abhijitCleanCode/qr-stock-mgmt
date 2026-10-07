@@ -110,7 +110,7 @@ const StockInDashboard = () => {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <Sheet>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -140,7 +140,7 @@ const StockInDashboard = () => {
           <p className="mb-3.5 mt-0.5 text-xs text-slate-500 md:text-[13px]">
             Not added to stock yet — continue where you left off. A serial no. is issued only when the stock-in is completed.
           </p>
-          <div className="space-y-2.5">
+          <div className="max-h-72 space-y-2.5 overflow-y-auto pr-1">
             {drafts.map((draft) => {
               const step = Math.min(Math.max(draft.currentStep, 0), STOCK_IN_STEPS.length - 1);
               return (

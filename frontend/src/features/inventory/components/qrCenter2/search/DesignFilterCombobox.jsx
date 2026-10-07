@@ -75,7 +75,7 @@ export default function DesignFilterCombobox({ designs, value, onChange, keyword
                 placeholder="All designs"
                 showTrigger={false}
                 showClear={Boolean(query)}
-                className="h-[35px] w-[190px] rounded-[9px] border border-[var(--qrc2-line-2)] bg-white text-[13.3px] **:data-[slot=input-group-control]:pl-7 **:data-[slot=input-group-control]:text-[13.3px]"
+                className="h-[35px] w-full sm:w-[190px] rounded-[9px] border border-slate-300 bg-white text-[13.3px] **:data-[slot=input-group-control]:pl-7 **:data-[slot=input-group-control]:text-[13.3px]"
             >
                 <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             </ComboboxInput>

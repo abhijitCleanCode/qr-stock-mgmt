@@ -1,38 +1,43 @@
-import { KindBadge } from "../shared/pills.jsx";
+import { KindBadge, ListBox, EmptyState } from "../shared/primitives.jsx";
 import QrCodeImage from "../../qr-center/QrCodeImage.jsx";
+
+const Shell = ({ children }) => <ListBox className="mt-4">{children}</ListBox>;
 
 export default function ResultList({ tags, onSelect, loading, hasQuery }) {
     if (!hasQuery) {
         return (
-            <div className="qrc2-rlist">
-                <div className="qrc2-empty">
-                    <b>Search or filter to begin</b>
+            <Shell>
+                <EmptyState title="Search or filter to begin">
                     Type a set ID, a design code, or a challan number. Scan straight into the box with a handheld reader.
-                </div>
-            </div>
+                </EmptyState>
+            </Shell>
         );
     }
     if (loading) {
-        return <div className="qrc2-rlist"><div className="qrc2-empty">Searching…</div></div>;
+        return <Shell><EmptyState>Searching…</EmptyState></Shell>;
     }
     if (!tags.length) {
         return (
-            <div className="qrc2-rlist">
-                <div className="qrc2-empty">
-                    <b>No tag matches</b>
-                    Check the code, or widen the filters.
-                </div>
-            </div>
+            <Shell>
+                <EmptyState title="No tag matches">Check the code, or widen the filters.</EmptyState>
+            </Shell>
         );
     }
     return (
-        <div className="qrc2-rlist">
+        <Shell>
             {tags.map((t) => (
-                <button key={t.shortCode} className="qrc2-rrow" onClick={() => onSelect(t.shortCode)}>
-                    <span className="qrc2-mini"><QrCodeImage value={t.shortCode} size={34} /></span>
-                    <span className="qrc2-info">
-                        <span className="qrc2-c">{t.shortCode}</span>
-                        <span className="qrc2-d">
+                <button
+                    key={t.shortCode}
+                    type="button"
+                    onClick={() => onSelect(t.shortCode)}
+                    className="flex w-full items-center gap-3 border-b border-slate-200 bg-white px-3.5 py-3 text-left last:border-b-0 hover:bg-slate-50 sm:gap-4 sm:px-[18px] sm:py-3.5"
+                >
+                    <span className="theme-light flex-none rounded-md border border-slate-200 bg-white p-[3px] leading-none">
+                        <QrCodeImage value={t.shortCode} size={34} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="font-mono text-[13px] font-semibold [overflow-wrap:anywhere] text-slate-900">{t.shortCode}</span>
+                        <span className="mt-0.5 text-[12.5px] text-slate-500">
                             {t.design.code} · {t.design.name} · {t.variant.colorName}
                             {t.sizeLabel ? ` · size ${t.sizeLabel}` : ""}
                             {t.rack ? ` · rack ${t.rack.code}` : ""}
@@ -41,6 +46,6 @@ export default function ResultList({ tags, onSelect, loading, hasQuery }) {
                     <KindBadge kind={t.type} />
                 </button>
             ))}
-        </div>
+        </Shell>
     );
 }

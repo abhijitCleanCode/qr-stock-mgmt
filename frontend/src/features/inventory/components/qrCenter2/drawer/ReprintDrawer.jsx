@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Drawer from "./Drawer.jsx";
+import { cn } from "@/lib/utils";
+import Drawer, { DrawerSummary } from "./Drawer.jsx";
 import TagPreviewLabel from "../shared/TagPreviewLabel.jsx";
+import { ActionButton, InfoNote, SectionLabel } from "../shared/primitives.jsx";
 import { createQrCenterReprintApi, bulkPrintReprintsApi, getQrCenterReferenceApi, printCheckApi } from "../../../services/qrCenter.api.js";
 
 const REASONS = ["LOST", "TORN", "FADED", "REBAG", "JAM", "PRICE_CHANGE"];
@@ -66,46 +68,55 @@ export default function ReprintDrawer({ open, onClose, targets, onDone }) {
             subtitle="Exact duplicate — nothing here can change what prints"
             footer={
                 <>
-                    <span className="qrc2-left"><b>{n}</b> tag{n === 1 ? "" : "s"}</span>
-                    <button className="qrc2-btn" onClick={resetAndClose}>Cancel</button>
-                    <button className="qrc2-btn qrc2-pri" disabled={!confirmed || submitting || !defaultPrinter || n === 0} onClick={handlePrint}>
+                    <DrawerSummary count={n}>tag{n === 1 ? "" : "s"}</DrawerSummary>
+                    <ActionButton onClick={resetAndClose}>Cancel</ActionButton>
+                    <ActionButton variant="primary" disabled={!confirmed || submitting || !defaultPrinter || n === 0} onClick={handlePrint}>
                         {submitting ? "Printing…" : `Print ${n} replacement${n === 1 ? "" : "s"}`}
-                    </button>
+                    </ActionButton>
                 </>
             }
         >
-            <div className="qrc2-lockcode">
-                <div className="qrc2-k">Reprinting — payload locked, codes never change</div>
-                <div className="qrc2-v">{n} tag{n === 1 ? "" : "s"} selected</div>
+            <div className="mb-[22px] rounded-xl border border-emerald-200 bg-emerald-50 px-[18px] py-4">
+                <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[.09em] text-emerald-600">Reprinting — payload locked, codes never change</div>
+                <div className="font-mono text-[19px] font-bold text-slate-900">{n} tag{n === 1 ? "" : "s"} selected</div>
             </div>
 
             {!defaultPrinter && (
-                <div className="qrc2-note qrc2-info" style={{ marginBottom: 16 }}>
-                    No active printer is configured — add one before printing.
-                </div>
+                <InfoNote className="mb-4">No active printer is configured — add one before printing.</InfoNote>
             )}
 
-            <div className="qrc2-fg">
-                <label>Reason — required</label>
-                <div className="qrc2-reasons">
+            <div className="mb-[22px]">
+                <SectionLabel>Reason — required</SectionLabel>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {REASONS.map((r) => (
-                        <button key={r} type="button" className={`qrc2-rbtn${reason === r ? " qrc2-on" : ""}`} onClick={() => setReason(r)}>{r}</button>
+                        <button
+                            key={r}
+                            type="button"
+                            aria-pressed={reason === r}
+                            onClick={() => setReason(r)}
+                            className={cn(
+                                "rounded-[9px] border-[1.5px] px-1.5 py-[11px] text-center text-[12.5px] font-semibold",
+                                reason === r ? "border-emerald-600 bg-emerald-50 text-emerald-600" : "border-slate-200 bg-white text-slate-700",
+                            )}
+                        >
+                            {r}
+                        </button>
                     ))}
                 </div>
             </div>
 
-            <div className="qrc2-fg">
-                <label>Preview</label>
-                <div className="qrc2-rollstack">
+            <div className="mb-[22px]">
+                <SectionLabel>Preview</SectionLabel>
+                <div className="theme-light flex max-h-[340px] flex-col items-center gap-3 overflow-y-auto rounded-[11px] bg-[#E9EEF4] p-3.5">
                     {(targets ?? []).map((t) => (
                         <TagPreviewLabel key={t.shortCode} shortCode={t.shortCode} kind={t.kind} designCode={t.designCode} designName={t.designName} colorName={t.colorName} sizeLabel={t.sizeLabel} />
                     ))}
                 </div>
             </div>
 
-            <label className="qrc2-chk">
-                <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-                <span className="qrc2-t"><b>Every old label above has been physically destroyed or removed.</b> Reprinting without destroying the original leaves two labels answering to the same code — stock gets counted twice and one id never sells.</span>
+            <label className="mt-5 flex cursor-pointer items-start gap-2.5 rounded-[11px] border-[1.5px] border-red-200 bg-red-50 px-[15px] py-[13px]">
+                <input type="checkbox" className="mt-0.5 size-4 flex-none accent-red-600" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+                <span className="text-[12.8px] leading-normal text-red-800"><b>Every old label above has been physically destroyed or removed.</b> Reprinting without destroying the original leaves two labels answering to the same code — stock gets counted twice and one id never sells.</span>
             </label>
         </Drawer>
     );
