@@ -22,7 +22,10 @@ const PrintEngineConfig = ({
   onQrmmChange,
   typography,
   onTypographyChange,
+  // [{ value, label }] — real printers when the caller has them; the wizard's fixed list otherwise.
+  printerOptions,
 }) => {
+  const printers = printerOptions ?? PRINTERS.map((name) => ({ value: name, label: name }));
   return (
     <div className="overflow-hidden rounded-[10px] border border-slate-200 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
@@ -51,9 +54,9 @@ const PrintEngineConfig = ({
             onChange={(event) => onPrinterChange(event.target.value)}
             className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-[13px] text-slate-900"
           >
-            {PRINTERS.map((option) => (
-              <option key={option} value={option}>
-                {option}
+            {printers.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>

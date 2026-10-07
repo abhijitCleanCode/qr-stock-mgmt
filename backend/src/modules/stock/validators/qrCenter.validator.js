@@ -15,6 +15,39 @@ export const printBatchQueueSchema = z.object({
     printerId: z.number().int().positive().optional(),
 });
 
+// --- QR Center: stock-in history (batches) -----------------------------------
+
+const positiveIds = z.array(z.number().int().positive());
+
+export const batchIdParamsSchema = z.object({
+    batchId: z.string().regex(/^[ct]\d+$/, "batchId must look like c12 (challan) or t55 (transaction)"),
+});
+
+export const listBatchesQuerySchema = z.object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+    keyword: z.string().trim().min(1).optional(),
+    designId: z.coerce.number().int().positive().optional(),
+    colorVariantId: z.coerce.number().int().positive().optional(),
+    status: z.enum(["all", "pending", "partial", "done"]).default("all"),
+    sort: z.enum(["new", "old", "tags"]).default("new"),
+});
+
+// parentChild: sets/semi sets and their pieces. loose: the odd pieces outside a set.
+// transactionIds: the colours left switched on in the studio (omit for every colour).
+// reprint: also include tags that were already printed.
+export const issueBatchSchema = z.object({
+    parentChild: z.boolean().default(true),
+    loose: z.boolean().default(true),
+    transactionIds: positiveIds.optional(),
+    reprint: z.boolean().default(false),
+});
+
+export const confirmBatchPrintSchema = z.object({
+    stockItemQrIds: positiveIds.min(1).transform((ids) => [...new Set(ids)]),
+    printerId: z.number().int().positive().optional(),
+});
+
 // --- QR Center: tag search ---------------------------------------------------
 
 export const searchTagsQuerySchema = z.object({

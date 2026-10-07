@@ -35,7 +35,7 @@ const A4SheetPreview = ({ tags, a4Preset, startAt, buildTagData, fields, qrmm })
     const bad = tag.flags?.some((flag) => flag.level === "bad");
     cells.push(
       <div key={`tag-${i}`} className={`flex min-w-0 items-center gap-[2.5px] overflow-hidden border-[0.5px] p-[2px] ${bad ? "border-red-400 bg-red-50" : "border-slate-300"}`}>
-        <QrCodeImage value={tag.code} size={cellQrPx} />
+        <QrCodeImage value={tag.qrValue ?? tag.code} size={cellQrPx} />
         <div className="min-w-0 overflow-hidden font-mono leading-tight">
           {buildTagLines(tag, data, fields).map((line, n) => (
             <div key={n} className={`overflow-hidden text-ellipsis whitespace-nowrap ${line.style === "muted" ? "text-slate-600" : ""}`} style={LINE_PX[line.style]}>{line.text}</div>

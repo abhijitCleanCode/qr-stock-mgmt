@@ -25,6 +25,10 @@ import {
     printCheckSchema,
     searchTagsQuerySchema,
     printBatchQueueSchema,
+    batchIdParamsSchema,
+    listBatchesQuerySchema,
+    issueBatchSchema,
+    confirmBatchPrintSchema,
 } from "../validators/qrCenter.validator.js";
 
 export const qrCenterRoutes = [
@@ -42,6 +46,27 @@ export const qrCenterRoutes = [
     // --- QR Center (resolve/health/to-tag/reprints/stale/recovery/jobs/break-set/bulk/print-check/reference) ---
     // All fixed single-segment paths below MUST be registered before the legacy
     // "/:stockInTransactionId" catch-all further down, or Express would treat them as its param.
+    // Stock-in history: one row per stock-in challan ("batch"), with the full studio behind it.
+    {
+        path: "/batches",
+        controller: { get: qrCenterController.listBatches },
+        validators: { get: validateRequest(listBatchesQuerySchema, "query") },
+    },
+    {
+        path: "/batches/:batchId",
+        controller: { get: qrCenterController.getBatch },
+        validators: { get: validateRequest(batchIdParamsSchema, "params") },
+    },
+    {
+        path: "/batches/:batchId/issue",
+        controller: { post: qrCenterController.issueBatch },
+        validators: { post: [validateRequest(batchIdParamsSchema, "params"), validateRequest(issueBatchSchema)] },
+    },
+    {
+        path: "/batches/:batchId/confirm-print",
+        controller: { post: qrCenterController.confirmBatchPrint },
+        validators: { post: [validateRequest(batchIdParamsSchema, "params"), validateRequest(confirmBatchPrintSchema)] },
+    },
     {
         path: "/tags",
         controller: { get: qrCenterController.searchTags },
