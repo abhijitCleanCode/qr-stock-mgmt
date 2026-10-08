@@ -143,12 +143,9 @@ const Gallery = () => {
     };
 
     return (
-        <div className="stock-out flex flex-col gap-4 pb-4 font-sans">
-            <div className="glass-card rounded-[24px] p-5">
+        <div className="stock-out flex h-full flex-col gap-4 pb-4 font-sans">
+            <div className="glass-card shrink-0 rounded-[24px] p-5">
                 <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">Gallery</h1>
-                <p className="mt-1 max-w-[72ch] text-sm text-[#1E1B4B]/60">
-                    Pull up the photos of every design in an order form or invoice, pick the ones you want, and send them to the customer.
-                </p>
 
                 <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                     {MODES.map(({ key, label, hint, Icon }) => (
@@ -231,9 +228,9 @@ const Gallery = () => {
             ) : isPending ? (
                 <div className="flex flex-1 items-center justify-center"><Loader2 className="animate-spin text-[#00694C]" /></div>
             ) : (
-                <div className="glass-card rounded-[24px] p-5">
+                <div className="glass-card flex min-h-[50dvh] flex-1 flex-col rounded-[24px] p-5 lg:min-h-0">
                     {source?.number && (
-                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/50 px-4 py-3">
+                        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/60 bg-white/50 px-4 py-3">
                             <div>
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E1B4B]/45">
                                     {source.kind === "invoice" ? "Invoice" : "Order form"}
@@ -256,7 +253,7 @@ const Gallery = () => {
                         </div>
                     )}
 
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
                         <button
                             type="button"
                             disabled={selectable.length === 0}
@@ -276,7 +273,7 @@ const Gallery = () => {
                     </div>
 
                     {withoutPhoto.length > 0 && (
-                        <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                        <div className="mb-4 flex shrink-0 items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
                             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                             <span>
                                 <b>{withoutPhoto.length} variant{withoutPhoto.length === 1 ? " has" : "s have"} no photo</b> in Design Master
@@ -286,6 +283,10 @@ const Gallery = () => {
                         </div>
                     )}
 
+                    {/* The page is pinned to the viewport and only the photos scroll, so a long result never
+                        pushes the header and filters out of view. On small screens the card keeps at least half
+                        the screen height so a tall header can't squeeze the photos away; the page scrolls the rest. */}
+                    <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 pb-1">
                     {items.length === 0 ? (
                         <div className="p-10 text-center">
                             <b className="block text-sm text-[#1E1B4B]">No designs here yet</b>
@@ -370,11 +371,12 @@ const Gallery = () => {
                             </div>
                         ))
                     )}
+                    </div>
                 </div>
             )}
 
             {chosen.length > 0 && (
-                <div className="sticky bottom-3 z-20">
+                <div className="sticky bottom-3 z-20 shrink-0">
                     <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-[#1E1B4B] px-5 py-3 text-white shadow-2xl">
                         <div>
                             <b className="text-sm">{chosen.length} photo{chosen.length === 1 ? "" : "s"} selected</b>

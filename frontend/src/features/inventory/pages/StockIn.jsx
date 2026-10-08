@@ -13,13 +13,15 @@ import { useStockInRegisterApi } from "../hooks/useStockInRegisterApi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNextStockInSerialApi } from "../hooks/useStockInChallansApi";
 import { useWizardKeyboardNav } from "../hooks/useWizardKeyboardNav";
-import { getQrCenterRegistrationDetailApi } from "../services/qrCenter.api.js";
+import { confirmQrBatchPrintApi, issueQrBatchApi } from "../services/qrCenter.api.js";
 import { submitA4QrPrintJob } from "../services/localPrintAgent.api.js";
 import { useSaveStockInDraftApi, useStockInDraftApi } from "../hooks/useStockInDraftsApi";
 import { buildStockInPayload } from "../utils/buildStockInPayload";
 import { getVariantKey } from "../utils/variantKey";
 import { NO_DEFECT_CATEGORY } from "../utils/qcDefects";
 import { aggregateRows, computeVariantRow } from "../utils/qrTagStudio";
+import { buildTagData as buildBatchTagData, queuedEntries, toDisplayTag } from "../utils/qrBatchStudio";
+import SheetJob from "../components/qrCenter2/studio/SheetJob";
 import InwardDetailsStep from "../steps/stockIn/InwardDetailsStep";
 import SetMatrixStep from "../steps/stockIn/SetMatrixStep";
 import QcDefectStep from "../steps/stockIn/QcDefectStep";
@@ -105,10 +107,12 @@ const StockIn = () => {
   const printStrategy = tagParentChild ? "parentChild" : "none";
   const [qrPerVariantSettings, setQrPerVariantSettings] = useState({});
   const [printer, setPrinter] = useState("A4 Laser Printer (4×10 · 40-Up)");
-  const [printOnConfirm, setPrintOnConfirm] = useState(false);
-  const [tagsPrinted, setTagsPrinted] = useState(false);
+  // What happens to the labels after Register ("printer" | "pdf" | "later" — see ActionBar). Labels are only
+  // ever printed from the saved tags, so every QR carries the short code a scan station looks up.
+  const [printMode, setPrintMode] = useState("printer");
   const [printConfig, setPrintConfig] = useState({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   const [confirmedQrPrint, setConfirmedQrPrint] = useState(null);
+  const [sheetJob, setSheetJob] = useState(null);
   // Physical dispatch is handled by the local print agent; the backend printer registry is
   // intentionally not used because its printer IDs do not identify the tester's OS queue.
   const printerId = undefined;
@@ -176,8 +180,7 @@ const StockIn = () => {
     setTagParentChild(true);
     setTagLoose(true);
     setQrPerVariantSettings({});
-    setPrintOnConfirm(false);
-    setTagsPrinted(false);
+    setPrintMode("printer");
     setPrintConfig({ engine: "a4", a4Preset: "40", a4StartAt: 1 });
   };
 
@@ -310,6 +313,88 @@ const StockIn = () => {
     return run;
   };
 
+  const finishInward = () => {
+    queryClient.invalidateQueries({ queryKey: ["qr-center"] });
+    resetAll();
+    navigate("/stock-in");
+  };
+
+  // Records the labels as printed against the batch, then leaves the wizard.
+  const recordPrinted = async (batchId, printItems, message) => {
+    try {
+      await confirmQrBatchPrintApi(batchId, { stockItemQrIds: printItems.map((item) => item.qrId) });
+      toast.success(message);
+    } catch (error) {
+      toast.warning(`${message} ${error.message} — the labels were sent, but the batch could not be marked printed.`);
+    }
+    finishInward();
+  };
+
+  // Prints the just-registered inward from what the server saved: the batch endpoint gives every
+  // tag the chosen switches cover its short code (issuing any still missing) and returns them, so
+  // the QR on each label is the code Stock Out, Break Set and QR Center resolve. Returns true when
+  // a print is now under way and the caller must not leave the wizard yet.
+  const printRegisteredTags = async (registration, registeredMessage) => {
+    const batchId = registration?.challan?.id ? `c${registration.challan.id}` : null;
+    const includedVariantIds = new Set(
+      Object.entries(configs)
+        .filter(([key]) => effectiveQrSettings[key]?.included !== false)
+        .map(([, config]) => config.colorVariantId),
+    );
+    const transactionIds = (registration?.variants ?? [])
+      .filter((variant) => includedVariantIds.has(variant.colorVariantId))
+      .map((variant) => variant.stockInTransactionId);
+
+    if (!batchId || transactionIds.length === 0 || (!tagParentChild && !tagLoose)) return false;
+
+    let issued;
+    try {
+      issued = (await issueQrBatchApi(batchId, { parentChild: tagParentChild, loose: tagLoose, transactionIds, reprint: false })).data;
+    } catch (error) {
+      toast.warning(`${registeredMessage} The labels couldn't be prepared (${error.message}) — print them from QR Center.`);
+      finishInward();
+      return true;
+    }
+
+    const printItems = issued.printItems;
+    const summary = `${registeredMessage} ${printItems.length} QR label${printItems.length === 1 ? "" : "s"}`;
+    const included = Object.fromEntries(issued.variants.map((variant) => [variant.transactionId, transactionIds.includes(variant.transactionId)]));
+    const tags = queuedEntries(issued.variants, { tagParentChild, tagLoose, included, reprint: false }).map(({ variant, tag }) =>
+      toDisplayTag(variant, tag, { ...printConfig, fieldsOnCount: () => 0 }),
+    );
+    const sheet = {
+      engine: printConfig.engine,
+      a4Preset: printConfig.a4Preset,
+      a4StartAt: printConfig.a4StartAt,
+      thermalPreset: printConfig.thermalPreset,
+      fields: printConfig.fields,
+      qrmm: printConfig.qrmm,
+      typography: printConfig.typography,
+    };
+
+    if (printMode === "pdf") {
+      setSheetJob({ mode: "pdf", tags, sheet, message: `${summary} saved as PDF — they stay unprinted in QR Center until sent to a printer.` });
+      return true;
+    }
+
+    if (printConfig.engine === "thermal") {
+      setSheetJob({ mode: "print", tags, sheet, batchId, printItems, message: `${summary} sent to the printer.` });
+      return true;
+    }
+
+    // The local print agent can't import this app's code, so it gets the finished label lines.
+    const items = printItems.map((item) => ({ ...item, labelLines: buildConfirmedLabelLines(item, printConfig) }));
+    try {
+      const printResult = await submitA4QrPrintJob({ items, startAt: printConfig.a4StartAt, content: printConfig });
+      const sheetCount = Math.ceil((printResult.count + Number(printConfig.a4StartAt || 1) - 1) / 40);
+      await recordPrinted(batchId, printItems, `${summary} across ${sheetCount} sheets submitted to ${printResult.printer}.`);
+    } catch (error) {
+      toast.warning(`${error.message} Opening the browser print dialog as a fallback.`);
+      setConfirmedQrPrint({ items, startAt: printConfig.a4StartAt, content: printConfig, batchId, printItems, message: `${summary} sent to the printer.` });
+    }
+    return true;
+  };
+
   const handleConfirmInward = async () => {
     // Steps can be reached out of order through the stepper, so re-check the data-entry steps.
     for (const step of [0, 1, 2]) {
@@ -334,7 +419,7 @@ const StockIn = () => {
       tagParentChild,
       qrPerVariantSettings: effectiveQrSettings,
       qcByKey,
-      printOnConfirm: printOnConfirm && Boolean(printerId),
+      printOnConfirm: false,
       printerId,
       serialStarts: printConfig.serialStarts,
     });
@@ -354,81 +439,7 @@ const StockIn = () => {
       const serialLabel = result?.data?.challan?.serialLabel;
       const registeredMessage = `Stock-in ${serialLabel ?? ""} registered · challan ${challanNo.trim()} · ${totalReceived} pcs added.`;
       if (draftId) setConsumedDraftId(String(draftId));
-      if (printOnConfirm && printConfig.engine === "a4") {
-        try {
-          const registrationDetails = await Promise.all(
-            (result?.data?.variants ?? []).map((variant) =>
-              getQrCenterRegistrationDetailApi({
-                registrationType: "STOCK_IN",
-                registrationId: variant.stockInTransactionId,
-              }),
-            ),
-          );
-          const printItems = registrationDetails.flatMap((response) => {
-            const detail = response?.data;
-            const variantId = detail?.registration?.variant?.id;
-            const variantKey = Object.entries(configs).find(([, config]) => config.colorVariantId === variantId)?.[0];
-            const variantTotalsForPrint = variantKey ? variantTotals[variantKey] : null;
-            const composition = variantTotalsForPrint?.sizeLabels ?? [];
-            const sourceVariant = variantKey
-              ? selectedVariants.find((variant) => getVariantKey(variant) === variantKey)
-              : null;
-            const displayCodes = { parent: [], child: [], loose: [] };
-            for (const tag of printConfig.displayTags ?? []) {
-              if (tag.variantKey === variantKey) displayCodes[tag.kind]?.push(tag.code);
-            }
-            const displayIndexes = { parent: 0, child: 0, loose: 0 };
-            const variantIncluded = !variantKey || effectiveQrSettings[variantKey]?.included !== false;
-            return (detail?.qrs ?? []).flatMap((qr) => {
-              const kind = qr.type === "SET" || qr.type === "BUNDLE"
-                ? "parent"
-                : qr.parentStockItemId
-                  ? "child"
-                  : "loose";
-              // Labels the user switched off (or excluded variants) stay in QR Center, unprinted.
-              const printable = variantIncluded && (kind === "loose" ? tagLoose : tagParentChild);
-              if (!printable) return [];
-              const displayCode = displayCodes[kind]?.[displayIndexes[kind]++];
-              return [{
-              ...qr,
-              design: detail.registration?.design,
-              variant: detail.registration?.variant,
-              composition,
-              piecesPerSet: variantTotalsForPrint?.piecesPerSet ?? composition.length,
-              sellingPricePerPiece: sourceVariant?.sellingPricePerPiece ?? 0,
-              displayCode: displayCode ?? String(qr.payload?.setId ?? qr.stockItemId),
-              }];
-            });
-          });
-
-          // The local print agent can't import this app's code, so it gets the finished label lines.
-          for (const printItem of printItems) printItem.labelLines = buildConfirmedLabelLines(printItem, printConfig);
-
-          if (printItems.length === 0) throw new Error("No saved QR labels were returned for this inward.");
-
-          try {
-            const printResult = await submitA4QrPrintJob({
-              items: printItems,
-              startAt: printConfig.a4StartAt,
-              content: printConfig,
-            });
-            const sheetCount = Math.ceil((printResult.count + Number(printConfig.a4StartAt || 1) - 1) / 40);
-            toast.success(`${registeredMessage} ${printResult.count} QR labels across ${sheetCount} sheets submitted to ${printResult.printer}.`);
-            resetAll();
-            navigate("/stock-in");
-            return;
-          } catch (error) {
-            toast.warning(`${error.message} Opening the browser print dialog as a fallback.`);
-            setConfirmedQrPrint({ items: printItems, startAt: printConfig.a4StartAt, content: printConfig });
-            return;
-          }
-        } catch {
-          toast.error("Stock Inward confirmed, but the saved QR labels could not be loaded for printing.");
-          resetAll();
-          navigate("/stock-in");
-          return;
-        }
-      }
+      if (printMode !== "later" && (await printRegisteredTags(result?.data, registeredMessage))) return;
       toast.success(registeredMessage);
       resetAll();
       navigate("/stock-in");
@@ -440,10 +451,6 @@ const StockIn = () => {
   };
 
   const handleNext = () => {
-    if (wizard.activeStep === 3 && !tagsPrinted) {
-      toast.error("Send the tags to the printer before continuing.");
-      return;
-    }
     if (wizard.activeStep === 4) {
       handleConfirmInward();
       return;
@@ -492,10 +499,12 @@ const StockIn = () => {
   };
 
   const handleConfirmedPrintComplete = () => {
+    const job = confirmedQrPrint;
     setConfirmedQrPrint(null);
-    resetAll();
-    navigate("/stock-in");
+    recordPrinted(job.batchId, job.printItems, job.message);
   };
+
+  const tagDataForPrint = (tag) => buildBatchTagData(tag, { jobber: jobber.name, date: challanDate });
 
   return (
     <div className="mx-auto flex min-h-[760px] w-full max-w-7xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8">
@@ -610,10 +619,9 @@ const StockIn = () => {
             printerId={printerId}
             onPrinterChange={setPrinter}
             onTestPrint={handleTestPrint}
-            onSetPrintOnConfirm={setPrintOnConfirm}
             onPrintConfigChange={setPrintConfig}
-            printed={tagsPrinted}
-            onPrintedChange={setTagsPrinted}
+            printMode={printMode}
+            onPrintModeChange={setPrintMode}
           />
         )}
 
@@ -637,7 +645,6 @@ const StockIn = () => {
         activeStep={wizard.activeStep}
         onPrev={wizard.prev}
         onNext={handleNext}
-        nextDisabled={wizard.activeStep === 3 && !tagsPrinted}
         onSaveDraft={handleSaveDraft}
         isSubmitting={isPending}
         isSavingDraft={isSavingDraft}
@@ -650,6 +657,29 @@ const StockIn = () => {
           startAt={confirmedQrPrint.startAt}
           content={confirmedQrPrint.content}
           onAfterPrint={handleConfirmedPrintComplete}
+        />
+      )}
+      {sheetJob && (
+        <SheetJob
+          job={sheetJob}
+          sheet={sheetJob.sheet}
+          buildTagData={tagDataForPrint}
+          fileName={`qr-tags-${challanNo.trim() || "stock-in"}.pdf`}
+          onPrinted={() => {
+            const job = sheetJob;
+            setSheetJob(null);
+            recordPrinted(job.batchId, job.printItems, job.message);
+          }}
+          onDone={() => {
+            toast.success(sheetJob.message);
+            setSheetJob(null);
+            finishInward();
+          }}
+          onError={(error) => {
+            toast.error(`${error?.message ?? "Couldn't create the PDF."} The inward is registered — print its labels from QR Center.`);
+            setSheetJob(null);
+            finishInward();
+          }}
         />
       )}
     </div>

@@ -21,6 +21,26 @@ export function generateShortCode() {
 // there is deliberately no unique constraint). `existsFn(code)` is caller-supplied so this stays
 // runner-agnostic (tx vs db); throws rather than silently minting a colliding code if the
 // (astronomically unlikely) retry budget is exhausted.
+export async function generateUniqueShortCodes(count, findTakenFn) {
+    // `count` distinct codes, collision-checked in one query per round instead of one per code —
+    // an inward issues hundreds of codes, and each round trip to the database costs far more
+    // than generating them. `findTakenFn(codes)` returns whichever of them are already live.
+    const codes = new Set();
+    for (let attempt = 0; codes.size < count; attempt++) {
+        if (attempt >= MAX_ATTEMPTS) throw new Error("Could not generate unique QR short codes after multiple attempts.");
+
+        const candidates = new Set();
+        while (candidates.size < count - codes.size) {
+            const code = generateShortCode();
+            if (!codes.has(code)) candidates.add(code);
+        }
+
+        const taken = new Set(await findTakenFn([...candidates]));
+        for (const code of candidates) if (!taken.has(code)) codes.add(code);
+    }
+    return [...codes];
+}
+
 export async function generateUniqueShortCode(existsFn) {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         const code = generateShortCode();
