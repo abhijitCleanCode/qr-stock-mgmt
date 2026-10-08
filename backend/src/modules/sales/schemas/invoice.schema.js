@@ -28,6 +28,10 @@ export const invoice = pgTable("invoices", {
     partyTransport: varchar("party_transport", { length: 200 }),
     partyAgent: varchar("party_agent", { length: 100 }),
 
+    // Copied from the order form when the invoice is generated, so the printed bill keeps the name
+    // it was printed with even if the order form is later corrected.
+    salesman: varchar("salesman", { length: 60 }),
+
     // Which checklist lines the picker ticked off in the godown. Purely a record of the picking
     // process — it never affects what was billed, which is derived from the scanned entries.
     ticks: jsonb("ticks"),

@@ -18,6 +18,7 @@ function buildFilters({ keyword, from, to }) {
             ilike(invoice.invoiceNumber, `%${keyword}%`),
             ilike(invoice.partyName, `%${keyword}%`),
             ilike(invoice.partyMobile, `%${keyword}%`),
+            ilike(invoice.salesman, `%${keyword}%`),
             ilike(orderForm.formNumber, `%${keyword}%`),
         ));
     }

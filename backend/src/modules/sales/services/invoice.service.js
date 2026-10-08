@@ -121,6 +121,7 @@ class InvoiceService {
                 orderFormId: orderForm.id,
                 partyId,
                 ...partySnapshotToColumns(snapshot),
+                salesman: orderForm.salesman ?? null,
                 ticks: payload.ticks ?? {},
                 stockOutTransactionId: transaction.id,
                 // Null until RBAC: see invoice.schema.js.

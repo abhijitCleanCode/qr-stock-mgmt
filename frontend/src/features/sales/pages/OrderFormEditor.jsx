@@ -5,7 +5,7 @@ import { ArrowLeft, Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { checkOrderFormNumberApi, suggestOrderFormNumberApi } from "../services/orderForm.api.js";
 import { resolveDesignApi } from "../services/sales.api.js";
-import { useOrderFormApi, useSaveOrderFormApi } from "../hooks/useOrderFormsApi.js";
+import { useOrderFormApi, useOrderFormsApi, useSaveOrderFormApi } from "../hooks/useOrderFormsApi.js";
 import DocumentNumberField from "../components/DocumentNumberField.jsx";
 import PartyPicker, { EMPTY_PARTY_FIELDS } from "../components/PartyPicker.jsx";
 import PartySyncDialog from "../components/PartySyncDialog.jsx";
@@ -22,6 +22,7 @@ const OrderFormEditor = () => {
 
     const [formNumber, setFormNumber] = useState("");
     const [formDate, setFormDate] = useState(todayIso());
+    const [salesman, setSalesman] = useState("");
     const [notes, setNotes] = useState("");
     const [party, setParty] = useState(EMPTY_PARTY_FIELDS);
     const [linkedParty, setLinkedParty] = useState(null);
@@ -32,11 +33,20 @@ const OrderFormEditor = () => {
 
     const saveOrderForm = useSaveOrderFormApi();
 
+    // Names already used on earlier order forms, offered as suggestions so the same person is not
+    // typed three different ways.
+    const { data: recentForms } = useOrderFormsApi({ limit: 200 });
+    const salesmanNames = useMemo(
+        () => [...new Set((recentForms?.data ?? []).map((form) => form.salesman).filter(Boolean))].sort(),
+        [recentForms],
+    );
+
     useEffect(() => {
         if (!existing) return;
 
         setFormNumber(existing.formNumber);
         setFormDate(existing.formDate);
+        setSalesman(existing.salesman ?? "");
         setNotes(existing.notes ?? "");
         setParty(existing.party);
         setLinkedParty(existing.partyId ? { id: existing.partyId, ...existing.party } : null);
@@ -122,6 +132,7 @@ const OrderFormEditor = () => {
                     partyId: linkedParty?.id ?? null,
                     party,
                     partySync,
+                    salesman: salesman.replace(/\s+/g, " ").trim(),
                     notes,
                     items: items.map((item) => ({ colorVariantId: item.colorVariantId, quantityPcs: item.quantityPcs })),
                 },
@@ -197,6 +208,23 @@ const OrderFormEditor = () => {
                                 value={formDate}
                                 onChange={(event) => setFormDate(event.target.value)}
                             />
+                        </div>
+                        <div className="w-56">
+                            <label className="mb-1.5 block text-xs font-semibold text-[#1E1B4B]" htmlFor="order-salesman">Salesman</label>
+                            <input
+                                id="order-salesman"
+                                className="pill-input"
+                                list="order-salesman-names"
+                                autoComplete="off"
+                                maxLength={60}
+                                value={salesman}
+                                onChange={(event) => setSalesman(event.target.value)}
+                                placeholder="Who took this order"
+                            />
+                            <datalist id="order-salesman-names">
+                                {salesmanNames.map((name) => <option key={name} value={name} />)}
+                            </datalist>
+                            <p className="mt-1.5 text-[11.5px] text-[#1E1B4B]/50">Shown on the order form and the invoice.</p>
                         </div>
                     </div>
                 </div>

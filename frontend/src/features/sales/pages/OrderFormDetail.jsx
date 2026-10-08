@@ -44,14 +44,14 @@ const OrderFormDetail = () => {
                             {form.formNumber} <StatusPill form={form} />
                         </h1>
                         <p className="mt-1 text-sm text-[#1E1B4B]/60">
-                            {form.party.name} · {longDate(form.formDate)} · {form.totalPcs} pcs requested
+                            {form.party.name} · {longDate(form.formDate)}{form.salesman ? ` · Salesman ${form.salesman}` : ""} · {form.totalPcs} pcs requested
                         </p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
-                            onClick={() => printHtml(`Order form ${form.formNumber}`, orderFormHtml(form))}
+                            onClick={() => printHtml(`Order form ${form.formNumber}`, orderFormHtml(form), `Order form ${form.formNumber} · ${form.party.name}`)}
                             className="neu-button flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-[#1E1B4B]"
                         >
                             <Printer className="h-4 w-4" /> Print

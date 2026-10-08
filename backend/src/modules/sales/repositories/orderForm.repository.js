@@ -22,6 +22,7 @@ function buildFilters({ keyword, status }) {
             ilike(orderForm.partyName, `%${keyword}%`),
             ilike(orderForm.partyMobile, `%${keyword}%`),
             ilike(orderForm.partyCity, `%${keyword}%`),
+            ilike(orderForm.salesman, `%${keyword}%`),
         ));
     }
 

@@ -77,6 +77,7 @@ class OrderFormMapper {
             formDate: row.formDate,
             partyId: row.partyId,
             party: partyFromColumns(row),
+            salesman: row.salesman ?? "",
             notes: row.notes ?? "",
             status: row.status,
             preparedBy: row.preparedBy,
