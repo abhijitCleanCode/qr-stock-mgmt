@@ -214,19 +214,17 @@ class stockInPersistence {
         const tagging = variantInput.tagging ?? { strategy: "parent", childTagsEnabled: false, tagLoosePieces: false };
         const childActive = tagging.strategy === "parentChild" || (tagging.strategy === "custom" && tagging.childTagsEnabled);
 
-        const created = [];
+        // Everything this inward tags, gathered first and created in one batch — sets' pieces, then
+        // bundles', then loose pieces, the same order (and so the same serial order) as before.
+        const compositions = [];
 
         if (childActive) {
             for (const setItem of createdSetItems) {
-                const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
-                    colorVariantId,
-                    stockInTransactionId,
+                compositions.push({
                     sizeEntries: setSizes.map((size) => ({ designSizeId: size.id, sizeLabel: size.sizeLabel, unsetPricePerSize: size.unsetPricePerSize })),
                     originSetStockItemId: setItem.id,
                     insideParent: true,
-                    designCode, designName, colorName,
                 });
-                created.push(...rows);
             }
 
             for (const bundleItem of createdBundleItems) {
@@ -241,15 +239,7 @@ class stockInPersistence {
                     const entry = { designSizeId: piece.designSizeId, sizeLabel: size?.sizeLabel ?? "", unsetPricePerSize: size?.unsetPricePerSize ?? null };
                     return Array(piece.quantity).fill(entry);
                 });
-                const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
-                    colorVariantId,
-                    stockInTransactionId,
-                    sizeEntries,
-                    originSetStockItemId: bundleItem.id,
-                    insideParent: true,
-                    designCode, designName, colorName,
-                });
-                created.push(...rows);
+                compositions.push({ sizeEntries, originSetStockItemId: bundleItem.id, insideParent: true });
             }
         }
 
@@ -261,18 +251,16 @@ class stockInPersistence {
                     sizeLabel: size?.sizeLabel ?? "",
                     unsetPricePerSize: size?.unsetPricePerSize ?? null,
                 });
-                const rows = await stockPieceExpansionService.createPiecesForComposition(tx, {
-                    colorVariantId,
-                    stockInTransactionId,
-                    sizeEntries,
-                    originSetStockItemId: null,
-                    designCode, designName, colorName,
-                });
-                created.push(...rows);
+                compositions.push({ sizeEntries, originSetStockItemId: null });
             }
         }
 
-        return created;
+        return stockPieceExpansionService.createPiecesForCompositions(tx, {
+            colorVariantId,
+            stockInTransactionId,
+            compositions,
+            designCode, designName, colorName,
+        });
     }
 }
 

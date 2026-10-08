@@ -58,7 +58,7 @@ const PartyFormDialog = ({ open, setOpen, party }) => {
             openActionModal={open}
             setOpenActionModal={setOpen}
             title={party ? "Edit party" : "Add party"}
-            subtitle="Order forms and invoices fill from these details."
+            subtitle=""
             showCloseButton
         >
             <div className="grid grid-cols-1 gap-4 px-6 py-4 sm:grid-cols-2">

@@ -161,21 +161,18 @@ const OrderFormEditor = () => {
     return (
         <div className="flex flex-col gap-4 pb-4">
             <div className="glass-card rounded-[24px] p-5">
-                <div className="flex flex-wrap items-start justify-between gap-5">
-                    <div>
+                <div className="space-y-5">
+                    <div className="flex items-center gap-1.5">
                         <button
                             type="button"
                             onClick={() => navigate("/stock-out/orders")}
                             className="mb-1 flex items-center gap-1 text-xs font-semibold text-[#1E1B4B]/60 hover:text-[#1E1B4B]"
                         >
-                            <ArrowLeft className="h-3.5 w-3.5" /> Order Forms
+                            <ArrowLeft className="h-3.5 w-3.5" />
                         </button>
                         <h1 className="text-2xl font-bold tracking-tight text-[#1E1B4B]">
                             {isEditing ? "Edit Order Form" : "New Order Form"}
                         </h1>
-                        <p className="mt-1 max-w-[70ch] text-sm text-[#1E1B4B]/60">
-                            A checklist of what the customer wants. Quantities may exceed what is in stock — nothing is deducted here.
-                        </p>
                     </div>
 
                     <div className="flex flex-wrap items-start gap-4">
@@ -221,9 +218,6 @@ const OrderFormEditor = () => {
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-base font-bold text-[#1E1B4B]">Requested items</h2>
-                        <p className="text-xs text-[#1E1B4B]/60">
-                            Availability is live from stock and never blocks the order.
-                        </p>
                     </div>
                     <span className="text-xs text-[#1E1B4B]/60">
                         <b>{totals.designs}</b> designs · <b>{totals.variants}</b> variants · <b>{totals.pieces}</b> pcs

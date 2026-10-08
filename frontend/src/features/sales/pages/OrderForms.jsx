@@ -34,13 +34,10 @@ const OrderForms = () => {
             <div className="mb-4 flex shrink-0 flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">Order Forms</h1>
-                    <p className="mt-1 text-sm text-[#1E1B4B]/60">
-                        What each customer asked for at the counter. Open forms can still be edited; invoiced forms are locked.
-                    </p>
                 </div>
                 <Button
                     variant="link"
-                    className="neu-button rounded-full p-4 text-[#1E1B4B] transition-colors hover:!bg-[#00694C] hover:!text-white"
+                    className="neu-button rounded-full p-4 text-[#1E1B4B] transition-colors"
                     onClick={() => navigate("/stock-out/orders/new")}
                 >
                     <span className="flex items-center gap-1.5"><Plus className="h-5 w-5" /> New Order Form</span>

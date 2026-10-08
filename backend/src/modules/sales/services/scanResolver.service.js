@@ -6,6 +6,7 @@ import stockItemRepository from "../../stock/repositories/stockItem.repository.j
 import stockGroupRepository from "../../stock/repositories/stockGroup.repository.js";
 import designSizeRepository from "../../design/repositories/designSize.repository.js";
 import { parseBundleCompositionSignature } from "../../stock/services/stockInPersistence.service.js";
+import displayCodeLookupService from "../../stock/services/displayCodeLookup.service.js";
 
 // Turns a scanned or typed short code into the stock it represents.
 //
@@ -18,6 +19,7 @@ class ScanResolverService {
     _stockItemRepository = stockItemRepository;
     _stockGroupRepository = stockGroupRepository;
     _designSizeRepository = designSizeRepository;
+    _displayCodeLookup = displayCodeLookupService;
 
     // A SET tag represents every size marked includedInSet for that variant; a BUNDLE tag
     // represents its group's own recorded composition; a single piece represents itself. The
@@ -60,11 +62,11 @@ class ScanResolverService {
         return [{ designSizeId: context.designSizeId, sizeLabel: context.sizeLabel ?? "", quantity: 1 }];
     }
 
-    // What a scanner reads depends on which screen printed the label: QR Center 2 encodes the bare
-    // shortCode, while Stock In's A4 sheet and the older QR Center encode the JSON payload
-    // ({ designCode, designName, colorName, setId } — see stockQr.service.js#buildPayload), whose
-    // setId is the stock item id. Both resolve to the same tag; a payload whose item has no
-    // ACTIVE label left reads as unknown.
+    // What a scanner reads depends on which screen printed the label: current labels encode the
+    // bare shortCode, while the older QR Center encoded the JSON payload ({ designCode,
+    // designName, colorName, setId } — see stockQr.service.js#buildPayload), whose setId is the
+    // stock item id. Both resolve to the same tag; a payload whose item has no ACTIVE label left
+    // reads as unknown. A readable label id is handled in resolve, after the short-code lookup.
     async _toShortCode(runner, code) {
         const text = String(code ?? "").trim();
         if (!text.startsWith("{")) return text.toUpperCase();
@@ -83,14 +85,36 @@ class ScanResolverService {
         return qrRow?.shortCode ?? null;
     }
 
+    // The readable id printed beside the QR ("SET-KP100-MID-007"), typed in by hand or encoded by
+    // labels printed before the QR carried the short code. Resolves to that item's newest label —
+    // the ACTIVE one if it has one, otherwise its latest retired one, so a broken set still reads
+    // as RETIRED rather than unknown.
+    async _fromDisplayCode(runner, text) {
+        const stockItemIds = await this._displayCodeLookup.findStockItemIds(runner, text);
+        if (stockItemIds.length === 0) return null;
+        if (stockItemIds.length > 1) return { state: "DUPLICATE", shortCode: text, stockItemIds };
+
+        const qrRows = await this._stockItemQrRepository.findByStockItemIds(runner, stockItemIds);
+        const label = qrRows.find((row) => row.status === "ACTIVE") ?? qrRows[0];
+        return label ? { shortCode: label.shortCode } : null;
+    }
+
     // Returns null for an unknown code rather than throwing: "not a tag we know" is an ordinary
     // answer at a scanning station, not an exceptional one, and the caller words it for the user.
     async resolve(code, { runner = db } = {}) {
-        const shortCode = await this._toShortCode(runner, code);
+        let shortCode = await this._toShortCode(runner, code);
         if (!shortCode) return null;
 
-        const qrRows = await this._stockItemQrRepository.findByShortCode(runner, shortCode);
-        if (qrRows.length === 0) return null;
+        let qrRows = await this._stockItemQrRepository.findByShortCode(runner, shortCode);
+        if (qrRows.length === 0) {
+            const fromLabel = await this._fromDisplayCode(runner, shortCode);
+            if (!fromLabel) return null;
+            if (fromLabel.state === "DUPLICATE") return fromLabel;
+
+            shortCode = fromLabel.shortCode;
+            qrRows = await this._stockItemQrRepository.findByShortCode(runner, shortCode);
+            if (qrRows.length === 0) return null;
+        }
 
         const activeRows = qrRows.filter((row) => row.status === "ACTIVE");
 

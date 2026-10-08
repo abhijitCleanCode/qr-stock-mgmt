@@ -95,9 +95,6 @@ const PartyPicker = ({ value, onChange, linkedParty, onLink }) => {
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-base font-bold text-[#1E1B4B]">Party details</h2>
-                    <p className="text-xs text-[#1E1B4B]/60">
-                        Pick a saved party to fill everything automatically — every field stays editable.
-                    </p>
                 </div>
                 {badge && (
                     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${badge.tone}`}>

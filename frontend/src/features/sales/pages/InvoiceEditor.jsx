@@ -259,22 +259,18 @@ const InvoiceEditor = () => {
     return (
         <div className="flex flex-col gap-4 pb-4">
             <div className="glass-card rounded-[24px] p-5">
-                <div className="flex flex-wrap items-start justify-between gap-5">
-                    <div>
+                <div className="space-y-5">
+                    <div className="flex items-center gap-1.5">
                         <button
                             type="button"
                             onClick={() => navigate("/stock-out/invoices")}
                             className="mb-1 flex items-center gap-1 text-xs font-semibold text-[#1E1B4B]/60 hover:text-[#1E1B4B]"
                         >
-                            <ArrowLeft className="h-3.5 w-3.5" /> Invoices
+                            <ArrowLeft className="h-3.5 w-3.5" />
                         </button>
                         <h1 className="text-2xl font-bold tracking-tight text-[#1E1B4B]">
                             {isEditing ? "Edit Invoice" : "New Invoice"}
                         </h1>
-                        <p className="mt-1 max-w-[70ch] text-sm text-[#1E1B4B]/60">
-                            Fetch the order form as your checklist, then scan every set or piece you pick.
-                            Stock is deducted only when you generate the invoice.
-                        </p>
                     </div>
 
                     <div className="flex flex-wrap items-start gap-4">
@@ -300,7 +296,7 @@ const InvoiceEditor = () => {
                     </div>
                 </div>
 
-                <div className="mt-4 max-w-xl">
+                <div className="mt-4">
                     <label className="mb-1.5 block text-xs font-semibold text-[#1E1B4B]" htmlFor="order-form-number">
                         Order form no. <span className="text-red-600">*</span>
                     </label>
@@ -318,7 +314,7 @@ const InvoiceEditor = () => {
                             type="button"
                             onClick={fetchOrderForm}
                             disabled={isEditing}
-                            className="shrink-0 rounded-lg bg-[#1E1B4B] px-4 text-xs font-semibold text-white disabled:opacity-50"
+                            className="shrink-0 rounded-lg bg-[#00694C] px-4 text-xs font-semibold text-white disabled:opacity-50"
                         >
                             Fetch
                         </button>

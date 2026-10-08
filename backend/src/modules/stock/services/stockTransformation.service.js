@@ -11,6 +11,7 @@ import designSizeRepository from "../../design/repositories/designSize.repositor
 import stockQrService from "./stockQr.service.js";
 import stockHistoryService from "./stockHistory.service.js";
 import stockPieceExpansionService from "./stockPieceExpansion.service.js";
+import displayCodeLookupService from "./displayCodeLookup.service.js";
 import { buildBundleCompositionSignature, parseBundleCompositionSignature } from "./stockInPersistence.service.js";
 
 // No auth module yet — every entry is attributed to this label until real users exist.
@@ -76,6 +77,7 @@ class StockTransformationService {
     _stockQrService = stockQrService;
     _stockHistoryService = stockHistoryService;
     _stockPieceExpansionService = stockPieceExpansionService;
+    _displayCodeLookup = displayCodeLookupService;
 
     // ==========================================================================================
     // Views
@@ -358,10 +360,21 @@ class StockTransformationService {
         };
     }
 
+    // A short code (or payload / "#id") first; failing that, the readable id printed on the label.
+    // Two colours sharing a colour code make that id ambiguous, which reads as unknown here
+    // rather than picking one.
+    async _findItemIdByCode(code) {
+        const id = await this._repository.findItemIdByCode(db, code);
+        if (id) return id;
+
+        const fromLabel = await this._displayCodeLookup.findStockItemIds(db, code);
+        return fromLabel.length === 1 ? fromLabel[0] : null;
+    }
+
     // A scanned parent tag, previewed before breaking: its pieces (existing child tags, or the
     // sizes that will get new tags when it's broken).
     async resolveUnit(code) {
-        const id = await this._repository.findItemIdByCode(db, code);
+        const id = await this._findItemIdByCode(code);
         const [unit] = id ? await this._repository.findItemViewsByIds(db, [id]) : [];
         if (!unit) throw new ApiError(`"${code}" isn't a known tag.`, 404, "TAG_NOT_FOUND");
         if (unit.type !== "SET" && unit.type !== "BUNDLE") {
@@ -382,7 +395,7 @@ class StockTransformationService {
 
     // A scanned piece tag, for Move/Return.
     async resolvePiece(code) {
-        const id = await this._repository.findItemIdByCode(db, code);
+        const id = await this._findItemIdByCode(code);
         const [row] = id ? await this._repository.findItemViewsByIds(db, [id]) : [];
         if (!row) throw new ApiError(`"${code}" isn't a known tag.`, 404, "TAG_NOT_FOUND");
         if (row.type === "SET" || row.type === "BUNDLE") {
@@ -850,7 +863,7 @@ class StockTransformationService {
 
     // Everything that has happened to one tag, oldest first, plus where it is now.
     async getJourney(code) {
-        const id = await this._repository.findItemIdByCode(db, code);
+        const id = await this._findItemIdByCode(code);
         const [row] = id ? await this._repository.findItemViewsByIds(db, [id]) : [];
         if (!row) throw new ApiError(`"${code}" isn't a known tag.`, 404, "TAG_NOT_FOUND");
 
