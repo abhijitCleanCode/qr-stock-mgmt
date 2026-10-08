@@ -27,6 +27,7 @@ export const orderFormBodySchema = z.object({
     partyId: z.coerce.number().int().positive().optional().nullable(),
     party: partySchema,
     partySync: partySyncSchema,
+    salesman: z.string().trim().max(60).optional(),
     notes: z.string().trim().max(2000).optional(),
     items: z.array(z.object({
         colorVariantId: z.coerce.number().int().positive(),

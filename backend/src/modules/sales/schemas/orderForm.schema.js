@@ -30,6 +30,9 @@ export const orderForm = pgTable("order_forms_v2", {
     partyTransport: varchar("party_transport", { length: 200 }),
     partyAgent: varchar("party_agent", { length: 100 }),
 
+    // Who took this order at the counter. Free text: there is no staff table to point at.
+    salesman: varchar("salesman", { length: 60 }),
+
     notes: text("notes"),
 
     status: orderFormStatusEnum("status").default("OPEN").notNull(),

@@ -42,7 +42,7 @@ const InvoiceDetail = () => {
                         </button>
                         <h1 className="text-2xl font-bold tracking-tight text-[#1E1B4B]">{invoice.invoiceNumber}</h1>
                         <p className="mt-1 text-sm text-[#1E1B4B]/60">
-                            {invoice.party.name} · {longDate(invoice.invoiceDate)} · {invoice.totalPcs} pcs ·{" "}
+                            {invoice.party.name} · {longDate(invoice.invoiceDate)}{invoice.salesman ? ` · Salesman ${invoice.salesman}` : ""} · {invoice.totalPcs} pcs ·{" "}
                             <b className="text-[#1E1B4B]">{inr(invoice.totalAmount)}</b>
                         </p>
                     </div>
@@ -50,7 +50,7 @@ const InvoiceDetail = () => {
                     <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
-                            onClick={() => printHtml(`Invoice ${invoice.invoiceNumber}`, invoiceHtml(invoice))}
+                            onClick={() => printHtml(`Invoice ${invoice.invoiceNumber}`, invoiceHtml(invoice), `Invoice ${invoice.invoiceNumber} · ${invoice.party.name}`)}
                             className="neu-button flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-[#1E1B4B]"
                         >
                             <Printer className="h-4 w-4" /> Print

@@ -86,6 +86,7 @@ class InvoiceMapper {
             orderFormNumber: orderFormNumber ?? row.orderFormNumber ?? null,
             partyId: row.partyId,
             party: partyFromColumns(row),
+            salesman: row.salesman ?? "",
             ticks: row.ticks ?? {},
             preparedBy: row.preparedBy,
             editedBy: row.editedBy,

@@ -14,6 +14,10 @@ function notFoundError(id) {
     return new ApiError(`Order form ${id} not found.`, 404, "ORDER_FORM_NOT_FOUND");
 }
 
+function normalizeSalesman(value) {
+    return String(value ?? "").replace(/\s+/g, " ").trim() || null;
+}
+
 function todayIso() {
     return new Date().toISOString().slice(0, 10);
 }
@@ -64,6 +68,7 @@ class OrderFormService {
                 formDate: payload.formDate || todayIso(),
                 partyId,
                 ...partySnapshotToColumns(snapshot),
+                salesman: normalizeSalesman(payload.salesman),
                 notes: payload.notes?.trim() || null,
                 status: "OPEN",
                 // Null until RBAC: see orderForm.schema.js.
@@ -106,6 +111,7 @@ class OrderFormService {
                 formDate: payload.formDate || existing.formDate,
                 partyId,
                 ...partySnapshotToColumns(snapshot),
+                salesman: normalizeSalesman(payload.salesman),
                 notes: payload.notes?.trim() || null,
             });
 
