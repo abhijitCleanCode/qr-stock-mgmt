@@ -135,15 +135,6 @@ const SummaryStep = ({ selectedVariants, variantTotals, qcByKey, configs, sizeLa
           </span>
         </div>
       )}
-
-      <div className="flex items-center space-x-2 rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-slate-500">
-        <AlertCircle className="size-4 shrink-0 text-amber-600" />
-        <span>
-          Upon clicking <strong>Confirm Inward &amp; Print Labels</strong>, serial no. <strong>{nextSerial ?? "…"}</strong> is assigned,{" "}
-          {tagTotal ? `${tagParts.join(", ")} (${tagTotal} total) will be spooled to the printer` : "no tags will be printed (both tag types are off)"}, and{" "}
-          {grandReceived} pieces will be registered against current inventory.
-        </span>
-      </div>
     </div>
   );
 };

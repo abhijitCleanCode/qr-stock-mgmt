@@ -507,23 +507,16 @@ const StockIn = () => {
   const tagDataForPrint = (tag) => buildBatchTagData(tag, { jobber: jobber.name, date: challanDate });
 
   return (
-    <div className="mx-auto flex min-h-[760px] w-full max-w-7xl flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col rounded-2xl border border-slate-100 bg-white p-6">
       <div className="mb-6 space-y-5 border-b border-slate-100 pb-6">
-        <div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <Link
             to="/stock-in"
             className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900"
           >
-            <ArrowLeft className="size-3.5" />
-            Stock In dashboard
+            <ArrowLeft className="size-3.5" /> <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>
           </Link>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">Stock Inwarding</h1>
-              <p className="mt-0.5 text-xs text-slate-500 md:text-sm">
-                Log received stock from Jobbers &amp; generate inventory QR tags.
-              </p>
-            </div>
+          <div className="">
             <span
               title="Assigned when the inward is confirmed"
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"

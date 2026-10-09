@@ -31,7 +31,6 @@ export default function HistorySection({ designs, onOpen, challanNo = "", onClea
         <Sheet className="scroll-mt-4">
             <div ref={sectionRef}>
                 <h2 className="mb-1 text-[16.5px] font-bold tracking-[-.005em]">Stock-in history</h2>
-                <p className="mb-4 max-w-[86ch] text-[13.5px] text-slate-500">Every inward batch and what was printed for it. A batch whose tags were skipped can be configured and printed here at any time — the stock is already registered, only the labels are missing.</p>
             </div>
 
             {challanNo && (
@@ -55,13 +54,16 @@ export default function HistorySection({ designs, onOpen, challanNo = "", onClea
                 <div role="row" className="hidden grid-cols-[1.1fr_1.5fr_.65fr_.85fr_1fr_168px] items-center gap-x-3.5 border-b border-slate-200 bg-slate-50 px-[18px] py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 xl:grid">
                     {COLUMNS.map((name, index) => <span key={name} role="columnheader" className={index === COLUMNS.length - 1 ? "text-right" : undefined}>{name}</span>)}
                 </div>
+
                 {isLoading && <EmptyState>Loading…</EmptyState>}
                 {isError && <EmptyState title="Couldn't load the history">{error?.message}</EmptyState>}
+
                 {!isLoading && !isError && rows.length === 0 && (
                     <EmptyState title="No batches match">
                         Try a different filter, or clear them to see the full history.
                     </EmptyState>
                 )}
+                
                 {rows.map((row) => <HistoryRow key={row.batchId} row={row} onOpen={onOpen} />)}
             </ListBox>
         </Sheet>
