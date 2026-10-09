@@ -42,10 +42,10 @@ const DesignIdentityCard = ({ variants, onRemoveDesign }) => {
   const sizes = sizesResponse?.data ?? [];
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <b className="text-sm text-slate-900">{primary.designCode ?? primary.designName}</b>
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <b className="break-all text-sm text-slate-900">{primary.designCode ?? primary.designName}</b>
           <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
             {isFetching ? (
               <span className="inline-flex items-center gap-1.5"><Loader2Icon className="size-3 animate-spin" /> Loading...</span>
@@ -53,20 +53,20 @@ const DesignIdentityCard = ({ variants, onRemoveDesign }) => {
               `${sizes.length}-Piece Set Design`
             )}
           </span>
-          <span className="text-xs text-slate-500">
+          <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
             {variants.map((variant) => (
-              <span key={getVariantKey(variant)} className="ml-2 inline-flex items-center gap-1">
+              <span key={getVariantKey(variant)} className="inline-flex items-center gap-1">
                 <span className="size-2 rounded-full" style={{ backgroundColor: variant.colorHex }} />
                 {variant.colorName}
               </span>
             ))}
           </span>
         </div>
-        <button type="button" onClick={() => onRemoveDesign(variants)} className="text-xs font-medium text-red-600 hover:underline">
-          Remove design
+        <button type="button" onClick={() => onRemoveDesign(variants)} className="shrink-0 py-1 text-xs font-medium text-red-600 hover:underline">
+          Remove<span className="hidden sm:inline"> design</span>
         </button>
       </div>
-      <div className="grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 break-words text-xs sm:grid-cols-4 sm:gap-4">
         <div>
           <span className="block text-slate-500">Design Code</span>
           <span className="text-sm font-bold text-slate-800">{primary.designCode ?? "—"}</span>
@@ -169,7 +169,6 @@ const InwardDetailsStep = ({
           <span className="mb-1.5 block text-xs font-semibold text-slate-800">Serial No.</span>
           <div className="flex h-[42px] items-center justify-between gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3">
             <b className="font-mono text-[15px] text-slate-900">{nextSerial ?? "…"}</b>
-            <small className="text-[11px] text-slate-500">Assigned when you confirm the inward</small>
           </div>
         </div>
       </div>
@@ -197,23 +196,23 @@ const InwardDetailsStep = ({
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
+      <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Auto-Fetched Design Identity</span>
-          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+          <span className="whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
             {designs.length
               ? `${designs.length} design${designs.length > 1 ? "s" : ""} · ${selectedVariants.length} variant${selectedVariants.length === 1 ? "" : "s"}`
               : "No designs yet"}
           </span>
         </div>
         {designs.length ? (
-          <div className="max-h-[330px] space-y-3 overflow-y-auto pr-1">
+          <div className="space-y-3 sm:max-h-[330px] sm:overflow-y-auto sm:pr-1">
             {designs.map((variants) => (
               <DesignIdentityCard key={variants[0].designId} variants={variants} onRemoveDesign={removeDesign} />
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border-[1.5px] border-dashed border-slate-300 p-5 text-center text-[12.5px] text-slate-500">
+          <div className="rounded-xl border-[1.5px] border-dashed border-slate-300 p-4 text-center sm:p-5 text-[12.5px] text-slate-500">
             Search a design code above — every design on this challan gets its own card here.
           </div>
         )}

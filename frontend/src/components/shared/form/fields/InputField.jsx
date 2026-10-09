@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const InputField = ({ name, label, placeholder, inputType, field, format }) => {
+const InputField = ({ name, label, placeholder, inputType, inputMode, field, format }) => {
     const { register, formState: { errors } } = useFormContext();
 
     const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +25,7 @@ const InputField = ({ name, label, placeholder, inputType, field, format }) => {
                 <Input
                     id={id}
                     type={showPassword ? "text" : inputType || "text"}
+                    inputMode={inputMode}
                     // {...register(name)}
                     {...field}
                     onChange={handleChange}

@@ -19,14 +19,6 @@ export default function StudioStrategy({ counts, newCounts, tagParentChild, tagL
     const checked = { parentChild: tagParentChild, loose: tagLoose };
     const toggles = { parentChild: onToggleParentChild, loose: onToggleLoose };
 
-    const note = !tagParentChild && !tagLoose
-        ? { tone: "amber", icon: "⚠", body: <><b>No tags will be generated.</b> Tick at least one tag type to print labels for this batch.</> }
-        : !tagParentChild
-            ? { tone: "amber", icon: "⚠", body: <><b>Set and semi-set bundles will stay untagged.</b> Their codes are already issued — print them here before the goods reach a rack, or nobody can scan them.</> }
-            : !tagLoose
-                ? { tone: "amber", icon: "⚠", body: <><b>Loose pieces will stay untagged.</b> Print their labels here before they reach a rack.</> }
-                : { tone: "green", icon: "✓", body: <><b>Every tag keeps its id for life.</b> A tag that already has a code reuses it; a piece that never had one is given its code the moment you print — and later reprints reuse that same code, never a new one.</> };
-
     return (
         <div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -57,11 +49,6 @@ export default function StudioStrategy({ counts, newCounts, tagParentChild, tagL
                         </button>
                     );
                 })}
-            </div>
-
-            <div className={`mt-3 flex gap-2 rounded-lg border p-3 text-[12.3px] leading-snug ${note.tone === "green" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                <span>{note.icon}</span>
-                <div>{note.body}</div>
             </div>
         </div>
     );

@@ -98,6 +98,8 @@ const DesignIdentity = ({ control, setExistingDesignByCode, editDesign }) => {
         name="defaultSellingPricePerPiece"
         label="Selling price / piece"
         fieldType={FormFieldType.INPUT}
+        inputMode="numeric"
+        format={(raw) => raw.replace(/\D/g, "")}
       />
       <div className="md:col-span-2">
         <CustomFormField
