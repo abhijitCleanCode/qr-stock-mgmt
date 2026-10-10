@@ -7,6 +7,7 @@ import stockInTransactionRepository from "../repositories/stockInTransaction.rep
 import stockHistoryRepository from "../repositories/stockHistory.repository.js";
 import stockQrService from "./stockQr.service.js";
 import stockHistoryService from "./stockHistory.service.js";
+import { buildDisplayCode } from "../utils/qrDisplayCode.util.js";
 
 import rackRepository from "../repositories/rack.repository.js";
 import binRepository from "../repositories/bin.repository.js";
@@ -761,6 +762,8 @@ class QrCenterService {
         return {
             data: rows.map((row) => ({
                 shortCode: row.shortCode,
+                // The readable id printed on the label; null until the tag has a serial.
+                displayCode: buildDisplayCode(row),
                 stockItemId: row.stockItemId,
                 stockItemQrId: row.id,
                 type: row.type,

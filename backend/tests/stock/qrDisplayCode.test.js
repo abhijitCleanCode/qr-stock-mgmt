@@ -3,6 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 
 import stockInService from "../../src/modules/stock/services/stockIn.service.js";
 import scanResolverService from "../../src/modules/sales/services/scanResolver.service.js";
+import qrCenterService from "../../src/modules/stock/services/qrCenter.service.js";
 import stockTransformationService from "../../src/modules/stock/services/stockTransformation.service.js";
 import { parseDisplayCode } from "../../src/modules/stock/utils/qrDisplayCode.util.js";
 import { design } from "../../src/modules/design/schemas/design.schema.js";
@@ -105,5 +106,33 @@ describe("resolving the readable label id", () => {
 
         const result = await stockTransformationService.resolveUnit("SET-KP100-GRE-001");
         expect(result.unit).toMatchObject({ kind: "SET", code: await shortCodeOf(fixture.variants[0].id, "SET", 1) });
+    });
+});
+
+describe("QR Center tag search", () => {
+    const search = (keyword) => qrCenterService.searchTags({ keyword, page: 1, limit: 50 });
+
+    it("returns the readable id beside each short code", async () => {
+        const fixture = await seedDesign("KP100", ["Green"]);
+        await inward(fixture, fixture.variants[0], 2);
+
+        const { data } = await search("KP100");
+        const set = data.find((tag) => tag.type === "SET" && tag.displayCode === "SET-KP100-GRE-002");
+        expect(set.shortCode).toBe(await shortCodeOf(fixture.variants[0].id, "SET", 2));
+        expect(data.every((tag) => /^(SET|SEMI|LSE)?-?KP100-GRE-\d+$/.test(tag.displayCode.replace(/^(SET|SEMI|LSE)-/, "")))).toBe(true);
+    });
+
+    it("finds a tag by its readable id, and by a partial colour code", async () => {
+        const fixture = await seedDesign("KP100", ["Green", "Blue"]);
+        await inward(fixture, fixture.variants[0], 2);
+        await inward(fixture, fixture.variants[1], 1);
+
+        const exact = await search("set-kp100-gre-002");
+        expect(exact.data.map((tag) => tag.displayCode)).toEqual(["SET-KP100-GRE-002"]);
+
+        const partial = await search("kp100-blu");
+        expect(partial.data.length).toBeGreaterThan(0);
+        expect(partial.data.every((tag) => tag.displayCode.includes("KP100-BLU"))).toBe(true);
+        expect(partial.meta.total).toBe(partial.data.length);
     });
 });
