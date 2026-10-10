@@ -578,3 +578,11 @@ class QrBatchService {
 }
 
 export default new QrBatchService();
+
+
+
+
+
+
+
+

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 // unbounded (height:auto) ancestor is exactly what lets that table size to its content
 // instead of being forced into an oversized scroll box.
 const TablePageLayout = ({ className, children }) => (
-  <div className={cn("flex h-[calc(100vh-8rem)] flex-col font-sans", className)}>{children}</div>
+  <div className={cn("flex h-[calc(100vh-8rem)] h-[calc(100dvh-8rem)] flex-col font-sans", className)}>{children}</div>
 );
 
 export default TablePageLayout;
