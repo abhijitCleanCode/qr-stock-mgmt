@@ -1,6 +1,6 @@
 import stockItemQrRepository from "../repositories/stockItemQr.repository.js";
 import ApiError from "../../../core/apiError.js";
-import { generateUniqueShortCode } from "../utils/qrShortCode.util.js";
+import { generateUniqueShortCodes } from "../utils/qrShortCode.util.js";
 
 // PIECE is included here for stock items tagged directly by this file's caller (Stock-In's
 // Parent+Child / tag-loose-pieces strategies) — every PIECE passed in has already been
@@ -27,22 +27,20 @@ class StockQrService {
         const eligibleItems = stockItems.filter((item) => QR_ELIGIBLE_TYPES.has(item.type));
         if (eligibleItems.length === 0) return [];
 
-        // Every ACTIVE row needs its own collision-checked shortCode (see qrShortCode.util.js) —
-        // generated sequentially so `existsActiveShortCode` sees each prior pick in this same
-        // batch, same pattern as qrCenter.service.js's single-item generation path.
-        const rows = [];
-        for (const item of eligibleItems) {
-            const shortCode = await generateUniqueShortCode((candidate) =>
-                this._stockItemQrRepository.existsActiveShortCode(tx, candidate)
-            );
-            rows.push({
-                stockItemId: item.id,
-                payload: this.buildPayload({ designCode, designName, colorName, stockItemId: item.id }),
-                shortCode,
-            });
-        }
+        // Every ACTIVE row needs its own collision-checked shortCode (see qrShortCode.util.js),
+        // distinct within this batch too — checked against the table in one query, not one per item.
+        const shortCodes = await this.uniqueShortCodes(tx, eligibleItems.length);
+        const rows = eligibleItems.map((item, index) => ({
+            stockItemId: item.id,
+            payload: this.buildPayload({ designCode, designName, colorName, stockItemId: item.id }),
+            shortCode: shortCodes[index],
+        }));
 
         return this._stockItemQrRepository.createMany(tx, rows);
+    }
+
+    uniqueShortCodes(tx, count) {
+        return generateUniqueShortCodes(count, (candidates) => this._stockItemQrRepository.findActiveShortCodes(tx, candidates));
     }
 }
 

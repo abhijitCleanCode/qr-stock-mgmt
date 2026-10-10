@@ -40,6 +40,14 @@ class StockItemQrRepository {
         return Boolean(result);
     }
 
+    // Batch form of existsActiveShortCode: which of these codes are already live.
+    async findActiveShortCodes(tx, shortCodes) {
+        if (shortCodes.length === 0) return [];
+        const rows = await tx.select({ shortCode: stockItemQr.shortCode }).from(stockItemQr)
+            .where(and(inArray(stockItemQr.shortCode, shortCodes), eq(stockItemQr.status, "ACTIVE")));
+        return rows.map((row) => row.shortCode);
+    }
+
     async findLatestActiveByStockItemId(tx, stockItemId) {
         const [result] = await tx.select().from(stockItemQr)
             .where(and(eq(stockItemQr.stockItemId, stockItemId), eq(stockItemQr.status, "ACTIVE")))

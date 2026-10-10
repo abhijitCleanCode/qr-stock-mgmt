@@ -10,7 +10,7 @@ import variantSerialCounterRepository from "../repositories/variantSerialCounter
 import stockQrService from "./stockQr.service.js";
 import stockPieceExpansionService from "./stockPieceExpansion.service.js";
 import { formatSerial } from "./stockInChallan.service.js";
-import { generateUniqueShortCode } from "../utils/qrShortCode.util.js";
+import { variantCodeOf } from "../utils/qrDisplayCode.util.js";
 
 // QR Center's "Stock-in history" works on batches: one batch is one stock-in challan, which holds
 // one stock-in transaction per colour variant inwarded on it. Transactions saved before challans
@@ -27,8 +27,6 @@ const LIST_SAFETY_CAP = 2000;
 
 const pad = (value, width) => String(value).padStart(width, "0");
 
-// Same label the Stock In wizard shows for a colour (e.g. "KP100-MID").
-const variantCodeOf = (ctx) => `${ctx.designCode ?? "DSN"}-${(ctx.colorName ?? "").replace(/\s+/g, "").slice(0, 3).toUpperCase()}`;
 
 const batchIdOf = (ctx) => (ctx.challanId ? `c${ctx.challanId}` : `t${ctx.transactionId}`);
 
@@ -485,39 +483,43 @@ class QrBatchService {
         const { pieceStart } = await this._variantSerialCounterRepository.reserve(tx, colorVariantId, { sets: 0, pieces: pieceCount });
         let serial = pieceStart;
 
+        // Every new piece of the batch in one go (one insert, one code check, one serial update)
+        // rather than per parent and per piece — each query is a full round trip to the database.
+        const assignments = [];
+
         const byParent = new Map();
         for (const tag of plannedChildren) {
             if (!byParent.has(tag.parentStockItemId)) byParent.set(tag.parentStockItemId, []);
             byParent.get(tag.parentStockItemId).push(tag);
         }
-        for (const [parentId, planned] of byParent) {
-            const created = await this._stockPieceExpansionService.createPiecesForComposition(tx, {
-                colorVariantId,
-                stockInTransactionId: variant.transactionId,
+        const created = await this._stockPieceExpansionService.createPiecesForCompositions(tx, {
+            colorVariantId,
+            stockInTransactionId: variant.transactionId,
+            compositions: [...byParent].map(([parentId, planned]) => ({
                 sizeEntries: planned.map((tag) => ({ designSizeId: tag.designSizeId, sizeLabel: tag.size, unsetPricePerSize: tag.pricePerPiece })),
                 originSetStockItemId: parentId,
                 insideParent: true,
-                ...label,
-            });
-            for (const row of created) await this._repository.assignSerial(tx, row.stockItem.id, serial++);
-        }
+            })),
+            ...label,
+        });
+        for (const row of created) assignments.push({ stockItemId: row.stockItem.id, serialNo: serial++ });
 
         if (pool.length > 0) {
             const pieceGroup = await this._stockGroupRepository.findOrCreate(tx, { colorVariantId, type: "PIECE" });
-            const converted = await this._repository.convertLooseToTagged(tx, pool.map((tag) => tag.stockItemId), { stockGroupId: pieceGroup.id });
+            const converted = (await this._repository.convertLooseToTagged(tx, pool.map((tag) => tag.stockItemId), { stockGroupId: pieceGroup.id })).sort((a, b) => a.id - b.id);
             const priceById = new Map(pool.map((tag) => [tag.stockItemId, tag.pricePerPiece]));
-            for (const item of converted.sort((a, b) => a.id - b.id)) {
-                const shortCode = await generateUniqueShortCode((candidate) => this._stockItemQrRepository.existsActiveShortCode(tx, candidate));
-                await this._stockItemQrRepository.create(tx, {
-                    stockItemId: item.id,
-                    payload: this._stockQrService.buildPayload({ ...label, stockItemId: item.id }),
-                    shortCode,
-                    status: "ACTIVE",
-                    priceSnapshot: priceById.get(item.id) ?? null,
-                });
-                await this._repository.assignSerial(tx, item.id, serial++);
-            }
+            const shortCodes = await this._stockQrService.uniqueShortCodes(tx, converted.length);
+            await this._stockItemQrRepository.createMany(tx, converted.map((item, index) => ({
+                stockItemId: item.id,
+                payload: this._stockQrService.buildPayload({ ...label, stockItemId: item.id }),
+                shortCode: shortCodes[index],
+                status: "ACTIVE",
+                priceSnapshot: priceById.get(item.id) ?? null,
+            })));
+            for (const item of converted) assignments.push({ stockItemId: item.id, serialNo: serial++ });
         }
+
+        await this._variantSerialCounterRepository.assignSerials(tx, assignments);
     }
 
     // The shape the print sheet / local print agent draw labels from (see ConfirmedA4QrPrintSheet).

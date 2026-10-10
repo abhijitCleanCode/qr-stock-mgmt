@@ -153,7 +153,7 @@ function StudioSession({ open, batchId, onClose }) {
         if (batch.printStatus === "partial") {
             return { tone: "blue", body: <><b>{printedCount} of {tagCount} tags are already printed.</b> Only the missing labels are queued below. The stock is already registered, and every tag keeps the code issued when it was created.{ungenerated}</> };
         }
-        return { tone: "green", body: <><b>Every tag for this batch has been printed.</b> Reprinting produces exact duplicates with the same codes — use it for damaged or lost labels. Turn off variants or tag types you don't need below.{ungenerated}</> };
+        return { tone: "green", body: <></> };
     })();
 
     const withDefects = variants.filter((variant) => variant.defects > 0);
@@ -320,8 +320,6 @@ function StudioSession({ open, batchId, onClose }) {
 
                 {open && batch && (
                     <div className="space-y-6">
-                        <div className={`rounded-xl border p-4 text-[13.5px] leading-relaxed ${NOTE_TONES[note.tone]}`}>{note.body}</div>
-
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-600">
                             <span>{batch.challanNo}</span>
                             {batch.jobberName && <><span className="text-slate-300">·</span><span>{batch.jobberName}</span></>}

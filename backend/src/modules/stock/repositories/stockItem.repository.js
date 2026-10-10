@@ -98,6 +98,20 @@ class StockItemRepository {
         return tx.select().from(stockItem).where(inArray(stockItem.id, ids));
     }
 
+    // Candidates for a typed label id (see qrDisplayCode.util.js): every item of these types
+    // carrying this serial, with the design/colour the caller builds the colour code from. One
+    // row per colour variant at most per counter, so this stays small.
+    async findBySerial(tx, { serialNo, types }) {
+        return tx.select({
+            stockItemId: stockItem.id,
+            designCode: design.code,
+            colorName: colorVariant.colorName,
+        }).from(stockItem)
+            .innerJoin(colorVariant, eq(stockItem.colorVariantId, colorVariant.id))
+            .innerJoin(design, eq(colorVariant.designId, design.id))
+            .where(and(eq(stockItem.serialNo, serialNo), inArray(stockItem.type, types)));
+    }
+
     // Break Set successors — PIECE stock items created out of a broken SET (see
     // originSetStockItemId in stockItems.schema.js), joined to each one's current ACTIVE QR for
     // the Resolver's RETIRED result and the break-set response itself.

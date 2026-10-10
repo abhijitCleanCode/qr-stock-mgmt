@@ -10,8 +10,6 @@ import TagRoll from "../../components/stock-in/qrTagStudio/TagRoll";
 import A4SheetPreview from "../../components/stock-in/qrTagStudio/A4SheetPreview";
 import PreviewFilterBar from "../../components/stock-in/qrTagStudio/PreviewFilterBar";
 import ActionBar from "../../components/stock-in/qrTagStudio/ActionBar";
-import QrTagPrintSheet from "../../components/stock-in/qrTagStudio/QrTagPrintSheet";
-import { downloadTagSheetPdf } from "../../utils/qrTagPdf";
 import { useTagPresetApi } from "../../hooks/useTagPresetApi";
 import { useSerialCountersApi } from "../../hooks/useStockInChallansApi";
 import { getVariantKey } from "../../utils/variantKey";
@@ -55,10 +53,9 @@ const QrTagStudioStep = ({
   printerId,
   onPrinterChange,
   onTestPrint,
-  onSetPrintOnConfirm,
   onPrintConfigChange,
-  onPrintedChange,
-  printed,
+  printMode,
+  onPrintModeChange,
 }) => {
   const [activeTab, setActiveTab] = useState("parent");
   const [engine, setEngine] = useState("a4");
@@ -136,7 +133,6 @@ const QrTagStudioStep = ({
   // never one sample repeated (see buildTagList's doc comment for how this can differ
   // slightly from the QC-adjusted "child" total in the Generation Queue table above).
   const serialCountersQuery = useSerialCountersApi(variants.map((v) => v.colorVariantId));
-  const serialsReady = !serialCountersQuery.isPending && !serialCountersQuery.isError && !serialCountersQuery.isFetching;
   // Next free serial per colour variant — labels continue after the last number ever issued.
   const serialStarts = useMemo(
     () =>
@@ -225,76 +221,25 @@ const QrTagStudioStep = ({
     }
   };
 
-  // Hands the studio's choices up so the confirmed print (after registration) renders the same
-  // fields, firm header and tag order as this preview.
+  // Hands the studio's choices up: the print that runs after registration draws the saved tags
+  // with these same fields, media and firm header, and the serial starts let the backend reject
+  // the inward if the numbers previewed here have moved on meanwhile.
   useEffect(() => {
     onPrintConfigChange?.({
       engine,
+      thermalPreset,
       a4Preset,
       a4StartAt,
       qrmm,
+      typography,
       fields,
       firm: FIRM_LABEL,
       jobber: jobber?.name ? `#${jobber.name.toUpperCase()}` : "UNASSIGNED",
       date: formatDdMmYy(challanDate),
       serialStarts: Object.fromEntries(variants.map((v) => [v.key, serialStarts[v.colorVariantId]]).filter(([, start]) => start)),
-      displayTags: allTags.map((tag) => ({ variantKey: tag.variant.key, kind: tag.kind, code: tag.code })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, a4Preset, a4StartAt, qrmm, fields, jobber?.name, challanDate, allTags, serialStarts]);
-
-  // Any change to what would be printed invalidates an earlier print, so the user re-prints
-  // before moving on.
-  const printSignature = `${engine}|${a4Preset}|${a4StartAt}|${qrmm}|${typography}|${JSON.stringify(fields)}|${allTags.map((tag) => tag.code).join(",")}`;
-  useEffect(() => {
-    onPrintedChange(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [printSignature]);
-
-  // The browser print dialog is the printer hand-off; the step unlocks once it closes.
-  const serialsBlockedMessage = serialCountersQuery.isError
-    ? "Couldn't load the current QR serial numbers — check your connection and try again."
-    : "Still loading the current QR serial numbers — try again in a moment.";
-
-  const handleSendToPrinter = () => {
-    if (!serialsReady) {
-      toast.error(serialsBlockedMessage);
-      return;
-    }
-    if (filteredTags.length !== taggedTags.length) {
-      toast.error("Clear the preview filter so every tag is included before printing.");
-      return;
-    }
-    const markPrinted = () => {
-      window.removeEventListener("afterprint", markPrinted);
-      onPrintedChange(true);
-    };
-    window.addEventListener("afterprint", markPrinted);
-    onSetPrintOnConfirm(false);
-    window.print();
-  };
-
-  const handleDownloadPdf = () => {
-    if (!serialsReady) {
-      toast.error(serialsBlockedMessage);
-      return;
-    }
-    try {
-      downloadTagSheetPdf({
-        engine,
-        tags: filteredTags,
-        a4Preset,
-        a4StartAt,
-        thermalPreset,
-        qrmm,
-        fields,
-        buildTagData,
-        fileName: `qr-tags-${challanNo || "stock-in"}.pdf`,
-      });
-    } catch (error) {
-      toast.error(error?.message ?? "Couldn't create the PDF.");
-    }
-  };
+  }, [engine, thermalPreset, a4Preset, a4StartAt, qrmm, typography, fields, jobber?.name, challanDate, serialStarts]);
 
   return (
     <div className="space-y-6">
@@ -451,7 +396,8 @@ const QrTagStudioStep = ({
               </div>
               <p className="mt-3 max-w-[78ch] text-[12.3px] text-slate-500">
                 <b className="text-slate-900">Preview is size-accurate.</b> Scroll the whole job before printing — every
-                tag above renders its own real content, not one sample repeated.
+                tag above renders its own real content, not one sample repeated. The QR codes here are placeholders:
+                each tag's scannable code is issued when you register, and the printed labels carry that code.
               </p>
             </div>
           </div>
@@ -465,20 +411,8 @@ const QrTagStudioStep = ({
             }}
             isSavingPreset={isSavingPreset}
             onSavePreset={handleSavePreset}
-            printed={printed}
-            onDownloadPdf={handleDownloadPdf}
-            onSendToPrinter={handleSendToPrinter}
-          />
-
-          <QrTagPrintSheet
-            engine={engine}
-            tags={filteredTags}
-            a4Preset={a4Preset}
-            a4StartAt={a4StartAt}
-            fields={fields}
-            qrmm={qrmm}
-            typography={typography}
-            buildTagData={buildTagData}
+            printMode={printMode}
+            onPrintModeChange={onPrintModeChange}
           />
         </>
       )}

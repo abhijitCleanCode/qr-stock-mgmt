@@ -115,10 +115,6 @@ const StockInDashboard = () => {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Stock In</h1>
-            <p className="mt-0.5 max-w-[72ch] text-xs text-slate-500 md:text-sm">
-              Every inward challan from your jobbers — what arrived, in what sets, semi sets and sizes, and what passed QC. Print or download any
-              challan as a stock count summary.
-            </p>
           </div>
           <Button type="button" onClick={() => navigate("/stock-in/new")} className="gap-2 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700">
             <Plus className="size-4" /> New Stock Inward
