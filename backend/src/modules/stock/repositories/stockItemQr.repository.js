@@ -8,6 +8,34 @@ import { designSize } from "../../design/schemas/designSize.schema.js";
 import { rack } from "../schemas/rack.schema.js";
 import { bin } from "../schemas/bin.schema.js";
 import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
+import { stockInBundlePiece } from "../schemas/stockInBundlePiece.schema.js";
+import { parseDisplayCode } from "../utils/qrDisplayCode.util.js";
+
+// Same shape as variantCodeOf() in qrDisplayCode.util.js, as SQL, so the search box can match
+// the readable id ("KP100-MID") a worker reads off a label.
+const variantCodeSql = sql`(${design.code} || '-' || upper(left(regexp_replace(${colorVariant.colorName}, '\\s+', '', 'g'), 3)))`;
+
+// The free-text search clause. A full readable id ("SET-KP100-MID-007", "KP100-MID-0012") is
+// matched exactly on colour code + serial; anything else matches loosely, including a partial
+// colour code like "kp100-mid".
+function keywordCondition(keyword) {
+    const loose = [
+        ilike(stockItemQr.shortCode, `%${keyword}%`),
+        ilike(design.code, `%${keyword}%`),
+        ilike(colorVariant.colorName, `%${keyword}%`),
+        ilike(stockInTransaction.challanNo, `%${keyword}%`),
+        ilike(variantCodeSql, `%${keyword}%`),
+    ];
+    const parsed = parseDisplayCode(keyword);
+    if (parsed) {
+        loose.push(and(
+            eq(stockItem.serialNo, parsed.serialNo),
+            inArray(stockItem.type, parsed.types),
+            sql`upper(${variantCodeSql}) = ${parsed.variantCode}`,
+        ));
+    }
+    return or(...loose);
+}
 
 class StockItemQrRepository {
     async createMany(tx, rows) {
@@ -212,16 +240,7 @@ class StockItemQrRepository {
     // reference search results show challan/inward date alongside each tag.
     async searchActive(tx, { keyword, designId, colorVariantId, type, days, limit, offset }) {
         const conditions = [eq(stockItemQr.status, "ACTIVE")];
-        if (keyword) {
-            conditions.push(
-                or(
-                    ilike(stockItemQr.shortCode, `%${keyword}%`),
-                    ilike(design.code, `%${keyword}%`),
-                    ilike(colorVariant.colorName, `%${keyword}%`),
-                    ilike(stockInTransaction.challanNo, `%${keyword}%`),
-                ),
-            );
-        }
+        if (keyword) conditions.push(keywordCondition(keyword));
         if (designId) conditions.push(eq(design.id, designId));
         if (colorVariantId) conditions.push(eq(colorVariant.id, colorVariantId));
         if (type) conditions.push(eq(stockItem.type, type));
@@ -233,6 +252,13 @@ class StockItemQrRepository {
             shortCode: stockItemQr.shortCode,
             generatedAt: stockItemQr.generatedAt,
             type: stockItem.type,
+            serialNo: stockItem.serialNo,
+            isChildPiece: sql`${stockItem.originSetStockItemId} is not null`.mapWith(Boolean),
+            // A bundle with fewer pieces than a full set is a "semi set" (see QrBatchService).
+            isSemi: sql`(${stockItem.type} = 'BUNDLE'
+                and coalesce((select sum(${stockInBundlePiece.quantity}) from ${stockInBundlePiece} where ${stockInBundlePiece.bundleId} = ${stockItem.bundleId}), 0) > 0
+                and coalesce((select sum(${stockInBundlePiece.quantity}) from ${stockInBundlePiece} where ${stockInBundlePiece.bundleId} = ${stockItem.bundleId}), 0)
+                  < (select count(*) from ${designSize} ds where ds.variant_id = ${colorVariant.id} and ds.included_in_set))`.mapWith(Boolean),
             rackId: stockItem.rackId,
             rackCode: rack.code,
             binId: stockItem.binId,
@@ -262,16 +288,7 @@ class StockItemQrRepository {
 
     async countActive(tx, { keyword, designId, colorVariantId, type, days }) {
         const conditions = [eq(stockItemQr.status, "ACTIVE")];
-        if (keyword) {
-            conditions.push(
-                or(
-                    ilike(stockItemQr.shortCode, `%${keyword}%`),
-                    ilike(design.code, `%${keyword}%`),
-                    ilike(colorVariant.colorName, `%${keyword}%`),
-                    ilike(stockInTransaction.challanNo, `%${keyword}%`),
-                ),
-            );
-        }
+        if (keyword) conditions.push(keywordCondition(keyword));
         if (designId) conditions.push(eq(design.id, designId));
         if (colorVariantId) conditions.push(eq(colorVariant.id, colorVariantId));
         if (type) conditions.push(eq(stockItem.type, type));

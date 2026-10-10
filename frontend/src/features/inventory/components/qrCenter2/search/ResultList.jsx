@@ -9,7 +9,7 @@ export default function ResultList({ tags, onSelect, loading, hasQuery }) {
         return (
             <Shell>
                 <EmptyState title="Search or filter to begin">
-                    Type a set ID, a design code, or a challan number. Scan straight into the box with a handheld reader.
+                    Type a readable ID (e.g. SET-KP100-MID-007), a design code, or a challan number. Scan straight into the box with a handheld reader.
                 </EmptyState>
             </Shell>
         );
@@ -37,11 +37,12 @@ export default function ResultList({ tags, onSelect, loading, hasQuery }) {
                         <QrCodeImage value={t.shortCode} size={34} />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="font-mono text-[13px] font-semibold [overflow-wrap:anywhere] text-slate-900">{t.shortCode}</span>
+                        <span className="font-mono text-[13px] font-semibold [overflow-wrap:anywhere] text-slate-900">{t.displayCode ?? t.shortCode}</span>
                         <span className="mt-0.5 text-[12.5px] text-slate-500">
                             {t.design.code} · {t.design.name} · {t.variant.colorName}
                             {t.sizeLabel ? ` · size ${t.sizeLabel}` : ""}
                             {t.rack ? ` · rack ${t.rack.code}` : ""}
+                            {t.displayCode ? ` · QR ${t.shortCode}` : ""}
                         </span>
                     </span>
                     <KindBadge kind={t.type} />
