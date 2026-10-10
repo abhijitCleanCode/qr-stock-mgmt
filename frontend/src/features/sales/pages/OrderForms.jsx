@@ -51,7 +51,7 @@ const OrderForms = () => {
                         <input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search by order form no., party, mobile or city"
+                            placeholder="Search by order form no., party, mobile or design code"
                             className="w-full border-none bg-transparent py-2 pl-12 pr-4 text-sm font-medium outline-none placeholder:text-gray-500"
                         />
                     </div>
@@ -81,7 +81,7 @@ const OrderForms = () => {
                             <FileText className="h-10 w-10 text-[#1E1B4B]/20" />
                             <b className="text-[#1E1B4B]">{search ? "No order forms match" : "No order forms yet"}</b>
                             <span className="text-sm text-[#1E1B4B]/55">
-                                {search ? "Try another number, party or city." : "Create one when a customer shortlists designs at the counter."}
+                                {search ? "Try another number, party or design code." : "Create one when a customer shortlists designs at the counter."}
                             </span>
                         </div>
                     ) : (

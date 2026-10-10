@@ -2,6 +2,7 @@ import { db } from "../../../database/index.js";
 import ApiError from "../../../core/apiError.js";
 
 import partyRepository from "../repositories/party.repository.js";
+import orderFormRepository from "../repositories/orderForm.repository.js";
 import partyMapper from "../mapper/partyMapper.js";
 
 const PARTY_FIELDS = ["name", "mobile", "city", "gst", "transport", "agent"];
@@ -39,6 +40,7 @@ function notFoundError(id) {
 
 class PartyService {
     _partyRepository = partyRepository;
+    _orderFormRepository = orderFormRepository;
     _partyMapper = partyMapper;
 
     async createParty(payload) {
@@ -114,8 +116,12 @@ class PartyService {
             this._partyRepository.count(db, filters),
         ]);
 
+        // The list shows how many order forms each party has.
+        const counts = await this._orderFormRepository.countByPartyIds(db, rows.map((row) => row.id));
+        const orderFormsByParty = new Map(counts.map((row) => [row.partyId, row.value]));
+
         return {
-            data: this._partyMapper.mapMany(rows),
+            data: this._partyMapper.mapMany(rows).map((entry) => ({ ...entry, orderForms: orderFormsByParty.get(entry.id) ?? 0 })),
             meta: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
         };
     }
