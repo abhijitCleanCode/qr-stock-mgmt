@@ -11,7 +11,7 @@ const MainLayout = () => {
     <>
       <Sidebar />
       <main className={cn(
-        "flex h-screen flex-col transition-[margin-left] ease-in-out duration-300 premium-bg",
+        "flex h-screen h-dvh flex-col transition-[margin-left] ease-in-out duration-300 premium-bg",
         !isOpen ? "lg:ml-72" : "lg:ml-[90px]"
       )}>
         <Navbar />
