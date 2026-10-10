@@ -10,3 +10,8 @@ export const getGalleryApi = ({ mode = "all", number, q, designId, stock = "all"
 export const resolveDesignApi = (code) => request(`/sales/resolve-design?${query({ code })}`);
 
 export const getDesignVariantsApi = (designId) => request(`/sales/designs/${designId}/variants`);
+
+// Designs matching whatever was typed in the order form's "Add designs" box — a design code, an
+// item / pattern / quality / colour word, or a hanging tag's ID — each with its colours, live
+// stock and set size. An empty query returns the designs to offer before anything is typed.
+export const searchDesignsApi = (q) => request(`/sales/design-search?${query({ q })}`);

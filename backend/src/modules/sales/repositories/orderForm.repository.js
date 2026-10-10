@@ -1,15 +1,28 @@
-import { and, asc, count, desc, eq, ilike, inArray, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, ilike, inArray, ne, or, sql } from "drizzle-orm";
 
 import { orderForm } from "../schemas/orderForm.schema.js";
 import { orderFormItem } from "../schemas/orderFormItem.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
+import { db } from "../../../database/index.js";
 
 // Document numbers are compared case- and space-insensitively, so "of-1024" and "OF-1024" are the
 // same number written twice. Same shape as the party name rule.
 export function normalizeNumber(value) {
     return String(value ?? "").trim().toUpperCase();
 }
+
+// Does any line of the order form mention this design code, name or colour? What lets the list be
+// searched by "KP100" or "midnight" as well as by number and party.
+const hasLineMatching = (like) => exists(
+    db.select({ one: sql`1` }).from(orderFormItem)
+        .innerJoin(colorVariant, eq(orderFormItem.colorVariantId, colorVariant.id))
+        .innerJoin(design, eq(colorVariant.designId, design.id))
+        .where(and(
+            eq(orderFormItem.orderFormId, orderForm.id),
+            or(ilike(design.code, like), ilike(design.name, like), ilike(design.itemName, like), ilike(colorVariant.colorName, like)),
+        )),
+);
 
 function buildFilters({ keyword, status }) {
     const conditions = [];
@@ -23,6 +36,7 @@ function buildFilters({ keyword, status }) {
             ilike(orderForm.partyMobile, `%${keyword}%`),
             ilike(orderForm.partyCity, `%${keyword}%`),
             ilike(orderForm.salesman, `%${keyword}%`),
+            hasLineMatching(`%${keyword}%`),
         ));
     }
 
@@ -98,6 +112,16 @@ class OrderFormRepository {
     async countByStatus(runner) {
         return runner.select({ status: orderForm.status, value: sql`count(*)`.mapWith(Number) })
             .from(orderForm).groupBy(orderForm.status);
+    }
+
+    // How many order forms each party has, for the Party Master list.
+    async countByPartyIds(runner, partyIds) {
+        if (partyIds.length === 0) return [];
+
+        return runner.select({ partyId: orderForm.partyId, value: sql`count(*)`.mapWith(Number) })
+            .from(orderForm)
+            .where(inArray(orderForm.partyId, partyIds))
+            .groupBy(orderForm.partyId);
     }
 
     // The highest number seen so far, for the "Next no." suggestion. Ordering on the numeric tail

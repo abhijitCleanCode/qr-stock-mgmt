@@ -1,11 +1,13 @@
 import { ApiResponse } from "../../../core/apiResponse.js";
 import galleryService from "../services/gallery.service.js";
+import designFinderService from "../services/designFinder.service.js";
 import overviewService from "../services/overview.service.js";
 import scanResolverService from "../services/scanResolver.service.js";
 
 class SalesController {
     _galleryService = galleryService;
     _overviewService = overviewService;
+    _designFinderService = designFinderService;
 
     getOverview = async (req, res, next) => {
         try {
@@ -26,7 +28,8 @@ class SalesController {
                 return res.status(200).json(new ApiResponse(200, resolved ?? { state: "UNKNOWN", shortCode: req.validatedQuery.code }, "Scan resolved."));
             }
 
-            const design = await this._galleryService.designVariants(resolved.designId);
+            // `focusColorVariantId` is the tag's own colour: the screen opens on that colour's row.
+            const design = await this._designFinderService.byId(resolved.designId, { focusColorVariantId: resolved.colorVariantId });
 
             return res.status(200).json(new ApiResponse(200, { ...resolved, design }, "Scan resolved."));
         } catch (error) {
@@ -34,9 +37,20 @@ class SalesController {
         }
     };
 
+    // The order form's "Add designs" box: designs (with their colours, stock and set size) that
+    // match whatever was typed.
+    searchDesigns = async (req, res, next) => {
+        try {
+            const result = await this._designFinderService.search(req.validatedQuery.q);
+            return res.status(200).json(new ApiResponse(200, result, "Designs fetched successfully."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
     getDesignVariants = async (req, res, next) => {
         try {
-            const result = await this._galleryService.designVariants(req.params.designId);
+            const result = await this._designFinderService.byId(req.params.designId);
             return res.status(200).json(new ApiResponse(200, result, "Design fetched successfully."));
         } catch (error) {
             next(error);

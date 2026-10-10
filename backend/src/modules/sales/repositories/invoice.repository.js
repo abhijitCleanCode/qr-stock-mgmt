@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gte, ilike, inArray, lte, ne, or, sql } from "drizzle-orm";
 
 import { invoice } from "../schemas/invoice.schema.js";
 import { invoiceEntry } from "../schemas/invoiceEntry.schema.js";
@@ -6,6 +6,18 @@ import { orderForm } from "../schemas/orderForm.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
 import { normalizeNumber } from "./orderForm.repository.js";
+import { db } from "../../../database/index.js";
+
+// Does any scanned line of the invoice mention this design code, name or colour?
+const hasLineMatching = (like) => exists(
+    db.select({ one: sql`1` }).from(invoiceEntry)
+        .innerJoin(colorVariant, eq(invoiceEntry.colorVariantId, colorVariant.id))
+        .innerJoin(design, eq(colorVariant.designId, design.id))
+        .where(and(
+            eq(invoiceEntry.invoiceId, invoice.id),
+            or(ilike(design.code, like), ilike(design.name, like), ilike(design.itemName, like), ilike(colorVariant.colorName, like)),
+        )),
+);
 
 function buildFilters({ keyword, from, to }) {
     const conditions = [];
@@ -20,6 +32,7 @@ function buildFilters({ keyword, from, to }) {
             ilike(invoice.partyMobile, `%${keyword}%`),
             ilike(invoice.salesman, `%${keyword}%`),
             ilike(orderForm.formNumber, `%${keyword}%`),
+            hasLineMatching(`%${keyword}%`),
         ));
     }
 
