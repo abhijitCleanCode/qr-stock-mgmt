@@ -17,7 +17,16 @@ export const FACETS = [
 
 export const STOCK_OPTIONS = [["all", "All"], ["in", "In stock"], ["out", "Out of stock"]];
 
-export const freshFilters = () => ({ q: "", designs: [], items: [], patterns: [], qualities: [], stock: "all" });
+export const freshFilters = () => ({ q: "", designs: [], items: [], patterns: [], qualities: [], pmin: "", pmax: "", stock: "all" });
+
+// Price range (per piece). Empty string = no bound. A min above the max applies nothing and is flagged.
+export const hasPrice = (filters) => filters.pmin !== "" || filters.pmax !== "";
+export const priceBad = (filters) => filters.pmin !== "" && filters.pmax !== "" && Number(filters.pmin) > Number(filters.pmax);
+export const priceLabel = (filters) => {
+    const { pmin, pmax } = filters;
+    if (pmin !== "" && pmax !== "") return `₹${pmin} – ₹${pmax}`;
+    return pmin !== "" ? `₹${pmin} and above` : `Up to ₹${pmax}`;
+};
 
 // Design codes compare without case, spaces or hyphens: "fl 2" == "FL-2" == "FL2".
 export const codeKey = (value) => String(value ?? "").toLowerCase().replace(/[\s-]/g, "");
@@ -34,6 +43,12 @@ export function createMatcher(items, filters, mode) {
         for (const facet of FACETS) {
             const chosen = filters[facet.id];
             if (facet.id !== except && chosen.length && !chosen.includes(facet.value(item))) return false;
+        }
+
+        if (except !== "price" && !priceBad(filters)) {
+            const price = Number(item.unitPrice ?? 0);
+            if (filters.pmin !== "" && price < Number(filters.pmin)) return false;
+            if (filters.pmax !== "" && price > Number(filters.pmax)) return false;
         }
 
         if (mode === "all") {
@@ -92,6 +107,10 @@ export function activeChips(items, filters, mode) {
             }
             chips.push({ kind: "facet", facetId: facet.id, value, label: `${facet.chip}: ${text}` });
         }
+    }
+
+    if (hasPrice(filters)) {
+        chips.push({ kind: "price", bad: priceBad(filters), label: priceBad(filters) ? "Price: min is more than max" : `Price: ${priceLabel(filters)}` });
     }
 
     if (filters.q.trim()) chips.push({ kind: "search", label: `Search: “${filters.q.trim()}”` });
