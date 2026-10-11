@@ -41,6 +41,9 @@ export const issueBatchSchema = z.object({
     loose: z.boolean().default(true),
     transactionIds: positiveIds.optional(),
     reprint: z.boolean().default(false),
+    // Narrow the job to some tag kinds (the studio's Parent / Child / Loose preview filter). Omitted = every kind the
+    // two switches above cover, which is the original behaviour.
+    kinds: z.array(z.enum(["parent", "child", "loose"])).min(1).optional(),
 });
 
 export const confirmBatchPrintSchema = z.object({

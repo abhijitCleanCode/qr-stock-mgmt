@@ -441,17 +441,17 @@ class QrBatchService {
     // returns those tags (all of them, or only the not-yet-printed ones) ready to be drawn on a
     // label. Nothing is marked printed here — the browser/agent print can still be cancelled — so
     // the caller confirms afterwards with confirmPrint.
-    async issueBatch(batchId, { parentChild, loose, transactionIds, reprint }) {
+    async issueBatch(batchId, { parentChild, loose, transactionIds, reprint, kinds }) {
         if (!parentChild && !loose) throw new ApiError("Choose at least one tag type to print.", 400, "NO_TAG_TYPE_SELECTED");
 
         return db.transaction(async (tx) => {
             const { variants } = await this._loadBatch(tx, batchId, { transactionIds });
 
-            for (const variant of variants) await this._issueMissingCodes(tx, variant, { parentChild, loose });
+            for (const variant of variants) await this._issueMissingCodes(tx, variant, { parentChild, loose, kinds });
 
             // Re-read so the response reflects exactly what is now stored.
             const reloaded = await this._loadBatch(tx, batchId, { transactionIds });
-            const wantsKind = (tag) => (tag.kind === "loose" ? loose : parentChild);
+            const wantsKind = (tag) => (tag.kind === "loose" ? loose : parentChild) && (!kinds || kinds.includes(tag.kind));
             const printItems = reloaded.variants.flatMap((variant) => variant.tags
                 .filter((tag) => tag.code && wantsKind(tag) && (reprint || !tag.printed))
                 .map((tag) => this._toPrintItem(tag, variant)));
@@ -464,19 +464,19 @@ class QrBatchService {
         });
     }
 
-    async _issueMissingCodes(tx, variant, { parentChild, loose }) {
+    async _issueMissingCodes(tx, variant, { parentChild, loose, kinds }) {
         const colorVariantId = variant.variant.id;
         const label = { designCode: variant.design.code, designName: variant.design.name, colorName: variant.variant.colorName };
         const tags = variant.tags;
 
         // Parents that somehow never got a code (data from before QR generation existed).
-        const uncodedParents = parentChild ? tags.filter((tag) => tag.kind === "parent" && !tag.code) : [];
+        const uncodedParents = parentChild && (!kinds || kinds.includes("parent")) ? tags.filter((tag) => tag.kind === "parent" && !tag.code) : [];
         if (uncodedParents.length > 0) {
             await this._stockQrService.generateForStockItems(tx, uncodedParents.map((tag) => ({ id: tag.stockItemId, type: tag.type })), label);
         }
 
-        const plannedChildren = parentChild ? tags.filter((tag) => tag.kind === "child" && !tag.stockItemId) : [];
-        const pool = loose ? tags.filter((tag) => tag.kind === "loose" && tag.type === "LOOSE_PIECE") : [];
+        const plannedChildren = parentChild && (!kinds || kinds.includes("child")) ? tags.filter((tag) => tag.kind === "child" && !tag.stockItemId) : [];
+        const pool = loose && (!kinds || kinds.includes("loose")) ? tags.filter((tag) => tag.kind === "loose" && tag.type === "LOOSE_PIECE") : [];
         const pieceCount = plannedChildren.length + pool.length;
         if (pieceCount === 0) return;
 

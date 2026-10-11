@@ -116,7 +116,9 @@ function StudioSession({ open, batchId, onClose }) {
         return taggedTags.filter((tag) => tag.kind === filter);
     }, [taggedTags, filter]);
 
-    const queued = entries.length;
+    // The preview's Parent / Child / Loose filter also narrows what is printed; All (and Issues) print everything.
+    const scopeKind = ["parent", "child", "loose"].includes(filter) ? filter : null;
+    const queued = scopeKind ? entries.filter(({ tag }) => tag.kind === scopeKind).length : entries.length;
     const issueCount = taggedTags.filter((tag) => tag.flags.length > 0).length;
     const skip = Math.max(0, Number(a4StartAt || 1) - 1);
     const media = engine === "thermal"
@@ -174,10 +176,11 @@ function StudioSession({ open, batchId, onClose }) {
             loose: tagLoose,
             transactionIds: variants.filter((variant) => included[variant.transactionId] !== false).map((variant) => variant.transactionId),
             reprint,
+            kinds: scopeKind ? [scopeKind] : undefined,
         });
         queryClient.setQueryData(["qr-center", "batch", batchId], { ...result, data: { batch: result.data.batch, variants: result.data.variants } });
         queryClient.invalidateQueries({ queryKey: ["qr-center", "batches"] });
-        const issuedTags = queuedEntries(result.data.variants, strategy).map(({ variant, tag }) => toDisplayTag(variant, tag, displayOptions));
+        const issuedTags = queuedEntries(result.data.variants, strategy).filter(({ tag }) => !scopeKind || tag.kind === scopeKind).map(({ variant, tag }) => toDisplayTag(variant, tag, displayOptions));
         return { printItems: result.data.printItems, tags: issuedTags };
     };
 
