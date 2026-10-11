@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import { Check, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Share2, X } from "lucide-react";
 
 // Full-size view of one photo, with keyboard navigation — a salesperson checking a colour before
 // sending it to a customer is looking closely, and the grid thumbnails are too small for that.
-const PhotoLightbox = ({ items, index, onIndexChange, onClose, selected, onToggle }) => {
+const PhotoLightbox = ({ items, index, onIndexChange, onClose, selected, onToggle, onShare }) => {
     const item = items[index];
 
     useEffect(() => {
@@ -43,7 +43,7 @@ const PhotoLightbox = ({ items, index, onIndexChange, onClose, selected, onToggl
                         className="absolute left-2 top-[42%] z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#1E1B4B] lg:-left-14"
                         aria-label="Previous"
                     >
-                        <ChevronLeft className="h-5 w-5" />
+                        <ArrowLeft className="h-5 w-5" />
                     </button>
                 )}
 
@@ -54,7 +54,7 @@ const PhotoLightbox = ({ items, index, onIndexChange, onClose, selected, onToggl
                         className="absolute right-2 top-[42%] z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#1E1B4B] lg:-right-14"
                         aria-label="Next"
                     >
-                        <ChevronRight className="h-5 w-5" />
+                        <ArrowRight className="h-5 w-5" />
                     </button>
                 )}
 
@@ -65,13 +65,24 @@ const PhotoLightbox = ({ items, index, onIndexChange, onClose, selected, onToggl
                         <b className="text-sm">{item.designCode} · {item.colorName}</b>
                         <div className="text-xs text-white/60">{item.designName} · {item.label} · {index + 1} of {items.length}</div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => onToggle(item.colorVariantId)}
-                        className="flex items-center gap-1.5 rounded-full border border-white/25 px-4 py-1.5 text-xs font-semibold hover:bg-white/10"
-                    >
-                        {isSelected && <Check className="h-3.5 w-3.5" />} {isSelected ? "Selected" : "Select"}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => onToggle(item.colorVariantId)}
+                            className="flex items-center gap-1.5 rounded-lg border border-white/30 px-3 py-1.5 text-xs font-semibold hover:bg-white/10"
+                        >
+                            {isSelected && <Check className="h-3.5 w-3.5" />} {isSelected ? "Selected" : "Select"}
+                        </button>
+                        {onShare && (
+                            <button
+                                type="button"
+                                onClick={() => onShare(item)}
+                                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                            >
+                                <Share2 className="h-3.5 w-3.5" /> Share
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

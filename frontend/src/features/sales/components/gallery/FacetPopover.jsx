@@ -30,17 +30,17 @@ const FacetPopover = ({ facet, options, selected, onChange }) => {
             <PopoverTrigger
                 type="button"
                 className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] border-[1.5px] px-3 py-2 text-[13px] font-semibold transition-colors max-sm:min-h-9 max-sm:px-2.5 max-sm:py-1.5 max-sm:text-[12.5px]",
                     selected.length
-                        ? "border-emerald-500 bg-emerald-50 text-[#00694C]"
-                        : "border-white/70 bg-white/60 text-[#1E1B4B]/75 hover:border-emerald-200",
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-800"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-emerald-200",
                 )}
             >
                 {facet.label}
                 {selected.length > 0 && (
-                    <span className="rounded-full bg-[#00694C] px-1.5 text-[10px] leading-4 text-white">{selected.length}</span>
+                    <span className="grid h-[19px] min-w-[19px] place-items-center rounded-full bg-emerald-600 px-1.5 text-[11px] font-bold text-white">{selected.length}</span>
                 )}
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown className="h-3 w-3 text-slate-400" />
             </PopoverTrigger>
 
             <PopoverContent align="start" className="w-72 gap-2 bg-white p-2 font-sans">

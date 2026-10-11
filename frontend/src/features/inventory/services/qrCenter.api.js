@@ -83,8 +83,8 @@ export const getQrBatchApi = (batchId) => qrCenterRequest(`/batches/${batchId}`)
 
 // Makes sure every tag the chosen strategy covers has a code and returns the labels to print.
 // Nothing is marked printed yet — see confirmQrBatchPrintApi.
-export const issueQrBatchApi = (batchId, { parentChild, loose, transactionIds, reprint }) =>
-    qrCenterRequest(`/batches/${batchId}/issue`, { method: "POST", body: { parentChild, loose, transactionIds, reprint } });
+export const issueQrBatchApi = (batchId, { parentChild, loose, transactionIds, reprint, kinds }) =>
+    qrCenterRequest(`/batches/${batchId}/issue`, { method: "POST", body: { parentChild, loose, transactionIds, reprint, kinds } });
 
 // Records that the issued labels were really printed.
 export const confirmQrBatchPrintApi = (batchId, { stockItemQrIds, printerId }) =>

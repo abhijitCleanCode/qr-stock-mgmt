@@ -14,7 +14,7 @@ class GalleryService {
     _colorVariantRepository = colorVariantRepository;
     _variantInventoryRepository = variantInventoryRepository;
 
-    _item({ colorVariantId, designId, designCode, designName, itemName, quality, colorName, colorHex, imageUrl, label, availablePcs, isExtra }) {
+    _item({ colorVariantId, designId, designCode, designName, itemName, quality, colorName, colorHex, imageUrl, unitPrice, label, availablePcs, isExtra }) {
         return {
             colorVariantId,
             designId,
@@ -23,6 +23,8 @@ class GalleryService {
             // The Gallery's filter facets — designName is the pattern (see design.schema.js).
             itemName: itemName ?? null,
             quality: quality ?? null,
+            // Per-piece selling price from Design Master — drives the price filter and the rate shown on each photo.
+            unitPrice: Number(unitPrice ?? 0),
             colorName,
             colorHex,
             imageUrl: imageUrl ?? null,

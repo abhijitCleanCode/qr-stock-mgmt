@@ -10,7 +10,7 @@ import variantSerialCounterRepository from "../repositories/variantSerialCounter
 import stockQrService from "./stockQr.service.js";
 import stockPieceExpansionService from "./stockPieceExpansion.service.js";
 import { formatSerial } from "./stockInChallan.service.js";
-import { variantCodeOf } from "../utils/qrDisplayCode.util.js";
+import { generateUniqueShortCode } from "../utils/qrShortCode.util.js";
 
 // QR Center's "Stock-in history" works on batches: one batch is one stock-in challan, which holds
 // one stock-in transaction per colour variant inwarded on it. Transactions saved before challans
@@ -27,6 +27,8 @@ const LIST_SAFETY_CAP = 2000;
 
 const pad = (value, width) => String(value).padStart(width, "0");
 
+// Same label the Stock In wizard shows for a colour (e.g. "KP100-MID").
+const variantCodeOf = (ctx) => `${ctx.designCode ?? "DSN"}-${(ctx.colorName ?? "").replace(/\s+/g, "").slice(0, 3).toUpperCase()}`;
 
 const batchIdOf = (ctx) => (ctx.challanId ? `c${ctx.challanId}` : `t${ctx.transactionId}`);
 
@@ -439,17 +441,17 @@ class QrBatchService {
     // returns those tags (all of them, or only the not-yet-printed ones) ready to be drawn on a
     // label. Nothing is marked printed here — the browser/agent print can still be cancelled — so
     // the caller confirms afterwards with confirmPrint.
-    async issueBatch(batchId, { parentChild, loose, transactionIds, reprint }) {
+    async issueBatch(batchId, { parentChild, loose, transactionIds, reprint, kinds }) {
         if (!parentChild && !loose) throw new ApiError("Choose at least one tag type to print.", 400, "NO_TAG_TYPE_SELECTED");
 
         return db.transaction(async (tx) => {
             const { variants } = await this._loadBatch(tx, batchId, { transactionIds });
 
-            for (const variant of variants) await this._issueMissingCodes(tx, variant, { parentChild, loose });
+            for (const variant of variants) await this._issueMissingCodes(tx, variant, { parentChild, loose, kinds });
 
             // Re-read so the response reflects exactly what is now stored.
             const reloaded = await this._loadBatch(tx, batchId, { transactionIds });
-            const wantsKind = (tag) => (tag.kind === "loose" ? loose : parentChild);
+            const wantsKind = (tag) => (tag.kind === "loose" ? loose : parentChild) && (!kinds || kinds.includes(tag.kind));
             const printItems = reloaded.variants.flatMap((variant) => variant.tags
                 .filter((tag) => tag.code && wantsKind(tag) && (reprint || !tag.printed))
                 .map((tag) => this._toPrintItem(tag, variant)));
@@ -462,19 +464,19 @@ class QrBatchService {
         });
     }
 
-    async _issueMissingCodes(tx, variant, { parentChild, loose }) {
+    async _issueMissingCodes(tx, variant, { parentChild, loose, kinds }) {
         const colorVariantId = variant.variant.id;
         const label = { designCode: variant.design.code, designName: variant.design.name, colorName: variant.variant.colorName };
         const tags = variant.tags;
 
         // Parents that somehow never got a code (data from before QR generation existed).
-        const uncodedParents = parentChild ? tags.filter((tag) => tag.kind === "parent" && !tag.code) : [];
+        const uncodedParents = parentChild && (!kinds || kinds.includes("parent")) ? tags.filter((tag) => tag.kind === "parent" && !tag.code) : [];
         if (uncodedParents.length > 0) {
             await this._stockQrService.generateForStockItems(tx, uncodedParents.map((tag) => ({ id: tag.stockItemId, type: tag.type })), label);
         }
 
-        const plannedChildren = parentChild ? tags.filter((tag) => tag.kind === "child" && !tag.stockItemId) : [];
-        const pool = loose ? tags.filter((tag) => tag.kind === "loose" && tag.type === "LOOSE_PIECE") : [];
+        const plannedChildren = parentChild && (!kinds || kinds.includes("child")) ? tags.filter((tag) => tag.kind === "child" && !tag.stockItemId) : [];
+        const pool = loose && (!kinds || kinds.includes("loose")) ? tags.filter((tag) => tag.kind === "loose" && tag.type === "LOOSE_PIECE") : [];
         const pieceCount = plannedChildren.length + pool.length;
         if (pieceCount === 0) return;
 
@@ -483,43 +485,39 @@ class QrBatchService {
         const { pieceStart } = await this._variantSerialCounterRepository.reserve(tx, colorVariantId, { sets: 0, pieces: pieceCount });
         let serial = pieceStart;
 
-        // Every new piece of the batch in one go (one insert, one code check, one serial update)
-        // rather than per parent and per piece — each query is a full round trip to the database.
-        const assignments = [];
-
         const byParent = new Map();
         for (const tag of plannedChildren) {
             if (!byParent.has(tag.parentStockItemId)) byParent.set(tag.parentStockItemId, []);
             byParent.get(tag.parentStockItemId).push(tag);
         }
-        const created = await this._stockPieceExpansionService.createPiecesForCompositions(tx, {
-            colorVariantId,
-            stockInTransactionId: variant.transactionId,
-            compositions: [...byParent].map(([parentId, planned]) => ({
+        for (const [parentId, planned] of byParent) {
+            const created = await this._stockPieceExpansionService.createPiecesForComposition(tx, {
+                colorVariantId,
+                stockInTransactionId: variant.transactionId,
                 sizeEntries: planned.map((tag) => ({ designSizeId: tag.designSizeId, sizeLabel: tag.size, unsetPricePerSize: tag.pricePerPiece })),
                 originSetStockItemId: parentId,
                 insideParent: true,
-            })),
-            ...label,
-        });
-        for (const row of created) assignments.push({ stockItemId: row.stockItem.id, serialNo: serial++ });
+                ...label,
+            });
+            for (const row of created) await this._repository.assignSerial(tx, row.stockItem.id, serial++);
+        }
 
         if (pool.length > 0) {
             const pieceGroup = await this._stockGroupRepository.findOrCreate(tx, { colorVariantId, type: "PIECE" });
-            const converted = (await this._repository.convertLooseToTagged(tx, pool.map((tag) => tag.stockItemId), { stockGroupId: pieceGroup.id })).sort((a, b) => a.id - b.id);
+            const converted = await this._repository.convertLooseToTagged(tx, pool.map((tag) => tag.stockItemId), { stockGroupId: pieceGroup.id });
             const priceById = new Map(pool.map((tag) => [tag.stockItemId, tag.pricePerPiece]));
-            const shortCodes = await this._stockQrService.uniqueShortCodes(tx, converted.length);
-            await this._stockItemQrRepository.createMany(tx, converted.map((item, index) => ({
-                stockItemId: item.id,
-                payload: this._stockQrService.buildPayload({ ...label, stockItemId: item.id }),
-                shortCode: shortCodes[index],
-                status: "ACTIVE",
-                priceSnapshot: priceById.get(item.id) ?? null,
-            })));
-            for (const item of converted) assignments.push({ stockItemId: item.id, serialNo: serial++ });
+            for (const item of converted.sort((a, b) => a.id - b.id)) {
+                const shortCode = await generateUniqueShortCode((candidate) => this._stockItemQrRepository.existsActiveShortCode(tx, candidate));
+                await this._stockItemQrRepository.create(tx, {
+                    stockItemId: item.id,
+                    payload: this._stockQrService.buildPayload({ ...label, stockItemId: item.id }),
+                    shortCode,
+                    status: "ACTIVE",
+                    priceSnapshot: priceById.get(item.id) ?? null,
+                });
+                await this._repository.assignSerial(tx, item.id, serial++);
+            }
         }
-
-        await this._variantSerialCounterRepository.assignSerials(tx, assignments);
     }
 
     // The shape the print sheet / local print agent draw labels from (see ConfirmedA4QrPrintSheet).
