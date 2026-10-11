@@ -24,3 +24,16 @@ export function parseDisplayCode(text) {
     const isParent = prefix === "SET" || prefix === "SEMI";
     return { variantCode, serialNo, types: isParent ? ["SET", "BUNDLE"] : ["PIECE"] };
 }
+
+const pad = (value, width) => String(value).padStart(width, "0");
+
+// The readable id for one stock item, or null when it has no serial yet (a tag whose number is
+// only issued on first print). Mirrors what QrBatchService prints on the label: SET-/SEMI- plus
+// a 3-digit serial for a parent, a bare 4-digit serial for a piece inside a set, and LSE- for a
+// loose piece.
+export function buildDisplayCode({ type, serialNo, isSemi, isChildPiece, designCode, colorName }) {
+    if (serialNo == null) return null;
+    const variantCode = variantCodeOf({ designCode, colorName });
+    if (type === "SET" || type === "BUNDLE") return `${isSemi ? "SEMI" : "SET"}-${variantCode}-${pad(serialNo, 3)}`;
+    return `${isChildPiece ? "" : "LSE-"}${variantCode}-${pad(serialNo, 4)}`;
+}

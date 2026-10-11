@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import jsQR from "jsqr";
-import { AlertTriangle, Camera, Check, Keyboard, ScanLine } from "lucide-react";
+import { AlertTriangle, Camera, Check, Keyboard, ScanLine, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Frames are downscaled to this width before jsQR reads them — plenty for a tag held in the
@@ -38,19 +38,32 @@ const METHODS = [
     { key: "QR Gun", label: "QR Gun", Icon: ScanLine },
 ];
 
+// Whole-number keys the live finders use for their hints.
+export const Kbd = ({ children }) => (
+    <span className="mx-0.5 inline-block rounded-[5px] border border-b-2 border-slate-300 bg-white px-1.5 font-mono text-[10.5px] font-bold text-slate-700">
+        {children}
+    </span>
+);
+
 // The three ways stock gets identified on the floor, behind one interface.
 //
 // Manual and QR Gun are the same text field — a gun is a keyboard that types very fast and
 // presses Enter — but they are separate modes because the gun needs the field to keep focus and
 // the operator needs to see that it is listening. QR Scanner uses the device camera where the
 // browser supports it.
-const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
+//
+// `live` turns the Manual mode into a search box that answers as you type: the parent owns the
+// text (`value` / `onChange`), handles the keyboard (`onKeyDown`) and supplies what to show under
+// the box (`results`). Without it Manual is the plain type-an-ID-and-press-Enter field. The
+// parent can call `ref.focus()` to put the cursor back in whichever box is showing.
+const ScanPanel = forwardRef(function ScanPanel({ title, hint, placeholder, onScan, feedback, busy, manualLabel = "Manual ID", live }, ref) {
     const [method, setMethod] = useState("Manual");
     const [value, setValue] = useState("");
     const [cameraError, setCameraError] = useState("");
     const [cameraOn, setCameraOn] = useState(false);
 
     const inputRef = useRef(null);
+    const liveInputRef = useRef(null);
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const timerRef = useRef(null);
@@ -61,6 +74,9 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
     useEffect(() => {
         onScanRef.current = onScan;
     }, [onScan]);
+
+    const focusInput = () => (liveInputRef.current ?? inputRef.current)?.focus();
+    useImperativeHandle(ref, () => ({ focus: focusInput }));
 
     // Browsers only expose the camera on https or localhost.
     const cameraSupported = typeof window !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
@@ -79,7 +95,7 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
     useEffect(() => stopCamera, []);
     useEffect(() => {
         if (method !== "QR Scanner") stopCamera();
-        if (method !== "QR Scanner") setTimeout(() => inputRef.current?.focus(), 0);
+        if (method !== "QR Scanner") setTimeout(focusInput, 0);
     }, [method]);
 
     const submit = (code, via = method) => {
@@ -143,7 +159,7 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
                                 method === key ? "bg-white text-[#1E1B4B] shadow-sm" : "text-[#1E1B4B]/60 hover:text-[#1E1B4B]",
                             )}
                         >
-                            <Icon className="h-3.5 w-3.5" /> {label}
+                            <Icon className="h-3.5 w-3.5" /> {key === "Manual" ? manualLabel : label}
                         </button>
                     ))}
                 </div>
@@ -176,6 +192,42 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
                             <span className="text-xs text-[#1E1B4B]/60">Open this page over https, or use the QR Gun / Manual ID.</span>
                         )}
                     </div>
+                </div>
+            ) : live && method === "Manual" ? (
+                <div>
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-emerald-600" />
+                        <input
+                            ref={liveInputRef}
+                            role="combobox"
+                            aria-expanded={Boolean(live.results)}
+                            value={live.value}
+                            autoComplete="off"
+                            spellCheck={false}
+                            onChange={(event) => {
+                                const field = event.target;
+                                const { selectionStart, selectionEnd } = field;
+                                live.onChange(live.upper ? field.value.toUpperCase() : field.value);
+                                // Upper-casing as you type would otherwise throw the cursor to the end.
+                                if (live.upper) requestAnimationFrame(() => field.setSelectionRange(selectionStart, selectionEnd));
+                            }}
+                            onKeyDown={live.onKeyDown}
+                            placeholder={live.placeholder}
+                            className="w-full rounded-xl border-2 border-emerald-200 bg-emerald-50/60 py-3 pl-11 pr-11 font-mono text-sm text-[#1E1B4B] outline-none focus:border-emerald-500"
+                        />
+                        {live.value && (
+                            <button
+                                type="button"
+                                aria-label="Clear"
+                                onClick={() => { live.onChange(""); focusInput(); }}
+                                className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg bg-slate-900/5 text-slate-500 hover:bg-slate-900/10 hover:text-slate-900"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        )}
+                    </div>
+                    {live.hint && <p className="mt-1.5 text-[11.5px] text-[#1E1B4B]/50">{live.hint}</p>}
+                    {live.results && <div className="mt-3">{live.results}</div>}
                 </div>
             ) : (
                 <div>
@@ -225,6 +277,6 @@ const ScanPanel = ({ title, hint, placeholder, onScan, feedback, busy }) => {
             )}
         </div>
     );
-};
+});
 
 export default ScanPanel;

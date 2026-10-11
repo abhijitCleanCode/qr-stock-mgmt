@@ -39,7 +39,7 @@ const Invoices = () => {
                         <input
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search by invoice no., order form no., party or mobile"
+                            placeholder="Search by invoice no., order form no., party or design code"
                             className="w-full border-none bg-transparent py-2 pl-12 pr-4 text-sm font-medium outline-none placeholder:text-gray-500"
                         />
                     </div>

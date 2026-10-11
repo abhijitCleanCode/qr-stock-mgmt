@@ -111,4 +111,9 @@ export const galleryQuerySchema = z.object({
     }
 });
 
+// An empty query is valid: it asks for the designs to offer before anything has been typed.
+export const designSearchQuerySchema = z.object({
+    q: z.string().trim().max(100).default(""),
+});
+
 export const designIdParamsSchema = z.object({ designId: z.coerce.number().int().positive() });

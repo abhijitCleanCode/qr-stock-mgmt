@@ -35,31 +35,6 @@ class GalleryService {
         };
     }
 
-    // Every variant of one design, with live availability — what the order form screen needs
-    // after a tag is scanned, since the customer picks colours from the design the tag belongs to.
-    async designVariants(designId) {
-        const variants = await this._colorVariantRepository.findAllActiveWithDesign(db, { designId });
-
-        const totals = await this._variantInventoryRepository.sumQuantityByColorVariantIds(
-            variants.map((variant) => variant.colorVariantId),
-        );
-        const availableByVariantId = new Map(totals.map((row) => [row.colorVariantId, row.totalPieces]));
-
-        return {
-            designId: Number(designId),
-            designCode: variants[0]?.designCode ?? null,
-            designName: variants[0]?.designName ?? null,
-            unitPrice: Number(variants[0]?.unitPrice ?? 0),
-            variants: variants.map((variant) => ({
-                colorVariantId: variant.colorVariantId,
-                colorName: variant.colorName,
-                colorHex: variant.colorHex,
-                imageUrl: variant.imageUrl,
-                availablePcs: availableByVariantId.get(variant.colorVariantId) ?? 0,
-            })),
-        };
-    }
-
     async byOrderForm(formNumber) {
         const orderForm = await this._orderFormService.getOrderFormByNumber(formNumber);
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "react-toastify";
 import { ArrowLeft, Check, Loader2, X } from "lucide-react";
@@ -10,6 +10,9 @@ import DocumentNumberField from "../components/DocumentNumberField.jsx";
 import PartyPicker, { EMPTY_PARTY_FIELDS } from "../components/PartyPicker.jsx";
 import PartySyncDialog from "../components/PartySyncDialog.jsx";
 import ScanPanel from "../components/ScanPanel.jsx";
+import { VariantPane } from "../components/DesignFinder.jsx";
+import { existingFor } from "../utils/orderLines.js";
+import { useDesignFinder, useQuantityDrafts } from "../hooks/useDesignFinder.jsx";
 import { todayIso } from "../utils/format.js";
 
 const OrderFormEditor = () => {
@@ -30,6 +33,12 @@ const OrderFormEditor = () => {
     const [feedback, setFeedback] = useState(null);
     const [scanning, setScanning] = useState(false);
     const [syncPrompt, setSyncPrompt] = useState(null);
+    // A scanned hanging tag opens its design's colours under the scanner, ready for pieces.
+    const [scanned, setScanned] = useState(null);
+
+    const scanRef = useRef(null);
+    const scanPaneRef = useRef(null);
+    const scanDrafts = useQuantityDrafts();
 
     const saveOrderForm = useSaveOrderFormApi();
 
@@ -68,6 +77,58 @@ const OrderFormEditor = () => {
         pieces: items.reduce((sum, item) => sum + item.quantityPcs, 0),
     }), [items]);
 
+    // Puts the typed pieces onto the order: a colour with pieces becomes (or updates) its line, a
+    // colour left at zero comes off. Returns what was added so the caller can say so.
+    const applyQuantities = (design, quantities) => {
+        const entered = design.variants.filter((variant) => (quantities[variant.colorVariantId] ?? 0) > 0);
+        const total = entered.reduce((sum, variant) => sum + quantities[variant.colorVariantId], 0);
+
+        setItems((previous) => {
+            const next = [...previous];
+
+            for (const variant of design.variants) {
+                const quantity = quantities[variant.colorVariantId] ?? 0;
+                const at = next.findIndex((line) => line.colorVariantId === variant.colorVariantId);
+
+                if (quantity > 0) {
+                    const line = {
+                        colorVariantId: variant.colorVariantId,
+                        designId: design.designId,
+                        designCode: design.designCode,
+                        designName: design.designName,
+                        colorName: variant.colorName,
+                        colorHex: variant.colorHex,
+                        quantityPcs: quantity,
+                        availablePcs: variant.availablePcs,
+                    };
+
+                    if (at >= 0) next[at] = line;
+                    else next.push(line);
+                } else if (at >= 0) {
+                    next.splice(at, 1);
+                }
+            }
+
+            return next;
+        });
+
+        setFeedback(total > 0
+            ? {
+                tone: "ok",
+                message: (
+                    <>
+                        <b>{design.designCode}</b> · {entered.map((variant) => `${variant.colorName} ${quantities[variant.colorVariantId]}`).join(", ")}
+                        {" "}— <b>{total} pcs</b> in the order. Type the next design.
+                    </>
+                ),
+            }
+            : { tone: "warn", message: <>No pieces entered for <b>{design.designCode}</b>.</> });
+    };
+
+    const finder = useDesignFinder({ lines: items, onCommit: applyQuantities, scanRef });
+
+    // Camera and QR gun hand over a tag ID: resolve it to its design and open that design's
+    // colours on the colour the tag belongs to.
     const handleScan = async (code) => {
         setScanning(true);
 
@@ -87,39 +148,30 @@ const OrderFormEditor = () => {
                 return;
             }
 
-            // The scanned tag's own colour goes straight onto the order with the tag's piece count
-            // (a set tag = its pieces, a piece tag = 1); scanning another tag of the same colour adds
-            // to that line. Quantities stay editable in the list below.
-            const variant = data.design.variants.find((item) => item.colorVariantId === data.colorVariantId);
-            setItems((previous) => {
-                const existingLine = previous.find((item) => item.colorVariantId === data.colorVariantId);
-                if (existingLine) {
-                    return previous.map((item) => item.colorVariantId === data.colorVariantId
-                        ? { ...item, quantityPcs: item.quantityPcs + data.pieces }
-                        : item);
-                }
-
-                return [...previous, {
-                    colorVariantId: data.colorVariantId,
-                    designId: data.designId,
-                    designCode: data.designCode,
-                    designName: data.designName,
-                    colorName: data.colorName,
-                    colorHex: data.colorHex,
-                    quantityPcs: data.pieces,
-                    availablePcs: variant?.availablePcs ?? 0,
-                }];
-            });
-
+            setScanned({ design: data.design, focusVariantId: data.colorVariantId });
             setFeedback({
                 tone: "ok",
-                message: `Added ${data.pieces} pcs of ${data.designCode} ${data.colorName} (${data.shortCode}). Scan the next tag, or change the quantity below.`,
+                message: (
+                    <>
+                        <b>{data.designCode} · {data.design.itemName ?? data.designName}</b> found from the <b>{data.colorName}</b> tag. Enter the pieces below and press <b>Enter</b>.
+                    </>
+                ),
             });
         } catch (error) {
             setFeedback({ tone: "bad", message: error.message });
         } finally {
             setScanning(false);
         }
+    };
+
+    // Focus the scanned colour's quantity as soon as its pane is on screen.
+    useEffect(() => {
+        if (scanned) scanPaneRef.current?.focusQty(scanned.focusVariantId);
+    }, [scanned]);
+
+    const closeScanned = () => {
+        setScanned(null);
+        scanRef.current?.focus();
     };
 
     const save = async (partySync) => {
@@ -233,13 +285,36 @@ const OrderFormEditor = () => {
 
             <div className="glass-card rounded-[24px] p-5">
                 <ScanPanel
+                    ref={scanRef}
                     title="Add designs"
-                    hint="Scan any hanging tag — set, semi-set or loose piece — and its pieces are added to the order. Adjust quantities below."
-                    placeholder="Set ID or piece ID, e.g. FL20500"
+                    hint="Type a design to see all its colours and enter pieces — or scan any hanging tag (set, semi-set or loose piece)."
+                    placeholder="Set ID or QR ID, e.g. FL20500"
+                    manualLabel="Type design"
+                    live={finder}
                     onScan={handleScan}
                     feedback={feedback}
                     busy={scanning}
                 />
+
+                {scanned && (
+                    <div className="mt-3.5">
+                        <VariantPane
+                            key={scanned.design.designId}
+                            ref={scanPaneRef}
+                            design={scanned.design}
+                            drafts={scanDrafts.drafts[scanned.design.designId] ?? {}}
+                            onDraft={(variantId, value) => scanDrafts.setDraft(scanned.design.designId, variantId, value)}
+                            existing={existingFor(items, scanned.design.designId)}
+                            focusVariantId={scanned.focusVariantId}
+                            onCommit={(quantities) => {
+                                applyQuantities(scanned.design, quantities);
+                                scanDrafts.clearDesign(scanned.design.designId);
+                                closeScanned();
+                            }}
+                            onClose={closeScanned}
+                        />
+                    </div>
+                )}
             </div>
 
             <div className="glass-card rounded-[24px] p-5">
@@ -255,10 +330,17 @@ const OrderFormEditor = () => {
                 {items.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-[#1E1B4B]/15 p-8 text-center">
                         <b className="block text-sm text-[#1E1B4B]">No items yet</b>
-                        <span className="text-sm text-[#1E1B4B]/55">Scan a hanging tag above to start.</span>
+                        <span className="text-sm text-[#1E1B4B]/55">Type a design code above, or scan a hanging tag, to start.</span>
                     </div>
                 ) : (
                     <div className="overflow-hidden rounded-2xl border border-white/50">
+                        <div className="hidden items-center gap-4 border-b border-white/50 bg-white/40 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1E1B4B]/45 md:flex">
+                            <span className="min-w-[200px] flex-1">Design · variant</span>
+                            <span className="w-20 text-right">Required pcs</span>
+                            <span className="w-24 text-right">In stock</span>
+                            <span className="w-28">Availability</span>
+                            <span className="w-7" />
+                        </div>
                         {items.map((item, index) => {
                             const short = item.quantityPcs - (item.availablePcs ?? 0);
 

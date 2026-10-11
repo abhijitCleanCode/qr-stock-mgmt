@@ -31,6 +31,11 @@ export function buildPartyColumns({ onEdit }) {
         { accessorKey: "transport", header: "Transport", cell: ({ row }) => row.original.transport || "—" },
         { accessorKey: "agent", header: "Agent", cell: ({ row }) => row.original.agent || "—" },
         {
+            accessorKey: "orderForms",
+            header: "Orders",
+            cell: ({ row }) => <span className="font-mono text-sm">{row.original.orderForms ?? 0}</span>,
+        },
+        {
             id: "actions",
             header: "",
             cell: ({ row }) => (
