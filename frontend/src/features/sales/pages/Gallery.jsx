@@ -211,13 +211,13 @@ const Gallery = () => {
 
   return (
     <div className="stock-out flex h-full flex-col gap-4 pb-4 font-sans">
-      <div className="glass-card shrink-0 rounded-[24px] p-5">
+      <div className="shrink-0">
         <h1 className="text-3xl font-bold tracking-tight text-[#1E1B4B]">
           Gallery
         </h1>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-          {MODES.map(({ key, label, hint, Icon }) => (
+        <div className="mt-4 flex gap-0.5">
+          {MODES.map(({ key, label }) => (
             <button
               key={key}
               type="button"
@@ -228,33 +228,18 @@ const Gallery = () => {
                 setNumberInput("");
               }}
               className={cn(
-                "flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors",
-                mode === key
-                  ? "border-emerald-500 bg-emerald-50/70"
-                  : "border-white/60 bg-white/50 hover:border-emerald-200",
+                "-mb-px border-b-2 border-transparent px-4 py-2.5 text-[13.5px] font-semibold text-slate-500",
+                mode === key && "border-emerald-600 text-slate-900",
               )}
             >
-              <span
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                  mode === key
-                    ? "bg-[#00694C] text-white"
-                    : "bg-white/70 text-[#1E1B4B]/60",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-              </span>
-              <span>
-                <b className="block text-sm text-[#1E1B4B]">{label}</b>
-                <span className="text-xs text-[#1E1B4B]/55">{hint}</span>
-              </span>
+              {label}
             </button>
           ))}
         </div>
 
         {mode !== "all" && (
           <div className="mt-4">
-            <div className="flex max-w-xl gap-2">
+            <div className="flex gap-2">
               <input
                 className="pill-input font-mono"
                 value={numberInput}
@@ -276,19 +261,6 @@ const Gallery = () => {
                 Fetch photos
               </button>
             </div>
-          </div>
-        )}
-
-        {!isError && items.length > 0 && (
-          <div className="mt-4">
-            <GalleryFilters
-              items={items}
-              filters={filters}
-              onChange={setFilters}
-              mode={mode}
-              matches={matches}
-              visibleCount={visible.length}
-            />
           </div>
         )}
       </div>
@@ -346,6 +318,20 @@ const Gallery = () => {
               >
                 Open {source.kind === "invoice" ? "invoice" : "order form"}
               </button>
+            </div>
+          )}
+
+          {/* Kept outside the scrolling area below so search and filters stay in view while the photos scroll. */}
+          {items.length > 0 && (
+            <div className="mb-4 shrink-0 border-b border-slate-200 pb-4">
+              <GalleryFilters
+                items={items}
+                filters={filters}
+                onChange={setFilters}
+                mode={mode}
+                matches={matches}
+                visibleCount={visible.length}
+              />
             </div>
           )}
 
