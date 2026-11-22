@@ -54,4 +54,9 @@ export const orderFormRoutes = [
         controller: { patch: orderFormController.cancelOrderForm },
         validators: { patch: validateRequest(idParamsSchema, "params") },
     },
+    {
+        path: "/:id/reopen",
+        controller: { patch: orderFormController.reopenOrderForm },
+        validators: { patch: validateRequest(idParamsSchema, "params") },
+    },
 ];

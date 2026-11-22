@@ -4,6 +4,7 @@ import {
     createOrderFormApi,
     getOrderFormApi,
     getOrderFormsApi,
+    reopenOrderFormApi,
     suggestOrderFormNumberApi,
     updateOrderFormApi,
 } from "../services/orderForm.api.js";
@@ -56,4 +57,10 @@ export function useCancelOrderFormApi() {
     const invalidate = useInvalidate();
 
     return useMutation({ mutationFn: cancelOrderFormApi, onSuccess: invalidate });
+}
+
+export function useReopenOrderFormApi() {
+    const invalidate = useInvalidate();
+
+    return useMutation({ mutationFn: reopenOrderFormApi, onSuccess: invalidate });
 }

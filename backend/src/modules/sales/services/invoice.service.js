@@ -94,6 +94,14 @@ class InvoiceService {
             const orderForm = await this._orderFormRepository.findById(tx, Number(payload.orderFormId));
             if (!orderForm) throw new ApiError(`Order form ${payload.orderFormId} not found.`, 404, "ORDER_FORM_NOT_FOUND");
 
+            if (orderForm.status === "CANCELLED") {
+                throw new ApiError(
+                    `Order form ${orderForm.formNumber} is cancelled. Reopen it before creating an invoice.`,
+                    409,
+                    "ORDER_FORM_CANCELLED",
+                );
+            }
+
             if (orderForm.status === "INVOICED") {
                 const existing = await this._invoiceRepository.findByOrderFormId(tx, orderForm.id);
                 throw new ApiError(

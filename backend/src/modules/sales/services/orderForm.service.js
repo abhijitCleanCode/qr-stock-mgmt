@@ -101,6 +101,15 @@ class OrderFormService {
                 );
             }
 
+            // A cancelled order form is not edited; reopen it first.
+            if (existing.status === "CANCELLED") {
+                throw new ApiError(
+                    `Order form ${existing.formNumber} is cancelled. Reopen it before editing.`,
+                    409,
+                    "ORDER_FORM_CANCELLED",
+                );
+            }
+
             const clash = await this._orderFormRepository.findByNumber(tx, number, formId);
             if (clash) throw duplicateNumberError("orderForm", number);
 
@@ -137,7 +146,31 @@ class OrderFormService {
             );
         }
 
+        // Already cancelled: nothing to change, return the form as it is.
+        if (existing.status === "CANCELLED") return this._loadOne(db, existing);
+
         const row = await this._orderFormRepository.setStatus(db, formId, "CANCELLED");
+
+        return this._loadOne(db, row);
+    }
+
+    // Only a cancelled form that was never invoiced can be reopened. Reopening puts it back to OPEN,
+    // so it can be edited and invoiced again.
+    async reopenOrderForm(id) {
+        const formId = Number(id);
+
+        const existing = await this._orderFormRepository.findById(db, formId);
+        if (!existing) throw notFoundError(formId);
+
+        if (existing.status !== "CANCELLED") {
+            throw new ApiError(
+                `Order form ${existing.formNumber} is not cancelled, so it can't be reopened.`,
+                409,
+                "ORDER_FORM_NOT_CANCELLED",
+            );
+        }
+
+        const row = await this._orderFormRepository.setStatus(db, formId, "OPEN");
 
         return this._loadOne(db, row);
     }

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Eye, FileText, Loader2, Pencil, Plus, Receipt, Search } from "lucide-react";
+import { toast } from "react-toastify";
+import { Ban, Eye, FileText, Loader2, Pencil, Plus, Receipt, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useOrderFormsApi } from "../hooks/useOrderFormsApi.js";
+import { useCancelOrderFormApi, useOrderFormsApi, useReopenOrderFormApi } from "../hooks/useOrderFormsApi.js";
 import { longDate, pcs } from "../utils/format.js";
 import StatusPill from "../components/StatusPill.jsx";
 import VariantChips from "../components/VariantChips.jsx";
@@ -22,6 +23,28 @@ const OrderForms = () => {
 
     const debouncedSearch = useDebouncedValue(search, 300);
     const { data: response, isPending } = useOrderFormsApi({ q: debouncedSearch, status: status || undefined });
+
+    const cancelForm = useCancelOrderFormApi();
+    const reopenForm = useReopenOrderFormApi();
+
+    const handleCancel = async (form) => {
+        if (!window.confirm(`Cancel order form ${form.formNumber}? It stays in the record and can be reopened.`)) return;
+        try {
+            await cancelForm.mutateAsync(form.id);
+            toast.success(`${form.formNumber} cancelled.`);
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
+
+    const handleReopen = async (form) => {
+        try {
+            await reopenForm.mutateAsync(form.id);
+            toast.success(`${form.formNumber} reopened.`);
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
 
     const orderForms = response?.data ?? [];
     const counts = response?.meta?.statusCounts ?? {};
@@ -130,7 +153,26 @@ const OrderForms = () => {
                                                 >
                                                     <Receipt className="h-3.5 w-3.5" /> Invoice
                                                 </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleCancel(form)}
+                                                    disabled={cancelForm.isPending}
+                                                    className="flex items-center gap-1 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                                >
+                                                    <Ban className="h-3.5 w-3.5" /> Cancel
+                                                </button>
                                             </>
+                                        )}
+
+                                        {form.status === "CANCELLED" && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleReopen(form)}
+                                                disabled={reopenForm.isPending}
+                                                className="neu-button flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[#1E1B4B] disabled:opacity-50"
+                                            >
+                                                <RotateCcw className="h-3.5 w-3.5" /> Reopen
+                                            </button>
                                         )}
                                     </div>
                                 </div>

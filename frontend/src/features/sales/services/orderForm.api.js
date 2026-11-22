@@ -17,3 +17,5 @@ export const createOrderFormApi = (payload) => request("/order-forms", { method:
 export const updateOrderFormApi = (id, payload) => request(`/order-forms/${id}`, { method: "PUT", body: JSON.stringify(payload) });
 
 export const cancelOrderFormApi = (id) => request(`/order-forms/${id}/cancel`, { method: "PATCH" });
+
+export const reopenOrderFormApi = (id) => request(`/order-forms/${id}/reopen`, { method: "PATCH" });

@@ -22,6 +22,15 @@ class OrderFormController {
         }
     };
 
+    reopenOrderForm = async (req, res, next) => {
+        try {
+            const result = await this._orderFormService.reopenOrderForm(req.params.id);
+            return res.status(200).json(new ApiResponse(200, result, `Order form ${result.formNumber} reopened.`));
+        } catch (error) {
+            next(error);
+        }
+    };
+
     cancelOrderForm = async (req, res, next) => {
         try {
             const result = await this._orderFormService.cancelOrderForm(req.params.id);

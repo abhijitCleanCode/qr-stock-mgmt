@@ -1,7 +1,7 @@
 import { useNavigate, useParams } from "react-router";
 import { toast } from "react-toastify";
-import { ArrowLeft, Download, Image, Loader2, Pencil, Printer, Receipt } from "lucide-react";
-import { useOrderFormApi } from "../hooks/useOrderFormsApi.js";
+import { ArrowLeft, Ban, Download, Image, Loader2, Pencil, Printer, Receipt, RotateCcw } from "lucide-react";
+import { useCancelOrderFormApi, useOrderFormApi, useReopenOrderFormApi } from "../hooks/useOrderFormsApi.js";
 import { orderFormCsvRows, orderFormHtml } from "../utils/documents.js";
 import { downloadCsv } from "../utils/csv.js";
 import { printHtml } from "../utils/print.js";
@@ -14,6 +14,27 @@ const OrderFormDetail = () => {
     const navigate = useNavigate();
     const { data: response, isPending, isError, error } = useOrderFormApi(id);
     const form = response?.data;
+    const cancelForm = useCancelOrderFormApi();
+    const reopenForm = useReopenOrderFormApi();
+
+    const handleCancel = async () => {
+        if (!window.confirm(`Cancel order form ${form.formNumber}? It stays in the record and can be reopened.`)) return;
+        try {
+            await cancelForm.mutateAsync(form.id);
+            toast.success(`${form.formNumber} cancelled.`);
+        } catch (err) {
+            toast.error(err.message);
+        }
+    };
+
+    const handleReopen = async () => {
+        try {
+            await reopenForm.mutateAsync(form.id);
+            toast.success(`${form.formNumber} reopened.`);
+        } catch (err) {
+            toast.error(err.message);
+        }
+    };
 
     if (isPending) {
         return <div className="flex items-center justify-center py-24"><Loader2 className="animate-spin text-[#00694C]" /></div>;
@@ -87,7 +108,26 @@ const OrderFormDetail = () => {
                                 >
                                     <Receipt className="h-4 w-4" /> Create Invoice
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={handleCancel}
+                                    disabled={cancelForm.isPending}
+                                    className="flex items-center gap-1.5 rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                    <Ban className="h-4 w-4" /> Cancel Order
+                                </button>
                             </>
+                        )}
+
+                        {form.status === "CANCELLED" && (
+                            <button
+                                type="button"
+                                onClick={handleReopen}
+                                disabled={reopenForm.isPending}
+                                className="neu-button flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-[#1E1B4B] disabled:opacity-50"
+                            >
+                                <RotateCcw className="h-4 w-4" /> Reopen
+                            </button>
                         )}
 
                         {form.invoice && (
