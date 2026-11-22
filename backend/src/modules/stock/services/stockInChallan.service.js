@@ -117,7 +117,7 @@ class StockInChallanService {
         const [lineRows, events, listRow] = await Promise.all([
             this._repository.findLines(db, id),
             this._repository.findEvents(db, id),
-            this._repository.list(db, { id, status: "all", sort: "new", limit: 1, offset: 0 }),
+            this._repository.list(db, { id, status: "all", limit: 1, offset: 0 }),
         ]);
 
         const transactionIds = lineRows.map((line) => line.transaction_id);

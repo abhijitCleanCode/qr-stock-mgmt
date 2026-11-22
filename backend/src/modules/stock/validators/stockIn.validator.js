@@ -201,7 +201,6 @@ export const stockInChallanListQuerySchema = z.object({
     from: z.string().date().optional(),
     to: z.string().date().optional(),
     status: z.enum(["active", "defects", "edited", "dropped", "all"]).default("active"),
-    sort: z.enum(["new", "old", "pcs"]).default("new"),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(500).default(8),
 });

@@ -32,12 +32,6 @@ const DATE_OPTIONS = [
   ["custom", "Custom range…"],
 ];
 
-const SORT_OPTIONS = [
-  ["new", "Newest first"],
-  ["old", "Oldest first"],
-  ["pcs", "Most pieces"],
-];
-
 
 const selectClass =
   "h-[38px] rounded-lg border border-slate-300 bg-white px-3 text-[13px] text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-[3px] focus:ring-emerald-500/10";
@@ -117,7 +111,6 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
       from: filters.dateRange === "custom" ? filters.from : "",
       to: filters.dateRange === "custom" ? filters.to : "",
       status: filters.status,
-      sort: filters.sort,
     }),
     [debouncedSearch, filters],
   );
@@ -177,9 +170,6 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
             – To <input type="date" min={filters.from} max={todayIso()} value={filters.to} onChange={(e) => set({ to: e.target.value, from: filters.from && e.target.value < filters.from ? e.target.value : filters.from })} className={selectClass} />
           </span>
         )}
-        <select className={selectClass} value={filters.sort} onChange={(e) => set({ sort: e.target.value })} aria-label="Sort">
-          {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
         {isFiltered && (
           <button type="button" onClick={() => { setFilters(DEFAULT_FILTERS); setShown(PAGE_SIZE); }} className="text-[13px] text-slate-500 hover:text-slate-900">
             Clear filters

@@ -60,10 +60,9 @@ function filterFragments({ id, search, jobber, dateRange, from, to, status }) {
     return where.length ? sql`where ${sql.join(where, sql` and `)}` : sql``;
 }
 
-function orderFragment(sort) {
-    if (sort === "pcs") return sql`order by total_pieces desc, c.serial desc`;
-    if (sort === "old") return sql`order by c.stock_date asc, c.serial asc`;
-    return sql`order by c.stock_date desc, c.serial desc`;
+// The register is always in SF number order, latest first, whatever filters are applied.
+function orderFragment() {
+    return sql`order by c.serial desc`;
 }
 
 class StockInChallanRepository {
@@ -123,7 +122,7 @@ class StockInChallanRepository {
     }
 
     async list(tx, filters) {
-        const { sort, limit, offset } = filters;
+        const { limit, offset } = filters;
         const result = await tx.execute(sql`
             select c.id, c.serial, c.jobber_name, c.challan_no, c.issued_challan_no, c.stock_date, c.status, c.remarks,
                    c.entered_by, c.created_at,
@@ -135,7 +134,7 @@ class StockInChallanRepository {
                    (select min(t.id) from stock_in_transactions t where t.challan_id = c.id) as first_transaction_id
             from stock_in_challans c
             ${filterFragments(filters)}
-            ${orderFragment(sort)}
+            ${orderFragment()}
             limit ${limit} offset ${offset}`);
         return result.rows;
     }
