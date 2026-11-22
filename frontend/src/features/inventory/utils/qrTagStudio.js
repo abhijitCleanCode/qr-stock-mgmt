@@ -136,7 +136,7 @@ export function buildDefectNarrative(variants, defectAction) {
     return "No QC defects logged for this batch — every count below matches the Set Matrix quantities exactly.";
   }
   const clauses = withDefects.map((v) => {
-    const action = defectAction === "return" ? "returned to the jobber" : "moved to factory seconds";
+    const action = defectAction === "return" ? "returned to the jobber" : "kept in stock like fresh stock";
     return `${v.qcDefects} defective ${v.colorName} pcs were ${action}`;
   });
   return `Read live from the post-QC results — not from what the challan said. ${clauses.join("; ")}.`;

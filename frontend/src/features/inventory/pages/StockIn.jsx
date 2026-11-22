@@ -19,7 +19,7 @@ import { useSaveStockInDraftApi, useStockInDraftApi } from "../hooks/useStockInD
 import { buildStockInPayload } from "../utils/buildStockInPayload";
 import { getVariantKey } from "../utils/variantKey";
 import { NO_DEFECT_CATEGORY } from "../utils/qcDefects";
-import { aggregateRows, computeVariantRow } from "../utils/qrTagStudio";
+import { computeVariantQc } from "../utils/qcGroups";
 import { buildTagData as buildBatchTagData, queuedEntries, toDisplayTag } from "../utils/qrBatchStudio";
 import SheetJob from "../components/qrCenter2/studio/SheetJob";
 import InwardDetailsStep from "../steps/stockIn/InwardDetailsStep";
@@ -73,29 +73,60 @@ const StockIn = () => {
     setVariantTotals((prev) => ({ ...prev, [key]: totals }));
   };
 
-  // QC per variant. Only what the user typed is stored (defective count + category); passed is
-  // always what Set Matrix received minus the defective pieces, so the two can never drift
-  // apart — even when Step 2's quantities change afterwards.
-  const [qcOverridesByKey, setQcOverridesByKey] = useState({});
+  // QC per variant, entered as groups of defective sets, semi sets and loose pieces (see
+  // utils/qcGroups.js). Only the groups are stored; the remaining sets, semi sets, loose pieces
+  // and the defect count are derived from them and from Set Matrix, so they can never drift apart.
+  const [qcGroupsByKey, setQcGroupsByKey] = useState({});
+  const handleQcGroupsChange = (key, groups) => {
+    setQcGroupsByKey((prev) => ({ ...prev, [key]: groups }));
+  };
+
+  const breakdownByKey = useMemo(() => {
+    const result = {};
+    for (const variant of selectedVariants) {
+      const key = getVariantKey(variant);
+      const totals = variantTotals[key];
+      const config = configs[key];
+      if (!totals || !config) continue;
+      result[key] = computeVariantQc({
+        setSizeIds: (totals.sizes ?? []).filter((size) => size.includedInSet).map((size) => size.id),
+        setsReceived: totals.setsTotal,
+        // Index is the semi set's key, so a defect group keeps pointing at the same bundle.
+        semiSetTypes: config.bundles.map((bundle, index) => ({
+          key: String(index),
+          sizeIds: Object.keys(bundle.composition).filter((sizeId) => Number(bundle.composition[sizeId]) > 0),
+          quantity: Number(bundle.quantity) || 0,
+        })),
+        loose: config.loosePieces,
+        groups: qcGroupsByKey[key] ?? {},
+      });
+    }
+    return result;
+  }, [selectedVariants, variantTotals, configs, qcGroupsByKey]);
+
+  // The challan's defect action, stored with the inward. Each defect carries its own keep or
+  // return choice, so this is "return" only when every defect is returned, and "seconds" otherwise.
+  const defectAction = useMemo(() => {
+    const defects = Object.values(breakdownByKey).reduce((sum, item) => sum + item.defectiveCount, 0);
+    const returned = Object.values(breakdownByKey).reduce((sum, item) => sum + item.returnedCount, 0);
+    return defects > 0 && returned === defects ? "return" : "seconds";
+  }, [breakdownByKey]);
+
   const qcByKey = useMemo(() => {
     const resolved = {};
     for (const [key, totals] of Object.entries(variantTotals)) {
-      const override = qcOverridesByKey[key];
-      const defects = Math.min(Math.max(Number(override?.defects) || 0, 0), totals.garmentsTotal);
+      const breakdown = breakdownByKey[key];
+      const defects = breakdown?.defectiveCount ?? 0;
+      const categories = [...new Set((breakdown?.defectLines ?? []).map((line) => line.category))];
       resolved[key] = {
         passed: totals.garmentsTotal - defects,
         defects,
-        category: override?.category ?? NO_DEFECT_CATEGORY,
+        category: categories.length === 1 ? categories[0] : NO_DEFECT_CATEGORY,
       };
     }
     return resolved;
-  }, [variantTotals, qcOverridesByKey]);
+  }, [variantTotals, breakdownByKey]);
 
-  const handleQcFieldChange = (key, patch) => {
-    setQcOverridesByKey((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
-  };
-
-  const [defectAction, setDefectAction] = useState("seconds");
   const [qcRemarks, setQcRemarks] = useState("");
 
   // QR Tag Studio: two independent switches, both on by default. Parent + Child tags every set
@@ -161,7 +192,7 @@ const StockIn = () => {
     const key = getVariantKey(variant);
     setSelectedVariants((prev) => prev.filter((item) => getVariantKey(item) !== key));
     setVariantTotals((prev) => omitKey(prev, key));
-    setQcOverridesByKey((prev) => omitKey(prev, key));
+    setQcGroupsByKey((prev) => omitKey(prev, key));
     setQrPerVariantSettings((prev) => omitKey(prev, key));
   };
 
@@ -169,13 +200,12 @@ const StockIn = () => {
     setSelectedVariants([]);
     resetConfigs();
     setVariantTotals({});
-    setQcOverridesByKey({});
+    setQcGroupsByKey({});
     setJobber({ id: null, name: "" });
     setChallanNo("");
     setIssuedChallanNo("");
     setChallanDate(todayAsIsoDate());
     setTriedSteps({});
-    setDefectAction("seconds");
     setQcRemarks("");
     setTagParentChild(true);
     setTagLoose(true);
@@ -205,9 +235,23 @@ const StockIn = () => {
     if (step === 2) {
       for (const variant of selectedVariants) {
         const key = getVariantKey(variant);
-        const qc = qcByKey[key];
-        if (qc && qc.defects > 0 && qc.category === NO_DEFECT_CATEGORY) {
-          errors[key] = `Pick a defect category for ${variant.designCode ? `${variant.designCode} · ` : ""}${variant.colorName}.`;
+        const breakdown = breakdownByKey[key];
+        if (!breakdown) continue;
+        const label = `${variant.designCode ? `${variant.designCode} · ` : ""}${variant.colorName}`;
+        if (breakdown.errors.length > 0) {
+          errors[key] = `${label}: ${breakdown.errors[0]}`;
+          continue;
+        }
+        const garments = variantTotals[key]?.garmentsTotal ?? 0;
+        const piecesToStock = garments - breakdown.returnedCount;
+        if (garments > 0 && piecesToStock <= 0) {
+          errors[key] = `${label}: every piece is returned to the jobber, so nothing would be stored for this variant.`;
+          continue;
+        }
+        const categories = new Set(breakdown.defectLines.map((line) => line.category));
+        // The backend stores one defect category per variant until it is updated to store one per line.
+        if (categories.size > 1) {
+          errors[key] = `${label}: more than one defect category. Use one category for this variant for now.`;
         }
       }
     }
@@ -256,8 +300,7 @@ const StockIn = () => {
     setSelectedVariants(saved.selectedVariants ?? []);
     hydrateConfigs(saved.configs ?? {});
     setVariantTotals(saved.variantTotals ?? {});
-    setQcOverridesByKey(saved.qcOverridesByKey ?? {});
-    setDefectAction(saved.defectAction ?? "seconds");
+    setQcGroupsByKey(saved.qcGroupsByKey ?? {});
     setQcRemarks(saved.qcRemarks ?? "");
     // Drafts saved before the two tag switches existed carry a single printStrategy.
     setTagParentChild(saved.tagParentChild ?? saved.printStrategy !== "parent");
@@ -278,8 +321,7 @@ const StockIn = () => {
     // Persisted so a draft resumed past Step 2 still has its totals — SetMatrixVariantCard only
     // reports them while Step 2 is mounted.
     variantTotals,
-    qcOverridesByKey,
-    defectAction,
+    qcGroupsByKey,
     qcRemarks,
     tagParentChild,
     tagLoose,
@@ -421,6 +463,8 @@ const StockIn = () => {
       tagParentChild,
       qrPerVariantSettings: effectiveQrSettings,
       qcByKey,
+      qcGroupsByKey,
+      breakdownByKey,
       printOnConfirm: false,
       printerId,
       serialStarts: printConfig.serialStarts,
@@ -471,21 +515,6 @@ const StockIn = () => {
   const stepsRef = useRef(null);
   const handleAdvanceByKeyboard = useCallback(() => document.getElementById("stock-in-next")?.click(), []);
   useWizardKeyboardNav({ containerRef: stepsRef, enabled: wizard.activeStep <= 2, onAdvance: handleAdvanceByKeyboard });
-
-  // Totals the Summary announces, from the same rows the QR Tag Studio queue uses.
-  const tagCounts = useMemo(() => {
-    const rows = selectedVariants.map((variant) => {
-      const key = getVariantKey(variant);
-      const totals = variantTotals[key] ?? { setsTotal: 0, semiSetsTotal: 0, looseTotal: 0 };
-      return computeVariantRow(
-        { key, setsTotal: totals.setsTotal, semiSetsTotal: totals.semiSetsTotal, looseTotal: totals.looseTotal, qcPassed: qcByKey[key]?.passed ?? 0 },
-        printStrategy,
-        effectiveQrSettings,
-      );
-    });
-    const aggregate = aggregateRows(rows);
-    return { parents: aggregate.parent, children: aggregate.child, loose: aggregate.loose };
-  }, [selectedVariants, variantTotals, qcByKey, printStrategy, effectiveQrSettings]);
 
   const sizeLabelsById = useMemo(
     () => Object.fromEntries(Object.values(variantTotals).flatMap((totals) => (totals.sizes ?? []).map((size) => [String(size.id), size.sizeLabel]))),
@@ -586,10 +615,10 @@ const StockIn = () => {
           <QcDefectStep
             selectedVariants={selectedVariants}
             variantTotals={variantTotals}
-            qcByKey={qcByKey}
-            onQcFieldChange={handleQcFieldChange}
-            defectAction={defectAction}
-            onDefectActionChange={setDefectAction}
+            configs={configs}
+            breakdownByKey={breakdownByKey}
+            groupsByKey={qcGroupsByKey}
+            onGroupsChange={handleQcGroupsChange}
             qcRemarks={qcRemarks}
             onQcRemarksChange={setQcRemarks}
             errors={stepErrors[2]}
@@ -629,13 +658,13 @@ const StockIn = () => {
             selectedVariants={selectedVariants}
             variantTotals={variantTotals}
             qcByKey={qcByKey}
+            breakdownByKey={breakdownByKey}
             configs={configs}
             sizeLabelsById={sizeLabelsById}
             defectAction={defectAction}
             challanNo={challanNo}
             issuedChallanNo={issuedChallanNo}
             nextSerial={nextSerial}
-            tagCounts={tagCounts}
           />
         )}
       </div>
