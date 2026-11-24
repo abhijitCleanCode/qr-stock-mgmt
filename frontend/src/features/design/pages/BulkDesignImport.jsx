@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Download, FileSpreadsheet, Loader2, Upload } from "lucide-react";
@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { bulkPreviewDesignsApi, registerDesignApi } from "../services/design.api.js";
 import { BULK_MAX_DESIGNS, BULK_TEMPLATE_CSV, buildBulkPlan } from "../utils/bulkDesignImport.js";
+import { IMPORT_FILE_ACCEPT, readImportFileAsCsv } from "../utils/readImportFile.js";
 import { createPlaceholderPhoto } from "../utils/placeholderPhoto.js";
 
 const Sheet = ({ children, className = "" }) => (
@@ -40,6 +41,7 @@ const downloadTemplate = () => {
 const BulkDesignImport = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const fileInput = useRef(null);
 
   const [csvText, setCsvText] = useState("");
   const [csvName, setCsvName] = useState("");
@@ -64,7 +66,8 @@ const BulkDesignImport = () => {
   const handleCsv = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setCsvText(await file.text());
+    event.target.value = "";
+    setCsvText(await readImportFileAsCsv(file));
     setCsvName(file.name);
     setChecked(null);
     setResults(null);
@@ -157,8 +160,11 @@ const BulkDesignImport = () => {
 
       <Sheet>
         <div className="flex flex-col gap-2">
-          <span className="text-[13px] font-semibold text-slate-800">1. Designs file (CSV)</span>
-          <input type="file" accept=".csv,text/csv" onChange={handleCsv} disabled={isImporting} className="text-sm" />
+          <span className="text-[13px] font-semibold text-slate-800">1. Designs file (Excel or CSV)</span>
+          <input ref={fileInput} type="file" accept={IMPORT_FILE_ACCEPT} onChange={handleCsv} disabled={isImporting} className="hidden" />
+          <Button type="button" variant="outline" onClick={() => fileInput.current?.click()} disabled={isImporting} className="w-fit gap-1.5 transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
+            <Upload className="size-3.5" /> Upload Excel file
+          </Button>
           {csvName && <span className="text-xs text-slate-500"><FileSpreadsheet className="mr-1 inline size-3.5" />{csvName}</span>}
           <Button type="button" variant="outline" size="sm" onClick={downloadTemplate} className="w-fit gap-1.5">
             <Download className="size-3.5" /> Download template
