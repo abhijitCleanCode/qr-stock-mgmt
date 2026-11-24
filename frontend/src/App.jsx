@@ -6,6 +6,7 @@ import MainLayout from "./layouts/MainLayout";
 import Designs from "./features/design/pages/Designs";
 import CreateDesign from "./features/design/pages/CreateDesign";
 import EditDesign from "./features/design/pages/EditDesign";
+import BulkDesignImport from "./features/design/pages/BulkDesignImport";
 import StockIn from "./features/inventory/pages/StockIn";
 import StockInDashboard from "./features/inventory/pages/StockInDashboard";
 import QrCenter from "./features/inventory/pages/QrCenter";
@@ -34,6 +35,7 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/designs" element={<Designs />} />
           <Route path="/add-designs" element={<CreateDesign />} />
+          <Route path="/designs/bulk-import" element={<BulkDesignImport />} />
           <Route path="/designs/:id/edit" element={<EditDesign />} />
           <Route path="/stock-in" element={<StockInDashboard />} />
           <Route path="/stock-in/new" element={<StockIn />} />

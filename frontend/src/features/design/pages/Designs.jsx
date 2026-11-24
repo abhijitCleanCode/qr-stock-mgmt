@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { toast } from "react-toastify";
 import { useDesignInfiniteListApi } from "../hooks/useDesignListApi";
+import { useDesignDeleteApi } from "../hooks/useDesignDeleteApi";
 import DesignCard from "../components/dashboard/DesignCard";
 import DesignPreviewDrawer from "../components/dashboard/DesignPreviewDrawer";
 
@@ -37,6 +39,15 @@ const Designs = () => {
 
   const editDesign = (design) => navigate(`/designs/${design.id}/edit`);
 
+  const deleteDesign = useDesignDeleteApi();
+  const handleDelete = (design) => {
+    if (!window.confirm(`Delete design ${design.code ?? design.itemName}? This cannot be undone.`)) return;
+    deleteDesign.mutate(design.id, {
+      onSuccess: () => toast.success(`Deleted ${design.code ?? design.itemName}.`),
+      onError: (error) => toast.error(error.message),
+    });
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <Sheet>
@@ -47,9 +58,14 @@ const Designs = () => {
               Every registered design, its set composition and colour variants — preview, share or edit any of them right from here.
             </p>
           </div>
-          <Button type="button" onClick={() => navigate("/add-designs")} className="gap-2 rounded-full bg-emerald-600 px-5 text-[13.5px] font-semibold text-white hover:bg-emerald-700">
-            <Plus className="size-4" /> Register New Design
-          </Button>
+          <div className="flex flex-wrap gap-2.5">
+            <Button type="button" variant="outline" onClick={() => navigate("/designs/bulk-import")} className="gap-2 rounded-full px-5 text-[13.5px] font-semibold">
+              <Upload className="size-4" /> Bulk import
+            </Button>
+            <Button type="button" onClick={() => navigate("/add-designs")} className="gap-2 rounded-full bg-emerald-600 px-5 text-[13.5px] font-semibold text-white hover:bg-emerald-700">
+              <Plus className="size-4" /> Register New Design
+            </Button>
+          </div>
         </div>
       </Sheet>
 
@@ -118,7 +134,7 @@ const Designs = () => {
           <>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[18px]">
               {designs.map((design) => (
-                <DesignCard key={design.id} design={design} onEdit={editDesign} onShowDetails={(item) => setPreviewId(item.id)} />
+                <DesignCard key={design.id} design={design} onEdit={editDesign} onDelete={handleDelete} onShowDetails={(item) => setPreviewId(item.id)} />
               ))}
             </div>
             {listQuery.hasNextPage && (

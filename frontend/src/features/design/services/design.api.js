@@ -180,3 +180,34 @@ export const updateDesignApi = async ({ id, colorVariants, designSizes, semiSets
 
     return data;
 };
+
+// Bulk import preview: checks the designs read from a CSV before anything is saved. Returns
+// { designs: [{ code, exists }], newLookups: { jobbers, qualities, patterns, itemNames } }.
+export const bulkPreviewDesignsApi = async (designs) => {
+    const response = await fetch(`${baseURL}/designs/bulk-preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ designs }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Couldn't check the file.");
+    }
+
+    return data;
+};
+
+// Deletes a design entered by mistake. The server refuses (409) once stock or sales exist for it.
+export const deleteDesignApi = async (id) => {
+    const response = await fetch(`${baseURL}/designs/${id}`, { method: "DELETE" });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Couldn't delete the design.");
+    }
+
+    return data;
+};

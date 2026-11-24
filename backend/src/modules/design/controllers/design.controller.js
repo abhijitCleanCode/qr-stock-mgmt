@@ -1,10 +1,36 @@
 import designService from "../services/design.service.js";
 import designMasterService from "../services/designMaster.service.js";
+import designBulkPreviewService from "../services/designBulkPreview.service.js";
+import designDeleteService from "../services/designDelete.service.js";
 import { ApiResponse } from "../../../core/apiResponse.js";
 
 class DesignController {
     _designService = designService;
     _designMasterService = designMasterService;
+    _designBulkPreviewService = designBulkPreviewService;
+    _designDeleteService = designDeleteService;
+
+    // Deletes a design entered by mistake. Refused (409) once stock or sales exist for it.
+    deleteDesign = async (req, res, next) => {
+        try {
+            const response = await this._designDeleteService.deleteDesign(req.params.id);
+
+            return res.status(200).json(new ApiResponse(200, response, "Design deleted."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    // Bulk import preview (Design Master): read-only check of the designs in a CSV file.
+    bulkPreview = async (req, res, next) => {
+        try {
+            const response = await this._designBulkPreviewService.preview(req.body.designs);
+
+            return res.status(200).json(new ApiResponse(200, response, "Bulk import preview ready."));
+        } catch (error) {
+            next(error);
+        }
+    };
 
     RegisterDesign = async (req, res, next) => {
         const files = req.files ?? [];

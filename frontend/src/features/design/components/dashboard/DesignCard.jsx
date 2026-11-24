@@ -1,4 +1,4 @@
-import { ImageIcon, Pencil } from "lucide-react";
+import { ImageIcon, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -6,7 +6,7 @@ const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 
 // One design on the Design Master dashboard: first variant's photo, colour swatches, identity,
 // set composition, price, and the Edit / Show Design Details actions.
-const DesignCard = ({ design, onEdit, onShowDetails }) => {
+const DesignCard = ({ design, onEdit, onDelete, onShowDetails }) => {
   const variants = design.colorVariants ?? [];
   const hero = variants[0]?.imageUrl;
   const meta = [design.name, design.quality, design.jobberName].filter(Boolean).join(" · ");
@@ -59,15 +59,26 @@ const DesignCard = ({ design, onEdit, onShowDetails }) => {
               ₹{inr.format(design.defaultSellingPricePerPiece ?? 0)}
               <span className="text-[10.5px] font-medium text-slate-400">/pc</span>
             </span>
-            <button
-              type="button"
-              onClick={() => onEdit(design)}
-              title="Edit design"
-              aria-label={`Edit ${design.code ?? design.itemName}`}
-              className="grid size-[30px] place-items-center rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-            >
-              <Pencil className="size-3.5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => onDelete(design)}
+                title="Delete design"
+                aria-label={`Delete ${design.code ?? design.itemName}`}
+                className="grid size-[30px] place-items-center rounded-full border border-red-200 bg-white text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onEdit(design)}
+                title="Edit design"
+                aria-label={`Edit ${design.code ?? design.itemName}`}
+                className="grid size-[30px] place-items-center rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            </div>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => onShowDetails(design)} className="w-full gap-1.5 rounded-full text-xs font-semibold">
             <ImageIcon className="size-3.5" /> Show Design Details

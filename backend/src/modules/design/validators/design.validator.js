@@ -172,3 +172,22 @@ export const designDraftSchema = z.object({
     currentStep: z.number().int().min(0).max(2).default(0),
     state: z.record(z.string(), z.unknown()),
 });
+
+// Bulk import (Design Master): a preview of the designs in one CSV, checked before anything is
+// saved. Sent as JSON because it carries no photos — the photos are only uploaded on import.
+export const BULK_IMPORT_MAX_DESIGNS = 100;
+
+export const bulkDesignPreviewSchema = z.object({
+    designs: z
+        .array(
+            z.object({
+                code: z.string().trim().min(1).max(60),
+                pattern: z.string().trim().min(1).max(NAME_MAX_LENGTH),
+                itemName: z.string().trim().min(1).max(NAME_MAX_LENGTH),
+                quality: z.string().trim().min(1).max(NAME_MAX_LENGTH),
+                jobberName: z.string().trim().max(NAME_MAX_LENGTH).optional(),
+            })
+        )
+        .min(1, "The file has no designs.")
+        .max(BULK_IMPORT_MAX_DESIGNS, `Import at most ${BULK_IMPORT_MAX_DESIGNS} designs at a time.`),
+});

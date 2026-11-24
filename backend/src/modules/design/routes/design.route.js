@@ -2,7 +2,7 @@ import upload from "../../../app/middlewares/multer.middleware.js";
 import designController from "../controllers/design.controller.js";
 import designDraftController from "../controllers/designDraft.controller.js";
 import { validateRequest } from "../../../core/validateRequest.js";
-import { colorVariantSizesParamsSchema, designDraftSchema, designIdParamsSchema, listDesignsQuerySchema, registerDesignSchema, updateDesignSchema, searchDesignsQuerySchema, searchJobbersQuerySchema, searchQualitiesQuerySchema, searchPatternsQuerySchema } from "../validators/design.validator.js";
+import { bulkDesignPreviewSchema, colorVariantSizesParamsSchema, designDraftSchema, designIdParamsSchema, listDesignsQuerySchema, registerDesignSchema, updateDesignSchema, searchDesignsQuerySchema, searchJobbersQuerySchema, searchQualitiesQuerySchema, searchPatternsQuerySchema } from "../validators/design.validator.js";
 
 // Client contract: files are sent under the repeated "images" field, and the Nth file
 // corresponds to the Nth entry in colorVariants — one image per variant, in matching order.
@@ -85,6 +85,16 @@ export const designRoutes = [
             get: validateRequest(colorVariantSizesParamsSchema, "params")
         }
     },
+    // Bulk import preview (Design Master). Read-only; the import itself posts each design to "/".
+    {
+        path: "/bulk-preview",
+        controller: {
+            post: designController.bulkPreview,
+        },
+        validators: {
+            post: validateRequest(bulkDesignPreviewSchema),
+        },
+    },
     // Register Design wizard drafts (resumed from the Design Master dashboard).
     {
         path: "/drafts",
@@ -101,6 +111,7 @@ export const designRoutes = [
         controller: {
             get: designController.getDesign,
             put: designController.updateDesign,
+            delete: designController.deleteDesign,
         },
         middlewares: {
             put: [upload.array("images", MAX_VARIANT_IMAGES)],
@@ -108,6 +119,7 @@ export const designRoutes = [
         validators: {
             get: validateRequest(designIdParamsSchema, "params"),
             put: [validateRequest(designIdParamsSchema, "params"), validateRequest(updateDesignSchema)],
+            delete: validateRequest(designIdParamsSchema, "params"),
         },
     },
 ]
