@@ -57,23 +57,23 @@ test("a clean design becomes the register payload, with the placeholder on every
   assert.equal(plan.designs.length, 1);
   const [design] = plan.designs;
   assert.deepEqual(design.errors, []);
-  assert.equal(design.payload.code, "kp100");
-  assert.equal(design.payload.name, "Anarkali");
-  assert.equal(design.payload.itemName, "Tunic");
+  assert.equal(design.payload.code, "KP100");
+  assert.equal(design.payload.name, "ANARKALI");
+  assert.equal(design.payload.itemName, "TUNIC");
   assert.equal(design.payload.defaultSellingPricePerPiece, 850);
   assert.deepEqual(design.payload.colorVariants, [
-    { colorName: "Red", colorHex: "#C0392B" },
-    { colorName: "Blue", colorHex: "#1F3A93" },
+    { colorName: "RED", colorHex: "#C0392B" },
+    { colorName: "BLUE", colorHex: "#1F3A93" },
   ]);
   assert.deepEqual(design.payload.designSizes.map((s) => s.sizeLabel), ["S", "M", "L"]);
-  assert.deepEqual(design.payload.semiSets, [{ label: "Top", displayOrder: 0, sizeLabels: ["S", "M"] }]);
+  assert.deepEqual(design.payload.semiSets, [{ label: "TOP", displayOrder: 0, sizeLabels: ["S", "M"] }]);
   assert.equal(design.payload.images.length, 2);
   assert.ok(design.payload.images.every((image) => image === PLACEHOLDER));
 });
 
 test("a typed colour hex overrides the one from the colour name", () => {
   const plan = buildBulkPlan(csv(row({ color_hex: "#123456" })), PLACEHOLDER);
-  assert.deepEqual(plan.designs[0].payload.colorVariants, [{ colorName: "Red", colorHex: "#123456" }]);
+  assert.deepEqual(plan.designs[0].payload.colorVariants, [{ colorName: "RED", colorHex: "#123456" }]);
 });
 
 test("an unknown colour name without a hex gets the grey fallback and is still imported", () => {
@@ -144,4 +144,11 @@ test("the template produces a clean plan with no photos or hex needed", () => {
   assert.deepEqual(plan.fileErrors, []);
   assert.deepEqual(plan.designs[0].errors, []);
   assert.equal(plan.designs[0].payload.colorVariants.length, 2);
+});
+
+test("every stored text value is sent in capitals", () => {
+  const plan = buildBulkPlan(csv(row({ notes: "soft cotton", semi_sets: "top:s;m" }), row({ color_name: "navy", notes: "soft cotton", semi_sets: "top:s;m" })), PLACEHOLDER);
+  const payload = plan.designs[0].payload;
+  const texts = [payload.code, payload.name, payload.itemName, payload.quality, payload.jobberName, payload.notes, ...payload.colorVariants.map((v) => v.colorName), ...payload.designSizes.map((s) => s.sizeLabel), ...payload.semiSets.flatMap((s) => [s.label, ...s.sizeLabels])];
+  for (const text of texts.filter(Boolean)) assert.equal(text, text.toUpperCase(), text);
 });

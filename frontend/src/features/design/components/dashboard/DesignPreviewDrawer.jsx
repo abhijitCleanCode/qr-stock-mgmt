@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { Check, Download, Loader2, Pencil, Share2, X } from "lucide-react";
+import { Check, Download, Loader2, Pencil, Share2, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -45,10 +45,12 @@ const shareText = (design, variants) =>
 // Right-hand drawer: the design's details, its variant photos (with stock on hand), and sharing
 // the selected photos — through the device's share sheet where the browser supports files,
 // otherwise as downloads plus a ready-made message.
-const DesignPreviewDrawer = ({ designId, onClose, onEdit }) => {
+const DesignPreviewDrawer = ({ designId, onClose, onEdit, onDelete }) => {
   const { data, isLoading, isError, error } = useDesignDetailApi(designId);
   const design = data?.data;
   const variants = design?.colorVariants ?? [];
+  // A design with any stock can't be deleted (the server refuses it too); say so before the click.
+  const hasStock = variants.some((variant) => (variant.piecesInStock ?? 0) > 0);
   // Photos the user has un-ticked (everything starts selected).
   const [deselected, setDeselected] = useState(() => new Set());
   const [isSharing, setIsSharing] = useState(false);
@@ -229,7 +231,7 @@ const DesignPreviewDrawer = ({ designId, onClose, onEdit }) => {
                   {selected.length} of {variants.length} selected
                 </span>
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => onEdit(design)} className="gap-1.5 rounded-full text-xs">
+                  <Button type="button" variant="outline" size="sm" onClick={() => onEdit(design)} className="gap-1.5 rounded-full text-xs transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
                     <Pencil className="size-3.5" /> Edit This Design
                   </Button>
                   <Button
@@ -244,6 +246,24 @@ const DesignPreviewDrawer = ({ designId, onClose, onEdit }) => {
                   </Button>
                 </div>
               </div>
+
+              {onDelete && (
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+                  <span className="text-[12px] text-slate-500">
+                    {hasStock ? "This design has stock, so it can't be deleted." : "Delete only a design that was entered by mistake."}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDelete(design)}
+                    disabled={hasStock}
+                    className="gap-1.5 rounded-full border-red-300 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <Trash2 className="size-3.5" /> Delete design
+                  </Button>
+                </div>
+              )}
 
               {fallback && (
                 <div className="mt-3.5">
@@ -264,7 +284,7 @@ const DesignPreviewDrawer = ({ designId, onClose, onEdit }) => {
                     ))}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2.5">
-                    <Button type="button" variant="outline" size="sm" onClick={copyMessage} className="rounded-full text-xs">
+                    <Button type="button" variant="outline" size="sm" onClick={copyMessage} className="rounded-full text-xs transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
                       Copy message
                     </Button>
                     <a

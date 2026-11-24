@@ -221,14 +221,15 @@ function buildDesign(code, rows, placeholder) {
   if (!/^\d+$/.test(price)) errors.push("Selling price must be a whole number, e.g. 850.");
   if (first.notes.length > NOTES_MAX_LENGTH) errors.push(`Notes must be at most ${NOTES_MAX_LENGTH} characters.`);
 
+  // Sizes are compared without regard to case: "s" and "S" are the same size.
   const sizes = parseSizes(first.sizes);
   if (sizes.length === 0) errors.push("Sizes are required, separated by semicolons, e.g. S;M;L.");
-  if (new Set(sizes).size !== sizes.length) errors.push("Sizes must not repeat.");
+  if (new Set(sizes.map((size) => size.toUpperCase())).size !== sizes.length) errors.push("Sizes must not repeat.");
 
   const { semiSets, errors: semiErrors } = parseSemiSets(first.semi_sets);
   errors.push(...semiErrors);
   for (const semi of semiSets) {
-    const unknown = semi.sizeLabels.filter((size) => !sizes.includes(size));
+    const unknown = semi.sizeLabels.filter((size) => !sizes.some((known) => known.toUpperCase() === size.toUpperCase()));
     if (unknown.length > 0) errors.push(`Semi set "${semi.label}" uses sizes not in the design: ${unknown.join(", ")}.`);
   }
 
@@ -244,22 +245,27 @@ function buildDesign(code, rows, placeholder) {
     const hex = row.color_hex || colorHexFor(row.color_name);
     if (!/^#[0-9a-fA-F]{6}$/.test(hex)) errors.push(`Row ${row.line}: colour hex must look like #C0392B.`);
 
-    colorVariants.push({ colorName: collapse(row.color_name), colorHex: hex });
+    colorVariants.push({ colorName: collapse(row.color_name).toUpperCase(), colorHex: hex });
   }
 
+  // Everything is sent in capitals, the same way the server stores it, so the preview shows what gets saved.
   const design = { code: collapse(code), rowCount: rows.length, errors, payload: null };
   if (errors.length === 0) {
     design.payload = {
-      code: design.code,
-      name: collapse(first.pattern),
-      itemName: collapse(first.item_name),
-      quality: collapse(first.quality),
-      jobberName: first.jobber ? collapse(first.jobber) : undefined,
+      code: design.code.toUpperCase(),
+      name: collapse(first.pattern).toUpperCase(),
+      itemName: collapse(first.item_name).toUpperCase(),
+      quality: collapse(first.quality).toUpperCase(),
+      jobberName: first.jobber ? collapse(first.jobber).toUpperCase() : undefined,
       defaultSellingPricePerPiece: Number(price),
-      notes: first.notes || undefined,
+      notes: first.notes ? first.notes.toUpperCase() : undefined,
       colorVariants,
-      designSizes: sizes.map((sizeLabel, index) => ({ sizeLabel, displayOrder: index })),
-      semiSets: semiSets.map((semi, index) => ({ label: semi.label, displayOrder: index, sizeLabels: semi.sizeLabels })),
+      designSizes: sizes.map((sizeLabel, index) => ({ sizeLabel: sizeLabel.toUpperCase(), displayOrder: index })),
+      semiSets: semiSets.map((semi, index) => ({
+        label: semi.label.toUpperCase(),
+        displayOrder: index,
+        sizeLabels: semi.sizeLabels.map((size) => size.toUpperCase()),
+      })),
       images: rows.map(() => placeholder),
     };
   }

@@ -23,7 +23,7 @@ test("an Excel workbook is read into rows the importer accepts", async () => {
   const plan = buildBulkPlan(text, PLACEHOLDER);
   assert.deepEqual(plan.fileErrors, []);
   assert.deepEqual(plan.designs[0].errors, []);
-  assert.deepEqual(plan.designs[0].payload.colorVariants.map((v) => v.colorName), ["Red", "Blue"]);
+  assert.deepEqual(plan.designs[0].payload.colorVariants.map((v) => v.colorName), ["RED", "BLUE"]);
   assert.equal(plan.designs[0].payload.defaultSellingPricePerPiece, 850);
 });
 

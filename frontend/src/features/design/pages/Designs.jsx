@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Loader2, Plus, Search, Upload } from "lucide-react";
+import { ChevronDown, Loader2, Plus, Search, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -59,7 +59,7 @@ const Designs = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2.5">
-            <Button type="button" variant="outline" onClick={() => navigate("/designs/bulk-import")} className="gap-2 rounded-full px-5 text-[13.5px] font-semibold">
+            <Button type="button" variant="outline" onClick={() => navigate("/designs/bulk-import")} className="gap-2 rounded-full px-5 text-[13.5px] font-semibold transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
               <Upload className="size-4" /> Bulk import
             </Button>
             <Button type="button" onClick={() => navigate("/add-designs")} className="gap-2 rounded-full bg-emerald-600 px-5 text-[13.5px] font-semibold text-white hover:bg-emerald-700">
@@ -80,18 +80,21 @@ const Designs = () => {
           />
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2.5">
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value)}
-            aria-label="Sort designs"
-            className="cursor-pointer rounded-[9px] border-[1.5px] border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 outline-none focus:border-emerald-500"
-          >
-            {SORTS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value)}
+              aria-label="Sort designs"
+              className="h-10 cursor-pointer appearance-none rounded-full border border-slate-300 bg-white py-0 pl-4 pr-10 text-[13.5px] font-medium text-slate-700 shadow-sm outline-none transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            >
+              {SORTS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
+          </div>
           {hasFilters && (
             <Button
               type="button"
@@ -101,7 +104,7 @@ const Designs = () => {
                 setQuery("");
                 setSort("new");
               }}
-              className="rounded-full text-xs"
+              className="rounded-full text-xs transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700"
             >
               Clear filters
             </Button>
@@ -121,7 +124,7 @@ const Designs = () => {
         ) : listQuery.isError ? (
           <div className="py-16 text-center text-sm">
             <p className="text-red-600">{listQuery.error.message}</p>
-            <Button type="button" variant="outline" className="mt-3" onClick={() => listQuery.refetch()}>
+            <Button type="button" variant="outline" className="mt-3 transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700" onClick={() => listQuery.refetch()}>
               Try again
             </Button>
           </div>
@@ -134,7 +137,7 @@ const Designs = () => {
           <>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[18px]">
               {designs.map((design) => (
-                <DesignCard key={design.id} design={design} onEdit={editDesign} onDelete={handleDelete} onShowDetails={(item) => setPreviewId(item.id)} />
+                <DesignCard key={design.id} design={design} onEdit={editDesign} onShowDetails={(item) => setPreviewId(item.id)} />
               ))}
             </div>
             {listQuery.hasNextPage && (
@@ -144,7 +147,7 @@ const Designs = () => {
                   variant="outline"
                   onClick={() => listQuery.fetchNextPage()}
                   disabled={listQuery.isFetchingNextPage}
-                  className="gap-2 rounded-full"
+                  className="gap-2 rounded-full transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700"
                 >
                   {listQuery.isFetchingNextPage && <Loader2 className="size-4 animate-spin" />}
                   Load more designs
@@ -159,6 +162,10 @@ const Designs = () => {
         <DesignPreviewDrawer
           designId={previewId}
           onClose={() => setPreviewId(null)}
+          onDelete={(design) => {
+            setPreviewId(null);
+            handleDelete(design);
+          }}
           onEdit={(design) => {
             setPreviewId(null);
             editDesign(design);

@@ -17,5 +17,7 @@ export function useDesignInfiniteListApi({ limit = 24, keyword, sort }) {
         initialPageParam: 1,
         getNextPageParam: (lastPage) => (lastPage.meta.page < lastPage.meta.totalPages ? lastPage.meta.page + 1 : undefined),
         placeholderData: keepPreviousData,
+        // Coming back to the page shows the list at once and doesn't refetch it for a minute.
+        staleTime: 60_000,
     });
 }
