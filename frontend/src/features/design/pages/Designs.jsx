@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { ChevronDown, Loader2, Plus, Search, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import ActionModal from "@/components/shared/ActionModal";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { toast } from "react-toastify";
 import { useDesignInfiniteListApi } from "../hooks/useDesignListApi";
@@ -39,12 +40,24 @@ const Designs = () => {
 
   const editDesign = (design) => navigate(`/designs/${design.id}/edit`);
 
+  // Deleting asks for confirmation in the app's own dialog, not the browser's pop-up.
   const deleteDesign = useDesignDeleteApi();
-  const handleDelete = (design) => {
-    if (!window.confirm(`Delete design ${design.code ?? design.itemName}? This cannot be undone.`)) return;
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const pendingLabel = pendingDelete ? pendingDelete.code ?? pendingDelete.itemName : "";
+
+  const handleDelete = (design) => setPendingDelete(design);
+  const cancelDelete = () => setPendingDelete(null);
+  const confirmDelete = () => {
+    const design = pendingDelete;
     deleteDesign.mutate(design.id, {
-      onSuccess: () => toast.success(`Deleted ${design.code ?? design.itemName}.`),
-      onError: (error) => toast.error(error.message),
+      onSuccess: () => {
+        setPendingDelete(null);
+        toast.success(`Deleted ${design.code ?? design.itemName}.`);
+      },
+      onError: (error) => {
+        setPendingDelete(null);
+        toast.error(error.message);
+      },
     });
   };
 
@@ -157,6 +170,35 @@ const Designs = () => {
           </>
         )}
       </Sheet>
+
+      <ActionModal
+        openActionModal={pendingDelete !== null}
+        setOpenActionModal={(open) => !open && cancelDelete()}
+        locked={deleteDesign.isPending}
+        title="Delete this design?"
+        className="max-w-md"
+      >
+        <div className="px-5 py-5 text-center text-sm text-slate-600 sm:px-6">
+          <p>
+            Design <b className="font-mono text-slate-900">{pendingLabel}</b> and its colour photos will be removed. This cannot be undone.
+          </p>
+          <p className="mt-2 text-xs text-slate-500">A design with stock or sales recorded against it can't be deleted.</p>
+          <div className="mt-6 flex justify-center gap-2.5">
+            <Button type="button" variant="outline" onClick={cancelDelete} disabled={deleteDesign.isPending} className="rounded-full px-5 transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={confirmDelete}
+              disabled={deleteDesign.isPending}
+              className="gap-2 rounded-full bg-red-600 px-5 text-white hover:bg-red-700"
+            >
+              {deleteDesign.isPending && <Loader2 className="size-4 animate-spin" />}
+              {deleteDesign.isPending ? "Deleting…" : "Delete design"}
+            </Button>
+          </div>
+        </div>
+      </ActionModal>
 
       {previewId && (
         <DesignPreviewDrawer

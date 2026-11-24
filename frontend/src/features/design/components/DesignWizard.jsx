@@ -115,10 +115,8 @@ const DesignWizard = ({ editDesign = null, initialValues } = {}) => {
             });
 
             toast.success(response?.message ?? "Design registered successfully.");
-
-            form.reset();
-            wizard.setActiveStep(0);
-            setExistingDesignByCode(null);
+            // Back to the Design Master list, which already includes the new design.
+            navigate("/designs");
         } catch (error) {
             toast.error(error?.message ?? "Couldn't register design. Please try again.");
         }

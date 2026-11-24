@@ -125,7 +125,14 @@ const BulkDesignImport = () => {
     setProgress(null);
     queryClient.invalidateQueries({ queryKey: ["designs"] });
     const imported = outcome.filter((item) => item.status === "imported").length;
-    toast[imported === outcome.length ? "success" : "warning"](`Imported ${imported} of ${outcome.length} designs.`);
+    if (imported === outcome.length) {
+      toast.success(`Imported ${imported} design${imported === 1 ? "" : "s"}.`);
+      // Everything saved: back to the Design Master list, which now includes the new designs.
+      navigate("/designs");
+    } else {
+      // Some failed. Stay on this page so the failures stay visible; importing again skips the saved ones.
+      toast.warning(`Imported ${imported} of ${outcome.length} designs. Fix the failed ones and import again; saved designs will be skipped.`);
+    }
   };
 
   const counts = {
