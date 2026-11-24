@@ -141,10 +141,12 @@ class CurrentStockOverviewService {
     // Current stock of the given variants (same counting rules as the Current Stock page) —
     // used by Design Master's edit to refuse removing a size/variant that still has stock.
     // `runner` may be an open transaction.
-    async getVariantsStock(runner, colorVariantIds) {
+    // `variants` (optional) are rows the caller already loaded in the same shape findActiveVariants
+    // returns; passing them skips one database round trip.
+    async getVariantsStock(runner, colorVariantIds, variants) {
         if (colorVariantIds.length === 0) return new Map();
         // One batched pass for every variant — the database is remote, so round trips dominate.
-        const rows = await this._buildVariantRows(runner, { colorVariantIds });
+        const rows = await this._buildVariantRows(runner, { colorVariantIds, variants });
         return new Map(rows.map((row) => [row.colorVariantId, row]));
     }
 
@@ -174,8 +176,8 @@ class CurrentStockOverviewService {
         return result;
     }
 
-    async _buildVariantRows(runner, { colorVariantId, colorVariantIds } = {}) {
-        const variants = await this._repository.findActiveVariants(runner, { colorVariantId, colorVariantIds });
+    async _buildVariantRows(runner, { colorVariantId, colorVariantIds, variants: preloaded } = {}) {
+        const variants = preloaded ?? await this._repository.findActiveVariants(runner, { colorVariantId, colorVariantIds });
         const variantIds = variants.map((variant) => variant.colorVariantId);
 
         const [sizeRows, inventoryRows, unitRows] = await Promise.all([

@@ -9,6 +9,7 @@ import notFoundHandler from "./app/middlewares/notFound.middleware.js";
 import errorHandler from "./app/middlewares/error.middleware.js";
 import { attachRole } from "./app/middlewares/role.middleware.js";
 import router from "./app/routes/index.js";
+import { dbHealth } from "./core/dbHealth.js";
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.use(traceMiddleware);
 app.use(requestTiming);
 
 app.get("/health", (req, res) => { res.json({ status: "User service running" }) });
+// Database check: times a connection and a trivial query. No app data is read or written.
+app.get("/health/db", dbHealth);
 
 app.use(attachRole);
 

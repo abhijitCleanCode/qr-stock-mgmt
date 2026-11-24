@@ -16,12 +16,12 @@ const jsonField = (schema) =>
     }, schema);
 
 const colorVariantInputSchema = z.object({
-    colorName: z.string().trim().min(1),
+    colorName: z.string().trim().min(1).transform((value) => value.toUpperCase()),
     colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/, "colorHex must be a hex color like #FF0000"),
 });
 
 const designSizeInputSchema = z.object({
-    sizeLabel: z.string().trim().min(1),
+    sizeLabel: z.string().trim().min(1).transform((value) => value.toUpperCase()),
     displayOrder: nonNegativeInt.default(0),
     unsetPricePerSize: z.number().nonnegative().optional(),
     includedInSet: z.boolean().default(true),
@@ -31,9 +31,9 @@ const designSizeInputSchema = z.object({
 // re-matched against the created designSize rows per variant in the service layer (see
 // DesignService.registerDesign), since designSizeId doesn't exist yet at validation time.
 const designSemiSetInputSchema = z.object({
-    label: z.string().trim().min(1),
+    label: z.string().trim().min(1).transform((value) => value.toUpperCase()),
     displayOrder: nonNegativeInt.default(0),
-    sizeLabels: z.array(z.string().trim().min(1)).min(1, "A semi set needs at least one size"),
+    sizeLabels: z.array(z.string().trim().min(1).transform((value) => value.toUpperCase())).min(1, "A semi set needs at least one size"),
 });
 
 export const listDesignsQuerySchema = z.object({
@@ -78,7 +78,9 @@ const designCodeField = z.string({ error: "Design Code is required." })
         .min(1, "Design Code is required.")
         .regex(/^[a-z0-9]+(?: [a-z0-9]+)*$/, "Design Code can contain only letters and numbers.")
         .refine((code) => /[a-z]/.test(code) && /[0-9]/.test(code), "Design Code must contain both letters and numbers (e.g. kp100).")
-        .refine((code) => code.replace(/ /g, "").length <= DESIGN_CODE_MAX_LENGTH, `Design Code must be at most ${DESIGN_CODE_MAX_LENGTH} characters.`));
+        .refine((code) => code.replace(/ /g, "").length <= DESIGN_CODE_MAX_LENGTH, `Design Code must be at most ${DESIGN_CODE_MAX_LENGTH} characters.`))
+    // Checked in lowercase above; stored in capitals so every design reads the same way.
+    .transform((code) => code.toUpperCase());
 
 // Name fields (Item Name, Pattern, Quality, Jobber name): letters only, with single spaces or
 // hyphens between words (so "Co-ord Set" / "Up-Down" are allowed), at most 50 characters.
@@ -90,17 +92,18 @@ const lettersOnlyField = (label, requiredMessage = `${label} is required.`) => z
     .pipe(z.string()
         .min(1, requiredMessage)
         .max(NAME_MAX_LENGTH, `${label} must be at most ${NAME_MAX_LENGTH} characters.`)
-        .regex(LETTERS_PATTERN, `${label} can contain letters only (spaces and hyphens between words are allowed).`));
+        .regex(LETTERS_PATTERN, `${label} can contain letters only (spaces and hyphens between words are allowed).`))
+    // Every name is stored in capitals, so the same name always reads the same way.
+    .transform((value) => value.toUpperCase());
 
-// Item Name is additionally stored in capitals.
-const itemNameField = lettersOnlyField("Item Name").transform((value) => value.toUpperCase());
+const itemNameField = lettersOnlyField("Item Name");
 const patternNameField = lettersOnlyField("Pattern");
 const qualityField = lettersOnlyField("Quality");
 const jobberNameField = lettersOnlyField("Jobber name", "Jobber name cannot be blank.").optional();
 
 // Notes: optional, at most 300 characters (matches the designs.notes column width).
 export const NOTES_MAX_LENGTH = 300;
-const notesField = z.string().trim().max(NOTES_MAX_LENGTH, `Notes must be at most ${NOTES_MAX_LENGTH} characters.`).optional();
+const notesField = z.string().trim().max(NOTES_MAX_LENGTH, `Notes must be at most ${NOTES_MAX_LENGTH} characters.`).transform((value) => value.toUpperCase()).optional();
 
 export const registerDesignSchema = z.object({
     // Pattern (e.g. Anarkali/Straight/Flair) is required, same as quality: name carries the

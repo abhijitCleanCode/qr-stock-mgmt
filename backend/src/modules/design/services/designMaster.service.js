@@ -10,6 +10,7 @@ import colorVariantRepository, { normalizeColorName } from "../repositories/colo
 import { normalizeDesignCode } from "../repositories/design.repository.js";
 import designService from "./design.service.js";
 import mediaUploadService from "../../../core/media/mediaUploadService.js";
+import { retryReads } from "../../../core/resilience.js";
 import currentStockOverviewService from "../../inventory/services/currentStockOverview.service.js";
 import stockGroupRepository from "../../stock/repositories/stockGroup.repository.js";
 import stockItemRepository from "../../stock/repositories/stockItem.repository.js";
@@ -31,40 +32,23 @@ class DesignMasterService {
     // Design Master dashboard: one page of designs (searchable/sortable server-side), each with its
     // active colour variants and set composition (one representative variant's active sizes —
     // every variant of a design shares the same size list).
-    async listDesigns({ page, limit, keyword, sort }) {
-        const offset = (page - 1) * limit;
-        const [designs, total, totalAll] = await Promise.all([
-            this._repository.findPage(db, { limit, offset, keyword, sort }),
-            this._repository.countFiltered(db, { keyword }),
-            this._repository.countAll(db),
-        ]);
+    // Reads are retried when the database connection drops; see core/resilience.js.
+    async listDesigns(query) {
+        return retryReads(() => this._listDesigns(query), { label: "listDesigns" });
+    }
 
-        const variants = await this._repository.findVariants(db, designs.map((row) => row.id));
-        const variantsByDesign = new Map();
-        for (const variant of variants) {
-            if (!variantsByDesign.has(variant.designId)) variantsByDesign.set(variant.designId, []);
-            variantsByDesign.get(variant.designId).push(variant);
-        }
-        const representativeIds = designs.map((row) => variantsByDesign.get(row.id)?.[0]?.id).filter(Boolean);
-        const sizes = (await this._repository.findSizes(db, representativeIds)).filter((size) => size.isActive);
+    async _listDesigns({ page, limit, keyword, sort }) {
+        const offset = (page - 1) * limit;
+        // A single round trip returns the page with its variants, sizes and both totals.
+        const rows = await this._repository.findPageWithDetails(db, { limit, offset, keyword, sort });
+
+        // Totals come back with every row. An empty page carries none, so count separately then.
+        const [total, totalAll] = rows.length > 0
+            ? [rows[0].totalFiltered, rows[0].totalAll]
+            : await Promise.all([this._repository.countFiltered(db, { keyword }), this._repository.countAll(db)]);
 
         return {
-            data: designs.map((row) => {
-                const designVariants = variantsByDesign.get(row.id) ?? [];
-                const representativeId = designVariants[0]?.id;
-                return {
-                    ...row,
-                    colorVariants: designVariants.map((variant) => ({
-                        id: variant.id,
-                        colorName: variant.colorName,
-                        colorHex: variant.colorHex,
-                        imageUrl: variant.imageUrl,
-                    })),
-                    setComposition: sizes
-                        .filter((size) => size.variantId === representativeId)
-                        .map((size) => ({ id: size.id, sizeLabel: size.sizeLabel, displayOrder: size.displayOrder, includedInSet: size.includedInSet })),
-                };
-            }),
+            data: rows.map(({ totalFiltered, totalAll: _totalAll, ...design }) => design),
             meta: { page, limit, total, totalAll, totalPages: Math.ceil(total / limit) },
         };
     }
@@ -72,13 +56,30 @@ class DesignMasterService {
     // One design for the preview drawer and the edit wizard — with how much stock each variant and
     // each size holds, so the UI can say what can't be removed yet.
     async getDesign(id) {
-        // Independent reads run in parallel — the database is remote, so round trips dominate.
+        return retryReads(() => this._getDesign(id), { label: "getDesign" });
+    }
+
+    async _getDesign(id) {
+        // Round 1: the design and its colour variants, read in parallel (the database is remote, so
+        // each round trip costs real time). Round 2 uses what round 1 returned, so the stock lookup
+        // does not look the variants up a second time.
         const [row, variants] = await Promise.all([this._repository.findDetail(db, id), this._repository.findVariants(db, [id])]);
         if (!row) throw new ApiError(`Design ${id} not found.`, 404, "DESIGN_NOT_FOUND");
 
         const representative = variants[0];
+        const variantRows = variants.map((variant) => ({
+            colorVariantId: variant.id,
+            colorName: variant.colorName,
+            colorHex: variant.colorHex,
+            imageUrl: variant.imageUrl,
+            lowStockLevel: variant.lowStockLevel,
+            designId: variant.designId,
+            designCode: row.code,
+            designName: row.name,
+            sellingPricePerPiece: row.defaultSellingPricePerPiece,
+        }));
         const [stock, allSizes, semiSets] = await Promise.all([
-            this._stockService.getVariantsStock(db, variants.map((variant) => variant.id)),
+            this._stockService.getVariantsStock(db, variants.map((variant) => variant.id), variantRows),
             representative ? this._repository.findSizes(db, [representative.id]) : [],
             representative ? this._repository.findSemiSetsWithLabels(db, representative.id) : [],
         ]);

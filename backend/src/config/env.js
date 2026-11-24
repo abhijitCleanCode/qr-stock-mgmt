@@ -18,6 +18,10 @@ const envSchema = z.object({
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     SERVICE_NAME: z.string().default('stock-mgmt-backend'),
     SERVICE_VERSION: z.string().default('v1'),
+
+    // Optional. When set, GET /health/db returns its timings and pool figures only to callers that
+    // send it in the X-Health-Token header. Without it, the endpoint reports just ok or unavailable.
+    HEALTH_TOKEN: z.string().min(16, "HEALTH_TOKEN must be at least 16 characters.").optional(),
 })
 
 // reusable

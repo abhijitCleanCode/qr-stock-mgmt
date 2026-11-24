@@ -58,6 +58,39 @@ class DesignMasterRepository {
             .offset(offset);
     }
 
+    // One database round trip for the whole list page: each design with its active colour variants
+    // and the set composition of its first variant (the same rule getDesign uses), plus both totals.
+    // The database is remote, so a separate query per piece of the page costs a full round trip each.
+    async findPageWithDetails(runner, { limit, offset, keyword, sort }) {
+        return runner.select({
+            ...designColumns,
+            totalFiltered: sql`count(*) over()`.mapWith(Number),
+            totalAll: sql`(select count(*) from ${design})`.mapWith(Number),
+            colorVariants: sql`coalesce((
+                select json_agg(json_build_object('id', v.id, 'colorName', v.color_name, 'colorHex', v.color_hex, 'imageUrl', v.image_url)
+                    order by v.created_at, v.id)
+                from ${colorVariant} v
+                where v.design_id = ${design.id} and v.is_active
+            ), '[]'::json)`,
+            setComposition: sql`coalesce((
+                select json_agg(json_build_object('id', s.id, 'sizeLabel', s.size_label, 'displayOrder', s.display_order, 'includedInSet', s.included_in_set)
+                    order by s.display_order, s.id)
+                from ${designSize} s
+                where s.is_active and s.variant_id = (
+                    select v.id from ${colorVariant} v
+                    where v.design_id = ${design.id} and v.is_active
+                    order by v.created_at, v.id
+                    limit 1
+                )
+            ), '[]'::json)`,
+        }).from(design)
+            .leftJoin(jobber, eq(design.jobberId, jobber.id))
+            .where(searchCondition(keyword))
+            .orderBy(...(SORTS[sort] ?? SORTS.new))
+            .limit(limit)
+            .offset(offset);
+    }
+
     async countFiltered(runner, { keyword }) {
         const [result] = await runner.select({ value: count() }).from(design)
             .leftJoin(jobber, eq(design.jobberId, jobber.id))
