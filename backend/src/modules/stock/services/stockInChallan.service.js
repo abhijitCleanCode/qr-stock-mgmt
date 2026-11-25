@@ -61,6 +61,7 @@ function toRowView(row) {
         printedCount: row.printed_count,
         printStatus: printStatus(row.qr_count, row.printed_count),
         designs: row.designs ?? [],
+        variants: row.variants ?? [],
         // Lets the dashboard deep-link a single-variant challan straight to its QR grid.
         qrGridTransactionId: row.transaction_count === 1 ? row.first_transaction_id : null,
     };

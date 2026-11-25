@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Download, FileDown, Loader2, Lock, Printer, QrCode, Search, Eye } from "lucide-react";
+import { Ban, Check, Download, Eye, FileDown, Loader2, Lock, MoreHorizontal, Printer, QrCode, Search } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useStockInChallansApi } from "../../../hooks/useStockInChallansApi";
@@ -38,15 +39,24 @@ const SORT_OPTIONS = [
   ["pcs", "Most pieces"],
 ];
 
-
-// Full width on phones (two per row), natural width from `sm` up.
 const selectClass =
-  "h-[38px] w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-[13px] text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-[3px] focus:ring-emerald-500/10 sm:w-auto";
+  "h-9 min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-[3px] focus:ring-emerald-500/10";
 
 const todayIso = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
+
+const SerialBadge = ({ label, dropped }) => (
+  <span
+    className={cn(
+      "whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-900",
+      dropped && "text-slate-400 line-through",
+    )}
+  >
+    {label}
+  </span>
+);
 
 const Mark = ({ tone, children }) => (
   <span
@@ -59,53 +69,113 @@ const Mark = ({ tone, children }) => (
   </span>
 );
 
-const Row = ({ challan, onView, onPrint, onPdf }) => {
-  const navigate = useNavigate();
-  const dropped = challan.status === "DROPPED";
+// Colour swatches for the challan's designs. At most four show. With more, the fourth is half-faded
+// and carries "+N" for the rest, so it's clear there are more designs behind it.
+const MAX_SWATCHES = 4;
 
-  const openQr = () => navigate(`/qr-center?challan=${encodeURIComponent(challan.challanNo)}`);
+const GoodsCell = ({ challan }) => {
+  const variants = challan.variants ?? [];
+  const overflow = variants.length > MAX_SWATCHES;
+  const shown = overflow ? variants.slice(0, MAX_SWATCHES - 1) : variants;
+  const hidden = variants.length - shown.length;
 
   return (
-    <div
-      className={cn(
-        "grid items-center gap-x-3 gap-y-2 border-b border-slate-100 px-4 py-3.5 text-[13px] last:border-b-0 hover:bg-slate-50/60",
-        "grid-cols-[1fr_auto] lg:grid-cols-[.85fr_1.25fr_1.4fr_.75fr_.85fr_1fr_170px]",
-        dropped && "bg-slate-50 text-slate-500",
-      )}
-    >
-      <div>
-        <span className={cn("whitespace-nowrap rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-900", dropped && "text-slate-400 line-through")}>
-          {challan.serialLabel}
-        </span>
-        {dropped && <div className="mt-1"><Mark tone="red">DROPPED</Mark></div>}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center">
+        {shown.map((variant, index) => (
+          <span
+            key={`${variant.designCode}-${variant.colorName}`}
+            title={`${variant.designCode} · ${variant.colorName}`}
+            className={cn("size-6 rounded-md border-2 border-white shadow-[0_0_0_1px_rgb(226_232_240)]", index > 0 && "-ml-1.5")}
+            style={{ backgroundColor: variant.colorHex }}
+          />
+        ))}
+        {overflow && (
+          <span
+            title={`${hidden} more design${hidden === 1 ? "" : "s"}: ${variants.slice(MAX_SWATCHES - 1).map((v) => `${v.designCode} · ${v.colorName}`).join(", ")}`}
+            className="relative -ml-1.5 grid size-6 place-items-center rounded-md border-2 border-white bg-slate-200 text-[10px] font-bold text-slate-700 shadow-[0_0_0_1px_rgb(226_232_240)]"
+          >
+            <span className="absolute inset-0 opacity-50" style={{ backgroundColor: variants[MAX_SWATCHES - 1]?.colorHex }} />
+            <span className="relative">+{hidden}</span>
+          </span>
+        )}
       </div>
-      <div className="col-span-2 lg:col-span-1">
-        <div className={cn("flex flex-wrap items-center gap-1.5 font-mono text-[12.8px] font-bold text-slate-900", dropped && "text-slate-400 line-through")}>
-          {challan.challanNo}
-          {challan.edited && <Mark>EDITED</Mark>}
-        </div>
-        <div className="mt-0.5 text-[11.6px] text-slate-400">{formatDateOnly(challan.stockDate)}</div>
-      </div>
-      <div className="text-slate-800">{challan.jobberName ?? "—"}</div>
-      <div className="font-mono font-bold text-slate-900">{challan.totalPieces} <span className="text-[11px] font-normal text-slate-400">pcs</span></div>
-      <div className={cn("text-[11px] font-semibold", challan.defective ? "text-red-600" : "text-emerald-600")}>
-        {challan.defective ? `${challan.defective} defective` : "All passed"}
-      </div>
-      <div>
-        <Button type="button" variant="outline" size="sm" onClick={openQr} className="h-8 gap-1.5 rounded-lg text-xs">
-          <QrCode className="size-3.5" /> {dropped ? "Retired tags" : "View QR tags"}
-        </Button>
-      </div>
-      <div className="col-span-2 flex items-center justify-end gap-1.5 lg:col-span-1">
-        <button type="button" title="Print challan" aria-label="Print challan" onClick={() => onPrint(challan)} className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"><Printer className="size-3.5" /></button>
-        <button type="button" title="Download PDF" aria-label="Download PDF" onClick={() => onPdf(challan)} className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"><FileDown className="size-3.5" /></button>
-        <Button type="button" variant="outline" size="sm" onClick={() => onView(challan)} className="h-8 gap-1.5 rounded-lg text-xs"><Eye className="size-3.5" /> View</Button>
+      <div className="font-mono text-[13px] font-bold text-slate-900">
+        {challan.totalPieces} <span className="text-[11px] font-normal text-slate-400">pcs</span>
       </div>
     </div>
   );
 };
 
-const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint, onPdf }) => {
+// Tag progress from the printed-count the list already returns. Nothing shows when no tags exist.
+const TagsCell = ({ challan }) => {
+  if (challan.status === "DROPPED") return <span className="text-slate-300">—</span>;
+  if (challan.qrCount === 0) return <span className="text-[12px] text-slate-400">No tags</span>;
+  if (challan.printedCount >= challan.qrCount) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[12px] font-semibold text-emerald-700">
+        <Check className="size-3" /> Printed
+      </span>
+    );
+  }
+  const partial = challan.printedCount > 0;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[12px] text-slate-500",
+        partial ? "border-slate-200 bg-white" : "border-amber-200 bg-amber-50 text-amber-700",
+      )}
+      title={`${challan.printedCount} of ${challan.qrCount} tags printed`}
+    >
+      <b className={partial ? "text-slate-900" : "text-amber-700"}>{challan.printedCount}</b>/{challan.qrCount}
+    </span>
+  );
+};
+
+const QcCell = ({ challan }) => {
+  if (challan.status === "DROPPED") return <span className="text-slate-300">—</span>;
+  return challan.defective ? (
+    <span className="text-[12px] font-semibold text-red-600">{challan.defective} defective</span>
+  ) : (
+    <span className="text-[12px] font-semibold text-emerald-600">All passed</span>
+  );
+};
+
+// One primary action (View) per row; printing, PDF and QR tags live under ⋯.
+const RowActions = ({ challan, onView, onPrint, onPdf, onQr, onDrop }) => {
+  const dropped = challan.status === "DROPPED";
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      <Button type="button" variant="outline" size="sm" onClick={() => onView(challan)} className="h-8 gap-1.5 rounded-lg text-xs">
+        <Eye className="size-3.5" /> View
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="More actions" className="rounded-lg">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end" className="min-w-48">
+          <DropdownMenuItem onClick={() => onPrint(challan)}><Printer className="size-4" /> Print challan</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onPdf(challan)}><FileDown className="size-4" /> Download PDF</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => onQr(challan)}><QrCode className="size-4" /> {dropped ? "Retired QR tags" : "View QR tags"}</DropdownMenuItem>
+          {!dropped && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => onDrop(challan)}><Ban className="size-4" /> Drop challan</DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
+const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint, onPdf, onDrop }) => {
+  const navigate = useNavigate();
   const [shown, setShown] = useState(PAGE_SIZE);
   const [isExporting, setIsExporting] = useState(false);
   const debouncedSearch = useDebouncedValue(filters.search, 250);
@@ -137,6 +207,7 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
   };
 
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
+  const openQr = (challan) => navigate(`/qr-center?challan=${encodeURIComponent(challan.challanNo)}`);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -152,86 +223,171 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
     }
   };
 
+  const actions = { onView, onPrint, onPdf, onQr: openQr, onDrop };
+
   return (
     <div>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-emerald-600" />
-        <Input
-          value={filters.search}
-          onChange={(e) => set({ search: e.target.value })}
-          placeholder="Search serial, challan no., jobber, design…"
-          className="h-12 rounded-xl border-2 border-emerald-200 bg-emerald-50 pl-11 font-mono text-sm focus-visible:border-emerald-500"
-        />
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
-        <select className={selectClass} value={filters.jobber} onChange={(e) => set({ jobber: e.target.value })} aria-label="Jobber">
-          <option value="">All jobbers</option>
-          {jobbers.map((name) => <option key={name} value={name}>{name}</option>)}
-        </select>
-        <select className={selectClass} value={filters.dateRange} onChange={(e) => set({ dateRange: e.target.value, from: "", to: "" })} aria-label="Date range">
-          {DATE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        {filters.dateRange === "custom" && (
-          <span className="col-span-2 inline-flex flex-wrap items-center gap-2 text-xs text-slate-500 sm:col-auto">
-            From <input type="date" max={filters.to || todayIso()} value={filters.from} onChange={(e) => set({ from: e.target.value, to: filters.to && e.target.value > filters.to ? e.target.value : filters.to })} className={selectClass} />
-            – To <input type="date" min={filters.from} max={todayIso()} value={filters.to} onChange={(e) => set({ to: e.target.value, from: filters.from && e.target.value < filters.from ? e.target.value : filters.from })} className={selectClass} />
-          </span>
-        )}
-        <select className={selectClass} value={filters.sort} onChange={(e) => set({ sort: e.target.value })} aria-label="Sort">
-          {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        {isFiltered && (
-          <button type="button" onClick={() => { setFilters(DEFAULT_FILTERS); setShown(PAGE_SIZE); }} className="col-span-2 justify-self-start text-[13px] text-slate-500 hover:text-slate-900 sm:col-auto">
-            Clear filters
-          </button>
-        )}
-        <span className="col-span-2 flex items-center justify-between gap-3 sm:col-auto sm:ml-auto sm:justify-end">
-          <span className="text-xs text-slate-400">{isFetching && <Loader2 className="mr-1 inline size-3 animate-spin" />}{total} challan{total === 1 ? "" : "s"}</span>
-          <Button type="button" variant="outline" size="sm" onClick={handleExport} disabled={isExporting || total === 0} className="gap-1.5">
-            {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} Export (Excel)
-          </Button>
-        </span>
-      </div>
-
-      {/* Phones: the tabs wrap into a grid, so every status is visible without sideways scrolling. */}
-      <div className="mt-3 grid grid-cols-3 gap-0.5 rounded-[10px] border border-slate-200 bg-slate-100 p-[3px] sm:inline-flex sm:max-w-full sm:overflow-x-auto">
-        {STATUS_TABS.map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => set({ status: value })}
-            className={cn("whitespace-nowrap rounded-[7px] px-2 py-1.5 text-[12px] font-semibold text-slate-500 sm:px-3.5 sm:text-[12.6px]", filters.status === value && "bg-white text-slate-900 shadow-sm")}
-          >
-            {label}<span className="ml-1 font-mono text-[11px] text-slate-400">{counts?.[value] ?? 0}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
-        <div className="hidden grid-cols-[.85fr_1.25fr_1.4fr_.75fr_.85fr_1fr_170px] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-[9.8px] font-bold uppercase tracking-wider text-slate-400 lg:grid">
-          <span>Sr. no.</span><span>Jobber challan no.</span><span>Jobber</span><span>Total pcs</span><span>QC</span><span>QR tags</span><span />
+      {/* Toolbar: search, then one row of filters, then status chips. */}
+      <div className="flex flex-col gap-2.5">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-[17px] -translate-y-1/2 text-emerald-600" />
+          <Input
+            value={filters.search}
+            onChange={(e) => set({ search: e.target.value })}
+            placeholder="Search serial, challan no., jobber or design"
+            className="h-11 rounded-xl border-emerald-200 bg-emerald-50/70 pl-10 font-mono text-sm placeholder:text-emerald-900/40 focus-visible:border-emerald-500"
+          />
         </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select className={cn(selectClass, "flex-1 sm:flex-none", filters.jobber && "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800")} value={filters.jobber} onChange={(e) => set({ jobber: e.target.value })} aria-label="Jobber">
+            <option value="">All jobbers</option>
+            {jobbers.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+          <select className={cn(selectClass, "flex-1 sm:flex-none", filters.dateRange && "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800")} value={filters.dateRange} onChange={(e) => set({ dateRange: e.target.value, from: "", to: "" })} aria-label="Date range">
+            {DATE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          {filters.dateRange === "custom" && (
+            <span className="inline-flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              From <input type="date" max={filters.to || todayIso()} value={filters.from} onChange={(e) => set({ from: e.target.value, to: filters.to && e.target.value > filters.to ? e.target.value : filters.to })} className={selectClass} />
+              – To <input type="date" min={filters.from} max={todayIso()} value={filters.to} onChange={(e) => set({ to: e.target.value, from: filters.from && e.target.value < filters.from ? e.target.value : filters.from })} className={selectClass} />
+            </span>
+          )}
+          <select className={cn(selectClass, "flex-1 sm:flex-none")} value={filters.sort} onChange={(e) => set({ sort: e.target.value })} aria-label="Sort">
+            {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          {isFiltered && (
+            <button type="button" onClick={() => { setFilters(DEFAULT_FILTERS); setShown(PAGE_SIZE); }} className="px-1 text-[13px] text-slate-500 hover:text-slate-900">
+              Clear filters
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs text-slate-400">{isFetching && <Loader2 className="mr-1 inline size-3 animate-spin" />}{total} challan{total === 1 ? "" : "s"}</span>
+            <Button type="button" variant="outline" size="sm" onClick={handleExport} disabled={isExporting || total === 0} className="gap-1.5">
+              {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label="Status">
+          {STATUS_TABS.map(([value, label]) => {
+            const active = filters.status === value;
+            const count = counts?.[value] ?? 0;
+            const warn = value === "defects" && count > 0 && !active;
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => set({ status: value })}
+                className={cn(
+                  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
+                  active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+                )}
+              >
+                {label}
+                <span className={cn("font-mono text-[11.5px]", active ? "text-white/70" : warn ? "font-bold text-red-600" : "text-slate-400")}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-3.5 overflow-hidden rounded-xl border border-slate-200">
         {isLoading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500"><Loader2 className="size-4 animate-spin" /> Loading…</div>
         ) : isError ? (
           <div className="py-10 text-center text-sm text-red-600">{error.message}</div>
         ) : rows.length === 0 ? (
-          <div className="py-10 text-center text-sm text-slate-500"><b className="block text-[15px] text-slate-900">No challans match</b>Try another search or filter, or clear them.</div>
-        ) : (
-          <div className="max-h-130 overflow-y-auto">
-            {rows.map((challan) => <Row key={challan.id} challan={challan} onView={onView} onPrint={onPrint} onPdf={onPdf} />)}
+          <div className="py-12 text-center text-sm text-slate-500">
+            <b className="block text-[15px] text-slate-900">No challans match</b>
+            Try another search or filter, or clear them.
           </div>
-        )}
-      </div>
+        ) : (
+          <>
+            {/* Phones: one card per challan. */}
+            <div className="divide-y divide-slate-100 md:hidden">
+              {rows.map((challan) => {
+                const dropped = challan.status === "DROPPED";
+                return (
+                  <div key={challan.id} className={cn("flex flex-col gap-2.5 px-4 py-3.5", dropped && "bg-slate-50 text-slate-500")}>
+                    <div className="flex items-center gap-2">
+                      <SerialBadge label={challan.serialLabel} dropped={dropped} />
+                      <span className={cn("font-mono text-[13px] font-bold text-slate-900", dropped && "text-slate-400 line-through")}>{challan.challanNo}</span>
+                      {challan.edited && <Mark>EDITED</Mark>}
+                      {dropped && <Mark tone="red">DROPPED</Mark>}
+                      <span className="ml-auto text-[11.5px] text-slate-400">{formatDateOnly(challan.stockDate)}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[13px]">
+                      <span className="min-w-0 truncate font-medium text-slate-800">{challan.jobberName ?? "—"}</span>
+                      <span className="ml-auto shrink-0"><QcCell challan={challan} /></span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <GoodsCell challan={challan} />
+                      <span className="ml-auto"><TagsCell challan={challan} /></span>
+                    </div>
+                    <RowActions challan={challan} {...actions} />
+                  </div>
+                );
+              })}
+            </div>
 
-      {total > rows.length && (
-        <div className="flex justify-center pt-3.5">
-          <Button type="button" variant="outline" size="sm" onClick={() => setShown((n) => n + PAGE_SIZE)}>
-            Show {Math.min(PAGE_SIZE, total - rows.length)} more
-          </Button>
+            {/* Tablet and up: one line per challan. */}
+            <div className="hidden max-h-130 overflow-y-auto md:block">
+            <table className="w-full text-[13px]">
+              <thead className="sticky top-0 z-1 bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <tr>
+                  <th className="px-4 py-2.5 font-bold">Serial</th>
+                  <th className="px-3 py-2.5 font-bold">Challan · date</th>
+                  <th className="px-3 py-2.5 font-bold">Jobber</th>
+                  <th className="px-3 py-2.5 font-bold">Goods received</th>
+                  <th className="px-3 py-2.5 font-bold">QC</th>
+                  <th className="px-3 py-2.5 font-bold">Tags</th>
+                  <th className="px-4 py-2.5 text-right font-bold"><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((challan) => {
+                  const dropped = challan.status === "DROPPED";
+                  return (
+                    <tr key={challan.id} className={cn("border-t border-slate-100 align-middle hover:bg-slate-50/70", dropped && "bg-slate-50 text-slate-500")}>
+                      <td className="px-4 py-3">
+                        <SerialBadge label={challan.serialLabel} dropped={dropped} />
+                        {dropped && <div className="mt-1"><Mark tone="red">DROPPED</Mark></div>}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className={cn("flex items-center gap-1.5 font-mono text-[12.8px] font-bold text-slate-900", dropped && "text-slate-400 line-through")}>
+                          {challan.challanNo}
+                          {challan.edited && <Mark>EDITED</Mark>}
+                        </div>
+                        <div className="mt-0.5 text-[11.6px] text-slate-400">{formatDateOnly(challan.stockDate)}</div>
+                      </td>
+                      <td className="px-3 py-3 font-medium text-slate-800">{challan.jobberName ?? "—"}</td>
+                      <td className="px-3 py-3"><GoodsCell challan={challan} /></td>
+                      <td className="px-3 py-3"><QcCell challan={challan} /></td>
+                      <td className="px-3 py-3"><TagsCell challan={challan} /></td>
+                      <td className="px-4 py-3"><RowActions challan={challan} {...actions} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            </div>
+          </>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 bg-white px-4 py-3">
+          <span className="text-[13px] text-slate-500">
+            Showing <b className="font-mono text-slate-900">{rows.length ? 1 : 0}–{rows.length}</b> of <b className="font-mono text-slate-900">{total}</b>
+          </span>
+          {total > rows.length && (
+            <Button type="button" variant="outline" size="sm" onClick={() => setShown((n) => n + PAGE_SIZE)} className="ml-auto">
+              Show {Math.min(PAGE_SIZE, total - rows.length)} more
+            </Button>
+          )}
         </div>
-      )}
+      </div>
 
       {serials?.last && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">

@@ -21,6 +21,15 @@ const designsSql = sql`(select coalesce(jsonb_agg(jsonb_build_object('code', d.c
           where t.challan_id = c.id group by cv.design_id) g
     join designs d on d.id = g.design_id)`;
 
+// One entry per colour variant in the challan, for the register's colour swatches.
+const variantsSql = sql`(select coalesce(jsonb_agg(jsonb_build_object('designCode', d.code, 'colorName', cv.color_name, 'colorHex', cv.color_hex, 'pieces', g.pcs) order by d.code, cv.color_name), '[]'::jsonb)
+    from (select t.variant_id, sum(coalesce(ep.p, 0)) as pcs
+          from stock_in_transactions t
+          left join (select stock_in_transaction_id, sum(quantity_added) as p from stock_in_entries group by 1) ep on ep.stock_in_transaction_id = t.id
+          where t.challan_id = c.id group by t.variant_id) g
+    join color_variants cv on cv.id = g.variant_id
+    join designs d on d.id = cv.design_id)`;
+
 function filterFragments({ id, search, jobber, dateRange, from, to, status }) {
     const where = [];
 
@@ -131,6 +140,7 @@ class StockInChallanRepository {
                    ${defectiveSql} as defective, ${editCountSql} as edit_count,
                    ${qrCountSql} as qr_count, ${printedCountSql} as printed_count,
                    ${designsSql} as designs,
+                   ${variantsSql} as variants,
                    (select count(*) from stock_in_transactions t where t.challan_id = c.id)::int as transaction_count,
                    (select min(t.id) from stock_in_transactions t where t.challan_id = c.id) as first_transaction_id
             from stock_in_challans c

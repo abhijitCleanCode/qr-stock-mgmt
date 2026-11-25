@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { ArrowRight, Loader2, Plus } from "lucide-react";
+import { ArrowRight, ChevronDown, Loader2, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import ActionModal from "@/components/shared/ActionModal";
@@ -22,27 +22,34 @@ import ChallanPdfPreview from "../components/stock-in/dashboard/ChallanPdfPrevie
 import EditChallanDialog from "../components/stock-in/dashboard/EditChallanDialog";
 import DropChallanDialog from "../components/stock-in/dashboard/DropChallanDialog";
 
-const Sheet = ({ className, children }) => (
-  <section className={cn("rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)] sm:p-6 md:p-8", className)}>
-    {children}
-  </section>
-);
-
-const Stat = ({ value, label, highlight }) => (
-  <div className="flex-1 basis-1/2 border-b border-slate-200 px-5 py-3.5 md:basis-0 md:border-b-0 md:border-r md:last:border-r-0">
-    <div className={cn("font-mono text-xl font-bold", highlight ? "text-amber-700" : "text-slate-900")}>{value ?? "—"}</div>
-    <div className="mt-0.5 text-[11px] text-slate-500">{label}</div>
-  </div>
-);
-
 const TABS = [
-  ["register", "Challan register"],
-  ["jobbers", "Jobber summary"],
+  ["register", "Challans"],
+  ["jobbers", "By jobber"],
 ];
 
-function draftTitle(draft) {
-  return draft.challanNo || null;
-}
+// Relative "Synced 12s ago" label. Re-renders on a timer so the age keeps moving.
+const SyncStatus = ({ updatedAt, busy }) => {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  let label = "Syncing…";
+  if (!busy && updatedAt) {
+    const seconds = Math.max(0, Math.round((now - updatedAt) / 1000));
+    if (seconds < 5) label = "Synced just now";
+    else if (seconds < 60) label = `Synced ${seconds}s ago`;
+    else label = `Synced ${Math.round(seconds / 60)} min ago`;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={cn("size-1.5 rounded-full", busy ? "animate-pulse bg-amber-500" : "bg-emerald-500")} />
+      {label}
+    </span>
+  );
+};
 
 const StockInDashboard = () => {
   const navigate = useNavigate();
@@ -59,6 +66,7 @@ const StockInDashboard = () => {
   const [dropping, setDropping] = useState(null);
   const [previewing, setPreviewing] = useState(null);
   const [draftToDiscard, setDraftToDiscard] = useState(null);
+  const [draftsOpen, setDraftsOpen] = useState(false);
 
   const overview = overviewQuery.data;
   const stats = overview?.dashboard?.stats;
@@ -109,97 +117,142 @@ const StockInDashboard = () => {
     setTab("register");
   };
 
+  const refreshAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["stock-in"] });
+  };
+
+  const kpis = [
+    { value: stats?.batchesThisMonth, label: "Challans this month" },
+    { value: stats?.piecesThisMonth?.toLocaleString("en-IN"), label: "Pieces received this month" },
+    { value: stats?.draftsInProgress, label: "Drafts in progress", tone: "blue", onClick: drafts.length ? () => setDraftsOpen(true) : undefined },
+    { value: stats?.batchesPendingPrint, label: "Challans with tags to print", tone: "amber" },
+  ];
+
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <Sheet>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Stock In</h1>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Stock In</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-slate-500">
+            <SyncStatus updatedAt={overviewQuery.dataUpdatedAt} busy={overviewQuery.isFetching} />
+            <button type="button" onClick={refreshAll} className="rounded-md px-1.5 py-0.5 text-[12.5px] font-semibold text-emerald-700 hover:bg-emerald-50">
+              Refresh
+            </button>
           </div>
-          <Button type="button" onClick={() => navigate("/stock-in/new")} className="gap-2 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700">
-            <Plus className="size-4" /> New Stock Inward
-          </Button>
         </div>
+        <Button type="button" onClick={() => navigate("/stock-in/new")} className="ml-auto gap-2 rounded-lg bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700">
+          <Plus className="size-4" /> New Stock Inward
+        </Button>
+      </header>
 
-        <div className="mt-5 flex flex-wrap overflow-hidden rounded-xl border border-slate-200 bg-slate-50 md:flex-nowrap">
-          <Stat value={stats?.batchesThisMonth} label="Batches this month" />
-          <Stat value={stats?.piecesThisMonth?.toLocaleString("en-IN")} label="Pieces logged this month" />
-          <Stat value={stats?.draftsInProgress} label="Drafts in progress" highlight={stats?.draftsInProgress > 0} />
-          <Stat value={stats?.batchesPendingPrint} label="Batches with tags pending print" highlight={stats?.batchesPendingPrint > 0} />
-        </div>
-        {overviewQuery.isError && <div className="pt-3 text-center text-sm text-red-600">{overviewQuery.error.message}</div>}
-      </Sheet>
+      {/* Four numbers in one strip: two columns on phones, a single row from `sm` up. */}
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-4">
+        {kpis.map((kpi) => {
+          const highlight = kpi.tone === "amber" && kpi.value > 0;
+          const Tag = kpi.onClick ? "button" : "div";
+          return (
+            <Tag
+              key={kpi.label}
+              type={kpi.onClick ? "button" : undefined}
+              onClick={kpi.onClick}
+              className={cn("flex flex-col gap-0.5 bg-white px-4 py-3 text-left", kpi.onClick && "hover:bg-slate-50")}
+            >
+              <span className={cn("font-mono text-xl font-bold leading-tight", highlight ? "text-amber-700" : kpi.tone === "blue" && kpi.value > 0 ? "text-blue-700" : "text-slate-900")}>
+                {kpi.value ?? "—"}
+              </span>
+              <span className="text-[12.5px] text-slate-500">{kpi.label}</span>
+            </Tag>
+          );
+        })}
+      </section>
+      {overviewQuery.isError && <div className="text-center text-sm text-red-600">{overviewQuery.error.message}</div>}
 
+      {/* Drafts collapse into one line. They're occasional work, not the main job of this page. */}
       {drafts.length > 0 && (
-        <Sheet>
-          <h2 className="text-base font-bold text-slate-900">Continue a draft</h2>
-          <p className="mb-3.5 mt-0.5 text-xs text-slate-500 md:text-[13px]">
-            Not added to stock yet — continue where you left off. A serial no. is issued only when the stock-in is completed.
-          </p>
-          {/* On phones the list simply continues down the page; on larger screens it scrolls inside a box. */}
-          <div className="space-y-2.5 md:max-h-72 md:overflow-y-auto md:pr-1">
-            {drafts.map((draft) => {
-              const step = Math.min(Math.max(draft.currentStep, 0), STOCK_IN_STEPS.length - 1);
-              return (
-                <div key={draft.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 px-4 py-3">
-                  <div className="min-w-0 flex-1 basis-60">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="truncate font-mono text-[12.8px] font-bold text-slate-900">
-                        {draftTitle(draft) ?? <span className="font-sans font-medium text-slate-500">Challan no. not entered yet</span>}
-                      </span>
-                      <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10.5px] font-bold text-slate-500">Draft #{draft.id}</span>
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <button type="button" aria-expanded={draftsOpen} onClick={() => setDraftsOpen((open) => !open)} className="flex min-h-12 w-full items-center gap-2.5 px-4 py-2.5 text-left">
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 font-mono text-xs font-bold text-blue-700">{drafts.length}</span>
+            <span className="font-semibold text-slate-900">Drafts in progress</span>
+            <span className="hidden text-[13px] text-slate-500 md:inline">· not added to stock yet, no serial no. issued</span>
+            <ChevronDown className={cn("ml-auto size-4 text-slate-500 transition-transform", draftsOpen && "rotate-180")} />
+          </button>
+          {draftsOpen && (
+            <div className="max-h-72 divide-y divide-slate-100 overflow-y-auto border-t border-slate-200">
+              {drafts.map((draft) => {
+                const step = Math.min(Math.max(draft.currentStep, 0), STOCK_IN_STEPS.length - 1);
+                return (
+                  <div key={draft.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1 basis-60">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-mono text-[12.8px] font-bold text-slate-900">
+                          {draft.challanNo || <span className="font-sans font-medium text-slate-500">Challan no. not entered yet</span>}
+                        </span>
+                        <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10.5px] font-bold text-slate-500">Draft #{draft.id}</span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+                        <span className="flex gap-0.5">
+                          {STOCK_IN_STEPS.map((_, index) => (
+                            <i key={index} className={cn("h-1 w-3.5 rounded-sm", index <= step ? "bg-blue-500" : "bg-slate-200")} />
+                          ))}
+                        </span>
+                        Step {step + 1} of {STOCK_IN_STEPS.length} · {STOCK_IN_STEPS[step].title}
+                        {draft.jobberName ? ` · ${draft.jobberName}` : ""} · started {formatDateOnly(String(draft.createdAt).slice(0, 10))}
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-[11.6px] text-slate-400">
-                      Step {step + 1} of {STOCK_IN_STEPS.length} · {STOCK_IN_STEPS[step].title}
-                      {draft.jobberName ? ` · ${draft.jobberName}` : ""} · started {formatDateOnly(String(draft.createdAt).slice(0, 10))}
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setDraftToDiscard(draft)} className="text-xs">Discard</Button>
+                      <Button type="button" size="sm" onClick={() => navigate(`/stock-in/drafts/${draft.id}`)} className="gap-1 bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700">
+                        Continue <ArrowRight className="size-3.5" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setDraftToDiscard(draft)} className="text-xs">Discard</Button>
-                    <Button type="button" size="sm" onClick={() => navigate(`/stock-in/drafts/${draft.id}`)} className="gap-1 bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700">
-                      Continue draft <ArrowRight className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Sheet>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
 
-      <Sheet>
-        <div className="-mt-1 mb-4 flex gap-0.5 border-b border-slate-200">
-          {TABS.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTab(value)}
-              className={cn("-mb-px border-b-2 border-transparent px-4 py-2.5 text-[13.5px] font-semibold text-slate-500", tab === value && "border-emerald-600 text-slate-900")}
-            >
-              {label}
-            </button>
-          ))}
+      <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,.04)]">
+        <div className="flex items-center gap-3 border-b border-slate-200 px-3.5 py-3">
+          <div role="tablist" className="inline-flex rounded-lg bg-slate-100 p-[3px]">
+            {TABS.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                onClick={() => setTab(value)}
+                className={cn("h-7 rounded-md px-3.5 text-[13px] font-medium text-slate-500", tab === value && "bg-white font-semibold text-slate-900 shadow-sm")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        {tab === "register" ? (
-          // Wait for the overview so the register's first page comes from it, not a second request.
-          // If the overview fails, the register loads on its own.
-          overviewQuery.isPending ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
-              <Loader2 className="size-4 animate-spin" /> Loading challans…
-            </div>
+        <div className="p-3.5 sm:p-4">
+          {tab === "register" ? (
+            // Wait for the overview so the register's first page comes from it, not a second request.
+            // If the overview fails, the register loads on its own.
+            overviewQuery.isPending ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
+                <Loader2 className="size-4 animate-spin" /> Loading challans…
+              </div>
+            ) : (
+              <ChallanRegister
+                filters={filters}
+                onFiltersChange={setFilters}
+                onView={(challan) => setDrawerId(challan.id)}
+                onPrint={handlePreview}
+                onPdf={handleDownload}
+                onDrop={setDropping}
+              />
+            )
           ) : (
-            <ChallanRegister
-              filters={filters}
-              onFiltersChange={setFilters}
-              onView={(challan) => setDrawerId(challan.id)}
-              onPrint={handlePreview}
-              onPdf={handleDownload}
-            />
-          )
-        ) : (
-          <JobberSummary onOpenJobber={openJobber} />
-        )}
-      </Sheet>
+            <JobberSummary onOpenJobber={openJobber} />
+          )}
+        </div>
+      </section>
 
       <ChallanDrawer
         challanId={drawerId}
