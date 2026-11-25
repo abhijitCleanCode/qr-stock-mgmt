@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "react-toastify";
-import { AlertTriangle, Check, ChevronRight, Loader2, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Check, ChevronRight, Loader2, Palette, Plus, QrCode, RefreshCw, Shuffle, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCurrentStockVariantApi, useSetLowStockLevelApi } from "../../hooks/useCurrentStockOverviewApi";
 import { adjustmentCode, formatAge, formatInr, toCount } from "../../utils/currentStock";
 import { formatHistoryDateParts } from "../../utils/stockHistoryLabels";
-import { ColorDot, Eyebrow, StatusPill } from "./primitives";
+import { ColorDot, Eyebrow } from "./primitives";
 import { NumberInput } from "./formControls";
 import WriteOffDialog from "./WriteOffDialog";
 
@@ -19,6 +20,18 @@ const KIND_BADGE = {
 };
 
 const TAG_COLS = "grid grid-cols-[26px_1.7fr_1fr_.9fr_.6fr_.6fr] items-center gap-2.5 px-3 py-2 text-[12.3px]";
+
+// Groups the stock units by the sizes they contain: "16 × M-L-XL-XXL".
+const compositionLines = (units, kind) => {
+  const groups = new Map();
+  units
+    .filter((unit) => unit.kind === kind)
+    .forEach((unit) => {
+      const key = unit.sizes.join("-");
+      groups.set(key, (groups.get(key) ?? 0) + 1);
+    });
+  return [...groups.entries()].map(([sizes, count]) => `${count} × ${sizes}`);
+};
 
 const Checkbox = ({ checked, onChange, label }) => (
   <button
@@ -46,6 +59,7 @@ const Age = ({ days, ageingDays }) => (
   <span className={cn("font-mono text-xs", days >= ageingDays ? "font-bold text-violet-700" : "text-slate-600")}>{formatAge(days)}</span>
 );
 
+// Low-stock limit as a row: "Low at [10] pcs", saved with its own button.
 const LowStockLevel = ({ variant }) => {
   const [value, setValue] = useState(variant.lowStockLevel);
   const { mutateAsync: saveLevel, isPending } = useSetLowStockLevelApi();
@@ -64,11 +78,12 @@ const LowStockLevel = ({ variant }) => {
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <span className="max-w-[40ch] text-[12.8px] text-slate-500">
-        Marked <b>Low</b> when pieces in stock fall to this number or below.
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
+      <span className="text-[13.5px] text-slate-700">
+        Low at <b className="text-slate-900">{variant.lowStockLevel} pcs</b>
+        <span className="text-slate-400"> · marked Low when pieces fall to this or below</span>
       </span>
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2">
         <NumberInput
           className="w-20 px-2.5 text-right"
           value={value}
@@ -86,7 +101,24 @@ const LowStockLevel = ({ variant }) => {
   );
 };
 
+// Icon for a movement: money out, money in, reversal, or an internal change of stock.
+const MovementIcon = ({ movement }) => {
+  const tone =
+    movement.direction === "IN"
+      ? { box: "bg-emerald-50 text-emerald-700", Icon: /reversed/i.test(movement.title) ? RefreshCw : ArrowDownLeft }
+      : movement.direction === "OUT"
+        ? { box: "bg-red-50 text-red-600", Icon: ArrowUpRight }
+        : { box: "bg-violet-50 text-violet-700", Icon: Shuffle };
+  const { box, Icon } = tone;
+  return (
+    <span className={cn("grid size-8 flex-none place-items-center rounded-[9px]", box)}>
+      <Icon className="size-4" />
+    </span>
+  );
+};
+
 const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
+  const navigate = useNavigate();
   const { variant, units, looseGroups, movements } = detail;
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [looseQty, setLooseQty] = useState({});
@@ -94,6 +126,7 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
   const [isWritingOff, setIsWritingOff] = useState(false);
 
   const gaps = variant.sizes.filter((size) => size.quantity === 0).map((size) => size.size);
+  const sizesInStock = variant.sizes.filter((size) => size.quantity > 0).length;
 
   const selection = useMemo(() => {
     const bySize = new Map();
@@ -133,6 +166,14 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
   };
 
   const tagCount = units.length + looseGroups.length;
+  // QR tags in stock: each set and semi set has one tag, each piece inside them has one, and loose
+  // pieces are tagged too. (Stock items are the physical units; children are the pieces inside them.)
+  const qrTagCount =
+    units.reduce((total, unit) => total + 1 + unit.children.length, 0) + looseGroups.reduce((total, group) => total + group.quantity, 0);
+
+  const setLines = compositionLines(units, "SET");
+  const semiLines = compositionLines(units, "SEMI");
+  const looseLine = looseGroups.filter((group) => group.quantity > 0).map((group) => `${group.size} ${group.quantity}`).join(" · ");
 
   const summaryCells = [
     { value: variant.totalPieces, label: "Pieces in stock" },
@@ -153,8 +194,23 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
     },
   ];
 
+  // One sentence on the state of this colour, in the tone of its status.
+  const statusLine =
+    variant.status === "OUT_OF_STOCK"
+      ? { tone: "border-red-200 bg-red-50 text-red-700", text: <><b>Out of stock</b> · no pieces left to sell</> }
+      : variant.status === "LOW"
+        ? { tone: "border-amber-200 bg-amber-50 text-amber-800", text: <><b>Low</b> · {variant.totalPieces} pcs left, the limit is {variant.lowStockLevel}</> }
+        : variant.isAgeing
+          ? { tone: "border-violet-200 bg-violet-50 text-violet-700", text: <><b>Ageing</b> · the oldest piece has been in the godown {variant.oldestDays} days</> }
+          : { tone: "border-emerald-200 bg-emerald-50 text-emerald-800", text: <><b>In stock</b> · {variant.totalPieces} pcs across {sizesInStock} of {variant.sizes.length} sizes</> };
+
   return (
     <div className="space-y-6">
+      <div className={cn("flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-[13px] leading-snug", statusLine.tone)}>
+        <AlertTriangle className="mt-0.5 size-4 flex-none" />
+        <div>{statusLine.text}</div>
+      </div>
+
       {!variant.ledgerMatches && (
         <div className="flex items-start gap-2 rounded-[10px] border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.8px] text-amber-800">
           <AlertTriangle className="mt-0.5 size-4 flex-none" />
@@ -165,27 +221,27 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-4">
         {summaryCells.map((cell) => (
-          <div key={cell.label} className="border-b border-r border-slate-200 px-3.5 py-3 last:border-r-0 sm:border-b-0">
+          <div key={cell.label} className="bg-white px-3.5 py-3">
             <div className={cn("font-mono text-[17px] font-bold text-slate-900", cell.className)}>{cell.value}</div>
             <div className="mt-0.5 text-[10.8px] text-slate-500">{cell.label}</div>
           </div>
         ))}
       </div>
 
-      <div>
-        <Eyebrow className="mb-2.5">Size availability</Eyebrow>
+      <section>
+        <Eyebrow className="mb-2.5">Sizes</Eyebrow>
         <div className="flex flex-wrap gap-2">
           {variant.sizes.map((size) => (
             <div
               key={size.designSizeId}
               className={cn(
-                "min-w-16 flex-1 rounded-[11px] border px-1.5 py-2.5 text-center",
+                "min-w-[68px] flex-1 rounded-xl border px-2 py-2.5 text-center",
                 size.quantity === 0 ? "border-red-200 bg-red-50" : size.quantity <= 2 ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white",
               )}
             >
-              <div className="text-[10.5px] font-bold text-slate-400">{size.size}</div>
+              <div className="text-[10.5px] font-bold tracking-wide text-slate-400">{size.size}</div>
               <div
                 className={cn(
                   "mt-0.5 font-mono text-xl font-bold",
@@ -205,14 +261,75 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      <div>
-        <Eyebrow className="mb-2.5">Low-stock level</Eyebrow>
-        <LowStockLevel key={variant.lowStockLevel} variant={variant} />
-      </div>
+      <section>
+        <Eyebrow className="mb-2.5">Made up of</Eyebrow>
+        <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">
+          {[
+            ["Sets", setLines.join(" · ")],
+            ["Semi sets", semiLines.join(" · ")],
+            ["Loose", looseLine],
+          ].map(([label, value]) => (
+            <div key={label} className="grid grid-cols-[110px_1fr] items-center gap-3 px-4 py-3">
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.06em] text-slate-400">{label}</span>
+              <span className="font-mono text-[13px] font-semibold text-slate-900">{value || <span className="font-sans font-medium text-slate-400">None</span>}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <div>
+      <button
+        type="button"
+        onClick={() => navigate("/qr-center")}
+        className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-[13.5px] text-slate-700 hover:bg-slate-50"
+      >
+        <QrCode className="size-4 text-slate-500" />
+        <span>
+          <b className="font-mono text-slate-900">{qrTagCount}</b> QR tags in stock
+        </span>
+        <span className="ml-auto text-[13px] font-semibold text-emerald-700">QR Center →</span>
+      </button>
+
+      <LowStockLevel key={variant.lowStockLevel} variant={variant} />
+
+      <section>
+        <div className="mb-2.5 flex items-center justify-between">
+          <Eyebrow>Movements</Eyebrow>
+          <button type="button" onClick={() => navigate("/stock-history")} className="text-[13px] font-semibold text-emerald-700 hover:underline">
+            All in Stock History →
+          </button>
+        </div>
+        {movements.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 px-4 py-5 text-center text-[13px] text-slate-500">No movements yet.</div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {movements.map((movement, index) => (
+              <div key={`${movement.at}-${index}`} className={cn("flex items-center gap-3 py-2.5", movement.reversed && "opacity-50")}>
+                <MovementIcon movement={movement} />
+                <div className="min-w-0 flex-1 text-[13.5px] text-slate-900">
+                  {movement.title}
+                  <div className="mt-0.5 text-[12px] text-slate-500">
+                    {[formatHistoryDateParts(movement.at).date, movement.adjustmentId ? adjustmentCode(movement.adjustmentId) : null, movement.reference, movement.reversed ? "reversed" : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                </div>
+                {movement.quantity === null ? (
+                  <span />
+                ) : (
+                  <span className={cn("font-mono text-[14px] font-bold", movement.direction === "IN" ? "text-emerald-600" : "text-red-600")}>
+                    {movement.direction === "IN" ? "+" : "−"}
+                    {movement.quantity}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
           <Eyebrow>Tags in stock · {tagCount}</Eyebrow>
           <div className="flex gap-2">
@@ -256,7 +373,7 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
               return (
                 <div key={unit.stockItemId}>
                   <div className={cn(TAG_COLS, "border-t border-slate-100", isSelected && "bg-red-50")}>
-                    <Checkbox checked={isSelected} onChange={() => toggleUnit(unit.stockItemId)} label={`Select ${unit.shortCode ?? unit.stockItemId}`} />
+                    <Checkbox checked={isSelected} onChange={() => toggleUnit(unit.stockItemId)} label={`Select ${unit.displayCode ?? unit.stockItemId}`} />
                     <div className="flex min-w-0 items-center gap-1.5">
                       {canExpand ? (
                         <button
@@ -270,8 +387,8 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
                       ) : (
                         <span className="w-[22px] flex-none" />
                       )}
-                      <span className="truncate font-mono font-semibold text-slate-900" title={unit.challanNo ? `Challan ${unit.challanNo}` : undefined}>
-                        {unit.shortCode ?? `#${unit.stockItemId}`}
+                      <span className="truncate font-mono text-[12px] font-semibold text-slate-900" title={unit.challanNo ? `Challan ${unit.challanNo}` : undefined}>
+                        {unit.displayCode ?? unit.shortCode ?? `#${unit.stockItemId}`}
                       </span>
                     </div>
                     <span>
@@ -285,7 +402,7 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
                     unit.children.map((child) => (
                       <div key={child.stockItemId} className={cn(TAG_COLS, "border-t border-slate-100 bg-slate-50 text-[11.8px]")}>
                         <span />
-                        <span className="pl-7 font-mono text-slate-700">{child.shortCode ?? `#${child.stockItemId}`}</span>
+                        <span className="pl-7 font-mono text-[12px] text-slate-700">{child.displayCode ?? child.shortCode ?? `#${child.stockItemId}`}</span>
                         <span className="text-[11.6px] text-slate-400">Piece in {unit.kind === "SET" ? "set" : "semi set"}</span>
                         <span className="font-mono">{child.size ?? "—"}</span>
                         <span className="font-mono">1</span>
@@ -329,44 +446,7 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
             })}
           </div>
         )}
-      </div>
-
-      <div>
-        <Eyebrow className="mb-2.5">Movement history</Eyebrow>
-        {movements.length === 0 ? (
-          <div className="text-[12.8px] text-slate-500">No movements yet.</div>
-        ) : (
-          movements.map((movement, index) => (
-            <div
-              key={`${movement.at}-${index}`}
-              className={cn(
-                "grid grid-cols-[92px_1fr_auto] items-center gap-3 border-b border-dashed border-slate-200 py-2.5 text-[12.6px] last:border-b-0",
-                movement.reversed && "opacity-50",
-              )}
-            >
-              <span className="text-[11.8px] text-slate-500">{formatHistoryDateParts(movement.at).date}</span>
-              <div>
-                {movement.title}
-                {(movement.reference || movement.adjustmentId) && (
-                  <div className="text-[11.6px] text-slate-400">
-                    {[movement.adjustmentId ? adjustmentCode(movement.adjustmentId) : null, movement.reference, movement.reversed ? "reversed" : null]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </div>
-                )}
-              </div>
-              {movement.quantity === null ? (
-                <span />
-              ) : (
-                <span className={cn("font-mono font-bold", movement.direction === "IN" ? "text-emerald-700" : "text-red-700")}>
-                  {movement.direction === "IN" ? "+" : "−"}
-                  {movement.quantity}
-                </span>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+      </section>
 
       {isWritingOff && (
         <WriteOffDialog
@@ -379,6 +459,7 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
           }}
         />
       )}
+
     </div>
   );
 };
@@ -386,6 +467,7 @@ const DrawerBody = ({ detail, ageingDays, onAddStock }) => {
 // Right-hand drawer with one variant in full detail — fetched fresh on open so tags and history
 // are never stale after an adjustment made elsewhere.
 const VariantDrawer = ({ colorVariantId, ageingDays, onClose, onAddStock }) => {
+  const navigate = useNavigate();
   const { data, isLoading, isError, error } = useCurrentStockVariantApi(colorVariantId);
   const detail = data?.data;
   const variant = detail?.variant;
@@ -406,15 +488,15 @@ const VariantDrawer = ({ colorVariantId, ageingDays, onClose, onAddStock }) => {
         role="dialog"
         aria-modal="true"
         aria-label="Variant stock detail"
-        className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[760px] flex-col bg-white shadow-[-10px_0_40px_rgba(15,23,42,0.14)]"
+        className="fixed inset-y-0 right-0 z-40 flex w-full max-w-[640px] flex-col bg-white shadow-[-10px_0_40px_rgba(15,23,42,0.14)]"
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-5">
           <div className="min-w-0">
-            <Eyebrow className="mb-1">Variant stock</Eyebrow>
-            <div className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <Eyebrow className="mb-1.5">Variant stock</Eyebrow>
+            <div className="flex items-center gap-2.5 text-xl font-bold text-slate-900">
               {variant ? (
                 <>
-                  <ColorDot hex={variant.colorHex} className="size-3" />
+                  <ColorDot hex={variant.colorHex} className="size-[18px] rounded-md" />
                   {variant.design.code} · {variant.colorName}
                 </>
               ) : (
@@ -422,9 +504,8 @@ const VariantDrawer = ({ colorVariantId, ageingDays, onClose, onAddStock }) => {
               )}
             </div>
             {variant && (
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.8px] text-slate-500">
+              <div className="mt-1 text-[13px] text-slate-500">
                 {variant.design.name} · {formatInr(variant.design.sellingPricePerPiece)}/pc
-                <StatusPill variant={variant} />
               </div>
             )}
           </div>
@@ -432,9 +513,9 @@ const VariantDrawer = ({ colorVariantId, ageingDays, onClose, onAddStock }) => {
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="grid size-[30px] flex-none place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+            className="grid size-[30px] flex-none place-items-center rounded-lg text-slate-500 hover:bg-slate-100"
           >
-            <X className="size-3.5" />
+            <X className="size-4" />
           </button>
         </div>
 
@@ -449,6 +530,18 @@ const VariantDrawer = ({ colorVariantId, ageingDays, onClose, onAddStock }) => {
             <DrawerBody key={colorVariantId} detail={detail} ageingDays={ageingDays} onAddStock={() => onAddStock(colorVariantId)} />
           )}
         </div>
+
+        {variant && (
+          <div className="flex items-center gap-2 border-t border-slate-200 px-6 py-3.5">
+            <Button type="button" variant="outline" onClick={() => navigate(`/designs/${variant.design.id}/edit`)} className="gap-2">
+              <Palette className="size-4" /> Design page
+            </Button>
+            <span className="flex-1" />
+            <Button type="button" variant="outline" onClick={() => navigate("/qr-center")} className="gap-2">
+              <QrCode className="size-4" /> View tags
+            </Button>
+          </div>
+        )}
       </aside>
     </>
   );

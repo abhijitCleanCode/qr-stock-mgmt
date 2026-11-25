@@ -41,16 +41,19 @@ export const Pill = ({ tone = "neutral", className, children }) => (
   </span>
 );
 
+// Dot + label pill, as on the prototype. Out and low are the urgent states; ageing is violet.
+const Dotted = ({ tone, children }) => (
+  <Pill tone={tone}>
+    <i className="size-1.5 rounded-full bg-current" />
+    {children}
+  </Pill>
+);
+
 export const StatusPill = ({ variant }) => {
-  if (variant.status === "OUT_OF_STOCK") return <Pill tone="red">Out of stock</Pill>;
-  if (variant.status === "LOW") {
-    return (
-      <Pill tone="warn">
-        Low · {variant.totalPieces} ≤ {variant.lowStockLevel}
-      </Pill>
-    );
-  }
-  return <Pill tone="ok">In stock</Pill>;
+  if (variant.status === "OUT_OF_STOCK") return <Dotted tone="red">Out of stock</Dotted>;
+  if (variant.status === "LOW") return <Dotted tone="warn">Low · {variant.totalPieces} pcs</Dotted>;
+  if (variant.isAgeing) return <Dotted tone="violet">Ageing</Dotted>;
+  return <Dotted tone="ok">In stock</Dotted>;
 };
 
 // Zero of a size is red (can't make a set), 1–2 amber (running out), otherwise neutral.
@@ -61,17 +64,32 @@ const sizeTone = (quantity) =>
       ? "border-amber-200 bg-amber-50 text-amber-700"
       : "border-slate-200 bg-white text-slate-700";
 
-export const SizeChips = ({ sizes }) => (
-  <div className="flex flex-wrap gap-1">
-    {sizes.map((size) => (
-      <span
-        key={size.size}
-        className={cn("min-w-[34px] rounded-md border px-1.5 py-0.5 text-center font-mono text-[10.8px]", sizeTone(size.quantity))}
-      >
-        <b className="block font-sans text-[8.8px] font-bold opacity-70">{size.size}</b>
-        {size.quantity}
-      </span>
-    ))}
+// One line of size counts that never wraps: "S 4 · M 0 · L 2", colouring only the zero and low sizes.
+// With onSelect, each count is a button, so clicking a quantity opens what it belongs to.
+export const SizeChips = ({ sizes, onSelect }) => (
+  <div className="flex flex-nowrap gap-1 overflow-x-auto">
+    {sizes.map((size) => {
+      const className = cn(
+        "inline-flex flex-none items-baseline gap-1 whitespace-nowrap rounded-md border px-1.5 py-0.5 font-mono text-[12px] font-bold",
+        sizeTone(size.quantity),
+        onSelect && "cursor-pointer transition-shadow hover:shadow-[0_0_0_2px_rgba(16,185,129,0.35)]",
+      );
+      const content = (
+        <>
+          <b className="font-sans text-[10px] font-semibold opacity-60">{size.size}</b>
+          {size.quantity}
+        </>
+      );
+      return onSelect ? (
+        <button key={size.size} type="button" onClick={onSelect} title={`${size.size}: ${size.quantity} pcs — open`} className={className}>
+          {content}
+        </button>
+      ) : (
+        <span key={size.size} className={className}>
+          {content}
+        </span>
+      );
+    })}
   </div>
 );
 

@@ -101,6 +101,7 @@ class CurrentStockOverviewRepository {
             designSizeId: stockItem.designSizeId,
             receivedOn: receivedOnSql.mapWith(String),
             challanNo: stockInTransaction.challanNo,
+            serialNo: stockItem.serialNo,
             shortCode: activeShortCodeSql,
         }).from(stockItem)
             .leftJoin(stockInTransaction, eq(stockItem.stockInTransactionId, stockInTransaction.id))
@@ -115,6 +116,7 @@ class CurrentStockOverviewRepository {
             stockItemId: stockItem.id,
             parentId: stockItem.parentStockItemId,
             designSizeId: stockItem.designSizeId,
+            serialNo: stockItem.serialNo,
             shortCode: activeShortCodeSql,
         }).from(stockItem)
             .where(and(inArray(stockItem.parentStockItemId, parentIds), eq(stockItem.type, "PIECE"), ne(stockItem.status, "CONSUMED")))
