@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Ban, Check, Download, Eye, FileDown, Loader2, Lock, MoreHorizontal, Printer, QrCode, Search } from "lucide-react";
+import { Ban, Check, ChevronLeft, ChevronRight, Download, Eye, FileDown, Loader2, Lock, MoreHorizontal, Pencil, Printer, QrCode, Search } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,14 @@ const DATE_OPTIONS = [
   ["custom", "Custom range…"],
 ];
 
+const TAG_OPTIONS = [
+  ["", "All tag states"],
+  ["none", "Not printed"],
+  ["part", "Partly printed"],
+  ["done", "Printed"],
+  ["pending", "Tags to print"],
+];
+
 const SORT_OPTIONS = [
   ["new", "Newest first"],
   ["old", "Oldest first"],
@@ -45,6 +53,16 @@ const selectClass =
 const todayIso = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
+// Page numbers with gaps: first, last, and the pages next to the current one.
+const pageItems = (current, last) => {
+  const items = [];
+  for (let page = 1; page <= last; page += 1) {
+    if (page === 1 || page === last || Math.abs(page - current) <= 1) items.push(page);
+    else if (items[items.length - 1] !== "…") items.push("…");
+  }
+  return items;
 };
 
 const SerialBadge = ({ label, dropped }) => (
@@ -93,7 +111,7 @@ const GoodsCell = ({ challan }) => {
         {overflow && (
           <span
             title={`${hidden} more design${hidden === 1 ? "" : "s"}: ${variants.slice(MAX_SWATCHES - 1).map((v) => `${v.designCode} · ${v.colorName}`).join(", ")}`}
-            className="relative -ml-1.5 grid size-6 place-items-center rounded-md border-2 border-white bg-slate-200 text-[10px] font-bold text-slate-700 shadow-[0_0_0_1px_rgb(226_232_240)]"
+            className="relative -ml-1.5 grid size-6 place-items-center overflow-hidden rounded-md border-2 border-white bg-slate-200 text-[10px] font-bold text-slate-700 shadow-[0_0_0_1px_rgb(226_232_240)]"
           >
             <span className="absolute inset-0 opacity-50" style={{ backgroundColor: variants[MAX_SWATCHES - 1]?.colorHex }} />
             <span className="relative">+{hidden}</span>
@@ -107,7 +125,10 @@ const GoodsCell = ({ challan }) => {
   );
 };
 
-// Tag progress from the printed-count the list already returns. Nothing shows when no tags exist.
+// Tag progress as a ring plus "printed/total", as on the prototype. Nothing shows when no tags exist.
+const RING_RADIUS = 6;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+
 const TagsCell = ({ challan }) => {
   if (challan.status === "DROPPED") return <span className="text-slate-300">—</span>;
   if (challan.qrCount === 0) return <span className="text-[12px] text-slate-400">No tags</span>;
@@ -118,16 +139,34 @@ const TagsCell = ({ challan }) => {
       </span>
     );
   }
-  const partial = challan.printedCount > 0;
+  const none = challan.printedCount === 0;
+  const fraction = challan.printedCount / challan.qrCount;
   return (
     <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[12px] text-slate-500",
-        partial ? "border-slate-200 bg-white" : "border-amber-200 bg-amber-50 text-amber-700",
-      )}
       title={`${challan.printedCount} of ${challan.qrCount} tags printed`}
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border py-0.5 pl-1 pr-2.5 font-mono text-[12px] text-slate-500",
+        none ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white",
+      )}
     >
-      <b className={partial ? "text-slate-900" : "text-amber-700"}>{challan.printedCount}</b>/{challan.qrCount}
+      <svg viewBox="0 0 16 16" className="size-4 -rotate-90" aria-hidden="true">
+        <circle cx="8" cy="8" r={RING_RADIUS} fill="none" strokeWidth="3" className={none ? "stroke-amber-200" : "stroke-slate-200"} />
+        {fraction > 0 && (
+          <circle
+            cx="8"
+            cy="8"
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth="3"
+            strokeLinecap="round"
+            className="stroke-amber-500"
+            strokeDasharray={`${fraction * RING_LENGTH} ${RING_LENGTH}`}
+          />
+        )}
+      </svg>
+      <span>
+        <b className={cn("font-bold", none ? "text-amber-700" : "text-slate-900")}>{challan.printedCount}</b>/{challan.qrCount}
+      </span>
     </span>
   );
 };
@@ -141,8 +180,8 @@ const QcCell = ({ challan }) => {
   );
 };
 
-// One primary action (View) per row; printing, PDF and QR tags live under ⋯.
-const RowActions = ({ challan, onView, onPrint, onPdf, onQr, onDrop }) => {
+// One primary action (View) per row; printing, PDF, QR tags and drop live under ⋯.
+const RowActions = ({ challan, onView, onPrint, onPdf, onQr, onEdit, onDrop }) => {
   const dropped = challan.status === "DROPPED";
   return (
     <div className="flex items-center justify-end gap-1.5">
@@ -165,6 +204,7 @@ const RowActions = ({ challan, onView, onPrint, onPdf, onQr, onDrop }) => {
           {!dropped && (
             <>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onEdit(challan)}><Pencil className="size-4" /> Edit details</DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onClick={() => onDrop(challan)}><Ban className="size-4" /> Drop challan</DropdownMenuItem>
             </>
           )}
@@ -174,9 +214,9 @@ const RowActions = ({ challan, onView, onPrint, onPdf, onQr, onDrop }) => {
   );
 };
 
-const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint, onPdf, onDrop }) => {
+const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint, onPdf, onEdit, onDrop }) => {
   const navigate = useNavigate();
-  const [shown, setShown] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
   const debouncedSearch = useDebouncedValue(filters.search, 250);
 
@@ -188,22 +228,41 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
       from: filters.dateRange === "custom" ? filters.from : "",
       to: filters.dateRange === "custom" ? filters.to : "",
       status: filters.status,
+      tagState: filters.tagState,
       sort: filters.sort,
     }),
     [debouncedSearch, filters],
   );
 
-  const { data, isLoading, isError, error, isFetching } = useStockInChallansApi({ ...query, page: 1, limit: shown });
+  const { data, isLoading, isError, error, isFetching } = useStockInChallansApi({ ...query, page, limit: PAGE_SIZE });
   const result = data?.data;
   const rows = result?.items ?? [];
   const total = result?.total ?? 0;
   const counts = result?.counts;
   const serials = result?.serials;
   const jobbers = result?.jobbers ?? [];
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // If a save or drop leaves fewer pages than the current one, step back to the last page.
+  // Adjusted during render (React's pattern for state derived from props) rather than in an effect.
+  if (page > lastPage) setPage(lastPage);
+
+  // "/" focuses the search box, as long as the user isn't already typing somewhere.
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const active = document.activeElement;
+      if (active && (["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) || active.isContentEditable)) return;
+      event.preventDefault();
+      document.getElementById("challan-search")?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const set = (patch) => {
     setFilters((prev) => ({ ...prev, ...patch }));
-    setShown(PAGE_SIZE);
+    setPage(1);
   };
 
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
@@ -223,7 +282,9 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
     }
   };
 
-  const actions = { onView, onPrint, onPdf, onQr: openQr, onDrop };
+  const actions = { onView, onPrint, onPdf, onQr: openQr, onEdit, onDrop };
+  const from = total ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const to = Math.min(total, page * PAGE_SIZE);
 
   return (
     <div>
@@ -232,11 +293,14 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-[17px] -translate-y-1/2 text-emerald-600" />
           <Input
+            id="challan-search"
             value={filters.search}
             onChange={(e) => set({ search: e.target.value })}
             placeholder="Search serial, challan no., jobber or design"
-            className="h-11 rounded-xl border-emerald-200 bg-emerald-50/70 pl-10 font-mono text-sm placeholder:text-emerald-900/40 focus-visible:border-emerald-500"
+            autoComplete="off"
+            className="h-11 rounded-xl border-emerald-200 bg-emerald-50/70 pl-10 pr-10 font-mono text-sm placeholder:text-emerald-900/40 focus-visible:border-emerald-500"
           />
+          <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-emerald-200 bg-white px-1.5 font-mono text-[11px] text-emerald-700 sm:block">/</kbd>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -253,11 +317,14 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
               – To <input type="date" min={filters.from} max={todayIso()} value={filters.to} onChange={(e) => set({ to: e.target.value, from: filters.from && e.target.value < filters.from ? e.target.value : filters.from })} className={selectClass} />
             </span>
           )}
+          <select className={cn(selectClass, "flex-1 sm:flex-none", filters.tagState && "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800")} value={filters.tagState} onChange={(e) => set({ tagState: e.target.value })} aria-label="Tag state">
+            {TAG_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
           <select className={cn(selectClass, "flex-1 sm:flex-none")} value={filters.sort} onChange={(e) => set({ sort: e.target.value })} aria-label="Sort">
             {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
           {isFiltered && (
-            <button type="button" onClick={() => { setFilters(DEFAULT_FILTERS); setShown(PAGE_SIZE); }} className="px-1 text-[13px] text-slate-500 hover:text-slate-900">
+            <button type="button" onClick={() => { setFilters(DEFAULT_FILTERS); setPage(1); }} className="px-1 text-[13px] text-slate-500 hover:text-slate-900">
               Clear filters
             </button>
           )}
@@ -335,56 +402,100 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
 
             {/* Tablet and up: one line per challan. */}
             <div className="hidden max-h-130 overflow-y-auto md:block">
-            <table className="w-full text-[13px]">
-              <thead className="sticky top-0 z-1 bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="px-4 py-2.5 font-bold">Serial</th>
-                  <th className="px-3 py-2.5 font-bold">Challan · date</th>
-                  <th className="px-3 py-2.5 font-bold">Jobber</th>
-                  <th className="px-3 py-2.5 font-bold">Goods received</th>
-                  <th className="px-3 py-2.5 font-bold">QC</th>
-                  <th className="px-3 py-2.5 font-bold">Tags</th>
-                  <th className="px-4 py-2.5 text-right font-bold"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((challan) => {
-                  const dropped = challan.status === "DROPPED";
-                  return (
-                    <tr key={challan.id} className={cn("border-t border-slate-100 align-middle hover:bg-slate-50/70", dropped && "bg-slate-50 text-slate-500")}>
-                      <td className="px-4 py-3">
-                        <SerialBadge label={challan.serialLabel} dropped={dropped} />
-                        {dropped && <div className="mt-1"><Mark tone="red">DROPPED</Mark></div>}
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className={cn("flex items-center gap-1.5 font-mono text-[12.8px] font-bold text-slate-900", dropped && "text-slate-400 line-through")}>
-                          {challan.challanNo}
-                          {challan.edited && <Mark>EDITED</Mark>}
-                        </div>
-                        <div className="mt-0.5 text-[11.6px] text-slate-400">{formatDateOnly(challan.stockDate)}</div>
-                      </td>
-                      <td className="px-3 py-3 font-medium text-slate-800">{challan.jobberName ?? "—"}</td>
-                      <td className="px-3 py-3"><GoodsCell challan={challan} /></td>
-                      <td className="px-3 py-3"><QcCell challan={challan} /></td>
-                      <td className="px-3 py-3"><TagsCell challan={challan} /></td>
-                      <td className="px-4 py-3"><RowActions challan={challan} {...actions} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              <table className="w-full text-[13px]">
+                <thead className="sticky top-0 z-1 bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-2.5 font-bold">
+                      <button
+                        type="button"
+                        onClick={() => set({ sort: filters.sort === "old" ? "new" : "old" })}
+                        className="inline-flex items-center gap-1.5 uppercase tracking-wider hover:text-slate-700"
+                        title="Flip newest and oldest"
+                      >
+                        Serial <span className="normal-case tracking-normal text-slate-500">{filters.sort === "old" ? "↑ oldest" : "↓ newest"}</span>
+                      </button>
+                    </th>
+                    <th className="px-3 py-2.5 font-bold">Challan · date</th>
+                    <th className="px-3 py-2.5 font-bold">Jobber</th>
+                    <th className="px-3 py-2.5 font-bold">Goods received</th>
+                    <th className="px-3 py-2.5 font-bold">QC</th>
+                    <th className="px-3 py-2.5 font-bold">Tags</th>
+                    <th className="px-4 py-2.5 text-right font-bold"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((challan) => {
+                    const dropped = challan.status === "DROPPED";
+                    return (
+                      <tr key={challan.id} className={cn("border-t border-slate-100 align-middle hover:bg-slate-50/70", dropped && "bg-slate-50 text-slate-500")}>
+                        <td className="px-4 py-3">
+                          <SerialBadge label={challan.serialLabel} dropped={dropped} />
+                          {dropped && <div className="mt-1"><Mark tone="red">DROPPED</Mark></div>}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className={cn("flex items-center gap-1.5 font-mono text-[12.8px] font-bold text-slate-900", dropped && "text-slate-400 line-through")}>
+                            {challan.challanNo}
+                            {challan.edited && <Mark>EDITED</Mark>}
+                          </div>
+                          <div className="mt-0.5 text-[11.6px] text-slate-400">{formatDateOnly(challan.stockDate)}</div>
+                        </td>
+                        <td className="px-3 py-3 font-medium text-slate-800">{challan.jobberName ?? "—"}</td>
+                        <td className="px-3 py-3"><GoodsCell challan={challan} /></td>
+                        <td className="px-3 py-3"><QcCell challan={challan} /></td>
+                        <td className="px-3 py-3"><TagsCell challan={challan} /></td>
+                        <td className="px-4 py-3"><RowActions challan={challan} {...actions} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </>
         )}
 
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 bg-white px-4 py-3">
           <span className="text-[13px] text-slate-500">
-            Showing <b className="font-mono text-slate-900">{rows.length ? 1 : 0}–{rows.length}</b> of <b className="font-mono text-slate-900">{total}</b>
+            Showing <b className="font-mono text-slate-900">{from}–{to}</b> of <b className="font-mono text-slate-900">{total}</b>
           </span>
-          {total > rows.length && (
-            <Button type="button" variant="outline" size="sm" onClick={() => setShown((n) => n + PAGE_SIZE)} className="ml-auto">
-              Show {Math.min(PAGE_SIZE, total - rows.length)} more
-            </Button>
+          {lastPage > 1 && (
+            <nav className="ml-auto flex items-center gap-1" aria-label="Pages">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+                className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              {pageItems(page, lastPage).map((item, index) =>
+                item === "…" ? (
+                  <span key={`gap-${index}`} className="px-1 text-slate-400">…</span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-current={item === page ? "page" : undefined}
+                    onClick={() => setPage(item)}
+                    className={cn(
+                      "h-8 min-w-8 rounded-lg border px-2 font-mono text-[12.5px] font-semibold",
+                      item === page ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                    )}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={page === lastPage}
+                onClick={() => setPage(page + 1)}
+                className="grid size-8 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </nav>
           )}
         </div>
       </div>

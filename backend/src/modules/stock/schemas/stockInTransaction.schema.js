@@ -1,4 +1,4 @@
-import { date, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { date, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { stockInChallan } from "./stockInChallan.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 
@@ -29,6 +29,8 @@ export const stockInTransaction = pgTable("stock_in_transactions", {
     // QC outcome for this variant: pieces that failed inspection, and why.
     defectivePieces: integer("defective_pieces").default(0).notNull(),
     defectCategory: text("defect_category"),
+    // Sizes the defective pieces came from, e.g. ["M", "L"]. Empty when nothing is defective.
+    defectSizes: jsonb("defect_sizes").$type().default([]).notNull(),
 
     notes: text("notes"),
 

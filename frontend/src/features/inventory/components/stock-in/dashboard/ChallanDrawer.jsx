@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "react-toastify";
 import { AlertTriangle, Ban, Check, ChevronDown, Download, Loader2, Lock, Pencil, Printer, QrCode, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useStockInChallanApi } from "../../../hooks/useStockInChallansApi";
+import { useDropStockInChallanApi, useStockInChallanApi } from "../../../hooks/useStockInChallansApi";
 import { formatDateOnly, formatHistoryDateParts } from "../../../utils/stockHistoryLabels";
 
 const EVENT_LABEL = { PRINT: "Printed", PDF: "PDF downloaded", EDIT: "Edited", DROP: "Dropped" };
@@ -178,7 +180,7 @@ const QcView = ({ challan }) => {
 
       <div className="space-y-2.5">
         {defectLines.map((line) => (
-          <div key={line.transactionId} className="flex items-center gap-3.5 rounded-xl border border-slate-200 border-l-4 border-l-red-500 bg-white py-3 pl-3 pr-4">
+          <div key={line.transactionId} className="flex items-start gap-3.5 rounded-xl border border-slate-200 border-l-4 border-l-red-500 bg-white py-3 pl-3 pr-4">
             <span className="w-9 shrink-0 text-center font-mono text-2xl font-bold leading-none text-red-600">{line.defective}</span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 text-[13.5px] font-semibold text-slate-900">
@@ -188,6 +190,24 @@ const QcView = ({ challan }) => {
               <div className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-red-600">
                 <AlertTriangle className="size-3.5 shrink-0" /> {line.defectCategory ?? "Defect"}
               </div>
+              {line.sizes.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {line.sizes.map((size) => {
+                    const bad = line.defectSizes.includes(size);
+                    return (
+                      <span
+                        key={size}
+                        className={cn(
+                          "inline-grid h-5 min-w-7 place-items-center rounded px-1.5 font-mono text-[11px] font-bold",
+                          bad ? "bg-red-600 text-white" : "bg-slate-100 text-slate-400",
+                        )}
+                      >
+                        {size}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <span
               className={cn(
@@ -208,19 +228,18 @@ const QcView = ({ challan }) => {
   );
 };
 
-const ChallanDrawer = ({ challanId, onClose, onEdit, onDrop, onPreview, onDownload }) => {
+const ChallanDrawer = ({ challanId, onClose, onEdit, onPreview, onDownload }) => {
   const navigate = useNavigate();
   const { data, isLoading, isError, error } = useStockInChallanApi(challanId);
+  const { mutateAsync: dropChallan, isPending: isDropping } = useDropStockInChallanApi();
   const challan = data?.data;
   const open = Boolean(challanId);
   const dropped = challan?.status === "DROPPED";
-  // Tab and history state are remembered per challan; every challan opens on Items with history closed.
-  const [view, setView] = useState({ id: null, tab: "items", historyOpen: false });
-  const current = view.id === challanId ? view : { id: challanId, tab: "items", historyOpen: false };
-  const tab = current.tab;
-  const historyOpen = current.historyOpen;
-  const setTab = (next) => setView({ ...current, tab: next });
-  const setHistoryOpen = (update) => setView({ ...current, historyOpen: typeof update === "function" ? update(current.historyOpen) : update });
+
+  // Tab, history and drop-confirm state are remembered per challan; every challan opens fresh.
+  const [view, setView] = useState({ id: null, tab: "items", historyOpen: false, confirmingDrop: false, reason: "" });
+  const current = view.id === challanId ? view : { id: challanId, tab: "items", historyOpen: false, confirmingDrop: false, reason: "" };
+  const patch = (changes) => setView({ ...current, ...changes });
 
   useEffect(() => {
     if (!open) return undefined;
@@ -228,6 +247,19 @@ const ChallanDrawer = ({ challanId, onClose, onEdit, onDrop, onPreview, onDownlo
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  const handleDrop = async () => {
+    const reason = current.reason.trim();
+    if (!reason) return;
+    try {
+      await dropChallan({ id: challan.id, reason });
+      toast.success(`Challan ${challan.challanNo} dropped — ${challan.totalPieces} pcs removed from stock · ${challan.serialLabel} retired.`);
+      onClose();
+    } catch (error) {
+      // The server refuses a drop once pieces have been sold or moved, and says why. Show that as-is.
+      toast.error(error?.message ?? "Couldn't drop the challan.");
+    }
+  };
 
   const history = challan
     ? [
@@ -289,6 +321,11 @@ const ChallanDrawer = ({ challanId, onClose, onEdit, onDrop, onPreview, onDownlo
               </div>
             )}
           </div>
+          {challan && !dropped && (
+            <Button type="button" variant="outline" size="sm" onClick={() => onEdit(challan)} className="gap-1.5">
+              <Pencil className="size-3.5" /> Edit
+            </Button>
+          )}
           <button type="button" onClick={onClose} aria-label="Close" className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100">
             <X className="size-4" />
           </button>
@@ -327,18 +364,18 @@ const ChallanDrawer = ({ challanId, onClose, onEdit, onDrop, onPreview, onDownlo
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={tab === "items"}
-                  onClick={() => setTab("items")}
-                  className={cn("flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium text-slate-500", tab === "items" && "bg-white font-semibold text-slate-900 shadow-sm")}
+                  aria-selected={current.tab === "items"}
+                  onClick={() => patch({ tab: "items" })}
+                  className={cn("flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium text-slate-500", current.tab === "items" && "bg-white font-semibold text-slate-900 shadow-sm")}
                 >
                   Items <span className="font-mono text-[11.5px] text-slate-400">{challan.totalPieces} pcs</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={tab === "qc"}
-                  onClick={() => setTab("qc")}
-                  className={cn("flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium text-slate-500", tab === "qc" && "bg-white font-semibold text-slate-900 shadow-sm")}
+                  aria-selected={current.tab === "qc"}
+                  onClick={() => patch({ tab: "qc" })}
+                  className={cn("flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-[13.5px] font-medium text-slate-500", current.tab === "qc" && "bg-white font-semibold text-slate-900 shadow-sm")}
                 >
                   QC &amp; defects
                   <span className={cn("font-mono text-[11.5px]", defectiveTotal ? "font-bold text-red-600" : "text-emerald-600")}>
@@ -347,7 +384,7 @@ const ChallanDrawer = ({ challanId, onClose, onEdit, onDrop, onPreview, onDownlo
                 </button>
               </div>
 
-              {tab === "items" ? (
+              {current.tab === "items" ? (
                 <>
                   <div className="mb-2 text-[12px] text-slate-400">Tap a row for sets, semi sets and sizes</div>
                   <StockCount challan={challan} />
@@ -369,14 +406,14 @@ const ChallanDrawer = ({ challanId, onClose, onEdit, onDrop, onPreview, onDownlo
               <div className="mt-5">
                 <button
                   type="button"
-                  aria-expanded={historyOpen}
-                  onClick={() => setHistoryOpen((open) => !open)}
+                  aria-expanded={current.historyOpen}
+                  onClick={() => patch({ historyOpen: !current.historyOpen })}
                   className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500"
                 >
-                  <ChevronDown className={cn("size-3.5 transition-transform", historyOpen && "rotate-180")} />
+                  <ChevronDown className={cn("size-3.5 transition-transform", current.historyOpen && "rotate-180")} />
                   History · {history.length} entr{history.length === 1 ? "y" : "ies"}
                 </button>
-                {historyOpen && (
+                {current.historyOpen && (
                   <div className="mt-2 border-l-2 border-slate-200 pl-4">
                     {history.map((entry, index) => {
                       const parts = formatHistoryDateParts(entry.at);
@@ -397,15 +434,43 @@ const ChallanDrawer = ({ challanId, onClose, onEdit, onDrop, onPreview, onDownlo
 
         {challan && (
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 px-5 py-3 sm:px-6">
-            <Button type="button" variant="outline" size="sm" onClick={() => onPreview(challan)} className="gap-1.5"><Printer className="size-3.5" /> Print</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => onDownload(challan)} className="gap-1.5"><Download className="size-3.5" /> Download PDF</Button>
-            <span className="flex-1" />
-            {dropped ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs text-slate-500"><Lock className="size-3" /> Dropped challans are read-only</span>
+            {current.confirmingDrop && !dropped ? (
+              <div className="flex w-full flex-wrap items-center gap-2">
+                <div className="min-w-0 flex-1 basis-full text-[13px] text-slate-700 sm:basis-auto">
+                  <b className="text-red-600">Drop {challan.serialLabel}?</b> Its {challan.totalPieces} pcs leave stock and its tags stop working.
+                </div>
+                <Input
+                  value={current.reason}
+                  onChange={(event) => patch({ reason: event.target.value })}
+                  placeholder="Reason, e.g. entered twice"
+                  aria-label="Reason for dropping"
+                  autoFocus
+                  className="h-9 w-full rounded-lg sm:w-56"
+                />
+                <Button type="button" variant="outline" size="sm" disabled={isDropping} onClick={() => patch({ confirmingDrop: false, reason: "" })}>Cancel</Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isDropping || !current.reason.trim()}
+                  onClick={handleDrop}
+                  className="gap-1.5 bg-red-600 text-white hover:bg-red-700"
+                >
+                  {isDropping && <Loader2 className="size-3.5 animate-spin" />} Drop challan
+                </Button>
+              </div>
             ) : (
               <>
-                <Button type="button" variant="outline" size="sm" onClick={() => onEdit(challan)} className="gap-1.5"><Pencil className="size-3.5" /> Edit details</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => onDrop(challan)} className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"><Ban className="size-3.5" /> Drop challan</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => onPreview(challan)} className="gap-1.5"><Printer className="size-3.5" /> Print</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => onDownload(challan)} className="gap-1.5"><Download className="size-3.5" /> Download PDF</Button>
+                <span className="flex-1" />
+                {dropped ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs text-slate-500"><Lock className="size-3" /> Dropped challans are read-only</span>
+                ) : (
+                  <>
+                    <Button type="button" variant="outline" size="sm" onClick={() => onEdit(challan)} className="gap-1.5"><Pencil className="size-3.5" /> Edit details</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => patch({ confirmingDrop: true })} className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"><Ban className="size-3.5" /> Drop challan</Button>
+                  </>
+                )}
               </>
             )}
           </div>

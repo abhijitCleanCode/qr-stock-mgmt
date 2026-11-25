@@ -115,6 +115,34 @@ const QcDefectStep = ({
                   {categoryError && <div className="mt-1 text-[11.5px] text-red-600">{categoryError}</div>}
                 </div>
               </div>
+
+              {qc.defects > 0 && (variantTotals[key]?.sizes ?? []).length > 0 && (
+                <div className="mt-4">
+                  <div className="mb-1.5 text-[11px] font-medium text-slate-600">Sizes the defective pieces came from</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {variantTotals[key].sizes.map((size) => {
+                      const label = size.sizeLabel;
+                      const picked = qc.sizes.includes(label);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          aria-pressed={picked}
+                          onClick={() =>
+                            onQcFieldChange(key, { sizes: picked ? qc.sizes.filter((item) => item !== label) : [...qc.sizes, label] })
+                          }
+                          className={cn(
+                            "h-8 min-w-9 rounded-md border px-2 font-mono text-xs font-semibold",
+                            picked ? "border-red-500 bg-red-50 text-red-600" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

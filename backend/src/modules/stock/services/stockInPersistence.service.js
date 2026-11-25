@@ -53,6 +53,7 @@ class stockInPersistence {
             totalSetsReceived: variantInput.totalSetsReceived ?? 0,
             defectivePieces: variantInput.defectivePieces ?? 0,
             defectCategory: variantInput.defectivePieces > 0 ? variantInput.defectCategory ?? null : null,
+            defectSizes: variantInput.defectivePieces > 0 ? variantInput.defectSizes ?? [] : [],
             notes: variantInput.notes ?? null,
         });
 

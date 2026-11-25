@@ -35,7 +35,7 @@ export function buildStockInPayload(selectedVariants, configs, { challan, tagPar
     const variantEntry = {
       colorVariantId: config.colorVariantId,
       defectivePieces: defects,
-      ...(defects > 0 ? { defectCategory: qcByKey[key].category } : {}),
+      ...(defects > 0 ? { defectCategory: qcByKey[key].category, defectSizes: qcByKey[key].sizes } : {}),
       totalSetsReceived: config.totalSetsReceived,
       bundles: config.bundles
         .filter((bundle) => bundle.quantity > 0)

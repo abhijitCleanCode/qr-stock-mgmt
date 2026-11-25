@@ -67,6 +67,8 @@ const variantEntrySchema = z
         // whenever any piece is defective (checked in the superRefine below).
         defectivePieces: nonNegativeInt.default(0),
         defectCategory: z.string().trim().max(100).optional(),
+        // Size labels the defective pieces came from. Required whenever any piece is defective.
+        defectSizes: z.array(z.string().trim().min(1).max(20)).max(50).default([]),
         notes: z.string().max(1000).optional(),
         totalSetsReceived: nonNegativeInt.default(0),
         bundles: z.array(bundleSchema).default([]),
@@ -94,6 +96,14 @@ const variantEntrySchema = z
                 code: z.ZodIssueCode.custom,
                 path: ["defectCategory"],
                 message: "Pick a defect category when a variant has defective pieces.",
+            });
+        }
+
+        if (variant.defectivePieces > 0 && variant.defectSizes.length === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["defectSizes"],
+                message: "Pick the sizes the defective pieces came from.",
             });
         }
 
@@ -201,6 +211,8 @@ export const stockInChallanListQuerySchema = z.object({
     from: z.string().date().optional(),
     to: z.string().date().optional(),
     status: z.enum(["active", "defects", "edited", "dropped", "all"]).default("active"),
+    // Tag printing state. "pending" = some tags still to print (not-printed or partly printed).
+    tagState: z.enum(["none", "part", "done", "pending"]).optional(),
     sort: z.enum(["new", "old", "pcs"]).default("new"),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(500).default(8),

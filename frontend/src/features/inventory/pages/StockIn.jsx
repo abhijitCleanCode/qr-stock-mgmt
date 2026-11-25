@@ -86,6 +86,8 @@ const StockIn = () => {
         passed: totals.garmentsTotal - defects,
         defects,
         category: override?.category ?? NO_DEFECT_CATEGORY,
+        // Sizes the defective pieces came from. Only meaningful while there are defects.
+        sizes: defects > 0 ? override?.sizes ?? [] : [],
       };
     }
     return resolved;
@@ -206,8 +208,10 @@ const StockIn = () => {
       for (const variant of selectedVariants) {
         const key = getVariantKey(variant);
         const qc = qcByKey[key];
-        if (qc && qc.defects > 0 && qc.category === NO_DEFECT_CATEGORY) {
-          errors[key] = `Pick a defect category for ${variant.designCode ? `${variant.designCode} · ` : ""}${variant.colorName}.`;
+        if (qc && qc.defects > 0) {
+          const name = `${variant.designCode ? `${variant.designCode} · ` : ""}${variant.colorName}`;
+          if (qc.category === NO_DEFECT_CATEGORY) errors[key] = `Pick a defect category for ${name}.`;
+          else if (qc.sizes.length === 0) errors[key] = `Pick the sizes the defective pieces came from for ${name}.`;
         }
       }
     }

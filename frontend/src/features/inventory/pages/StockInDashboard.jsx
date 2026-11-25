@@ -125,7 +125,16 @@ const StockInDashboard = () => {
     { value: stats?.batchesThisMonth, label: "Challans this month" },
     { value: stats?.piecesThisMonth?.toLocaleString("en-IN"), label: "Pieces received this month" },
     { value: stats?.draftsInProgress, label: "Drafts in progress", tone: "blue", onClick: drafts.length ? () => setDraftsOpen(true) : undefined },
-    { value: stats?.batchesPendingPrint, label: "Challans with tags to print", tone: "amber" },
+    {
+      value: stats?.batchesPendingPrint,
+      label: "Challans with tags to print",
+      tone: "amber",
+      onClick: () => {
+        setFilters({ ...DEFAULT_FILTERS, tagState: "pending" });
+        setTab("register");
+        document.getElementById("challan-register-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
+    },
   ];
 
   return (
@@ -213,7 +222,7 @@ const StockInDashboard = () => {
         </section>
       )}
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,.04)]">
+      <section id="challan-register-card" className="rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,.04)]">
         <div className="flex items-center gap-3 border-b border-slate-200 px-3.5 py-3">
           <div role="tablist" className="inline-flex rounded-lg bg-slate-100 p-[3px]">
             {TABS.map(([value, label]) => (
@@ -245,6 +254,7 @@ const StockInDashboard = () => {
                 onView={(challan) => setDrawerId(challan.id)}
                 onPrint={handlePreview}
                 onPdf={handleDownload}
+                onEdit={setEditing}
                 onDrop={setDropping}
               />
             )
@@ -258,7 +268,6 @@ const StockInDashboard = () => {
         challanId={drawerId}
         onClose={closeDrawer}
         onEdit={setEditing}
-        onDrop={setDropping}
         onPreview={handlePreview}
         onDownload={handleDownload}
       />

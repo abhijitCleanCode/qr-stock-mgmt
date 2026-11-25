@@ -30,7 +30,7 @@ const variantsSql = sql`(select coalesce(jsonb_agg(jsonb_build_object('designCod
     join color_variants cv on cv.id = g.variant_id
     join designs d on d.id = cv.design_id)`;
 
-function filterFragments({ id, search, jobber, dateRange, from, to, status }) {
+function filterFragments({ id, search, jobber, dateRange, from, to, status, tagState }) {
     const where = [];
 
     if (id) where.push(sql`c.id = ${id}`);
@@ -38,6 +38,11 @@ function filterFragments({ id, search, jobber, dateRange, from, to, status }) {
     if (status === "defects") where.push(sql`c.status = 'ACTIVE' and ${defectiveSql} > 0`);
     if (status === "edited") where.push(sql`${editCountSql} > 0`);
     if (status === "dropped") where.push(sql`c.status = 'DROPPED'`);
+
+    if (tagState === "none") where.push(sql`${qrCountSql} > 0 and ${printedCountSql} = 0`);
+    if (tagState === "part") where.push(sql`${printedCountSql} > 0 and ${printedCountSql} < ${qrCountSql}`);
+    if (tagState === "done") where.push(sql`${qrCountSql} > 0 and ${printedCountSql} >= ${qrCountSql}`);
+    if (tagState === "pending") where.push(sql`${qrCountSql} > ${printedCountSql}`);
 
     if (jobber) where.push(sql`c.jobber_name = ${jobber}`);
 
@@ -175,7 +180,10 @@ class StockInChallanRepository {
 
     async jobberSummary(tx) {
         const result = await tx.execute(sql`
-            select c.jobber_name, count(*)::int as challan_count, sum(${piecesSql})::int as pieces
+            select c.jobber_name, count(*)::int as challan_count, sum(${piecesSql})::int as pieces,
+                   sum(${defectiveSql})::int as defective,
+                   (array_agg(c.serial order by c.stock_date desc, c.serial desc))[1]::int as last_serial,
+                   max(c.stock_date) as last_date
             from stock_in_challans c
             where c.status = 'ACTIVE'
             group by c.jobber_name
@@ -207,7 +215,7 @@ class StockInChallanRepository {
     // One row per variant registration on the challan, with the design/variant identity and QC.
     async findLines(tx, challanId) {
         const result = await tx.execute(sql`
-            select t.id as transaction_id, t.variant_id, t.total_sets_received as sets, t.defective_pieces, t.defect_category,
+            select t.id as transaction_id, t.variant_id, t.total_sets_received as sets, t.defective_pieces, t.defect_category, t.defect_sizes,
                    cv.color_name, cv.color_hex, d.id as design_id, d.code as design_code, d.name as design_name,
                    (select coalesce(sum(e.quantity_added), 0) from stock_in_entries e where e.stock_in_transaction_id = t.id)::int as pieces
             from stock_in_transactions t

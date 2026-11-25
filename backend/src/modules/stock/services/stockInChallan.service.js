@@ -108,7 +108,14 @@ class StockInChallanService {
 
     async jobberSummary() {
         const rows = await this._repository.jobberSummary(db);
-        return rows.map((row) => ({ jobberName: row.jobber_name ?? "—", challanCount: row.challan_count, pieces: row.pieces }));
+        return rows.map((row) => ({
+            jobberName: row.jobber_name ?? "—",
+            challanCount: row.challan_count,
+            pieces: row.pieces,
+            defective: row.defective ?? 0,
+            lastSerialLabel: row.last_serial ? formatSerial(row.last_serial) : null,
+            lastDate: row.last_date ? toIsoDate(row.last_date) : null,
+        }));
     }
 
     async getById(id) {
@@ -155,6 +162,7 @@ class StockInChallanService {
                 pieces: line.pieces,
                 defective: line.defective_pieces,
                 defectCategory: line.defect_category,
+                defectSizes: line.defect_sizes ?? [],
             };
         });
 
