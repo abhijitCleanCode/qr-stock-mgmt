@@ -1,6 +1,7 @@
 import stockInController from "../controllers/stockIn.controller.js";
 import stockInChallanController from "../controllers/stockInChallan.controller.js";
 import stockInDraftController from "../controllers/stockInDraft.controller.js";
+import stockInOverviewController from "../controllers/stockInOverview.controller.js";
 import { validateRequest } from "../../../core/validateRequest.js";
 import {
     stockInChallanDropSchema,
@@ -28,6 +29,11 @@ export const stockInRoutes = [
         path: "/serial-counters",
         controller: { get: stockInController.getSerialCounters },
         validators: { get: validateRequest(stockInSerialCountersQuerySchema, "query") },
+    },
+    // First screen of Stock In in one request (dashboard, drafts, next serial, first register page).
+    {
+        path: "/overview",
+        controller: { get: stockInOverviewController.get },
     },
     {
         path: "/dashboard",
