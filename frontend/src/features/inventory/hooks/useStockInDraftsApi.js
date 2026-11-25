@@ -31,6 +31,8 @@ export function useSaveStockInDraftApi() {
         onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ["stock-in", "dashboard"] });
             queryClient.invalidateQueries({ queryKey: ["stock-in", "drafts"], exact: true });
+            // The dashboard's first screen (stats and drafts) comes from the overview.
+            queryClient.invalidateQueries({ queryKey: ["stock-in", "overview"] });
             if (result?.data?.id) {
                 queryClient.setQueryData(["stock-in", "drafts", String(result.data.id)], result);
             }

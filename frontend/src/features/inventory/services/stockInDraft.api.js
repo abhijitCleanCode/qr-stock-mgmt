@@ -22,6 +22,9 @@ export async function stockInRequest(path, { method = "GET", body } = {}) {
 
 export const getStockInDashboardApi = () => stockInRequest("/dashboard");
 
+// The first screen of Stock In in one request: dashboard, drafts, next serial and the first register page.
+export const getStockInOverviewApi = () => stockInRequest("/overview");
+
 export const getStockInDraftsApi = () => stockInRequest("/drafts");
 
 export const getStockInDraftApi = (draftId) => stockInRequest(`/drafts/${draftId}`);

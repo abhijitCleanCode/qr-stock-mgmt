@@ -15,6 +15,9 @@ export function useStockInChallansApi(params) {
         queryKey: ["stock-in", "challans", params],
         queryFn: () => getStockInChallansApi(params),
         placeholderData: keepPreviousData,
+        // A page that was just loaded (the overview fills the register's first page) is not refetched
+        // the moment the register mounts. Saves and drops invalidate the register, so it stays current.
+        staleTime: 30_000,
     });
 }
 

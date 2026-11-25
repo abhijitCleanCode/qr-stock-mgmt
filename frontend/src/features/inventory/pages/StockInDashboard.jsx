@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import ActionModal from "@/components/shared/ActionModal";
 import { cn } from "@/lib/utils";
 import { STOCK_IN_STEPS } from "../hooks/useStockInWizard";
-import { useStockInDashboardApi } from "../hooks/useStockInDashboardApi";
-import { useDeleteStockInDraftApi, useStockInDraftsApi } from "../hooks/useStockInDraftsApi";
-import { useLogStockInChallanEventApi, useNextStockInSerialApi } from "../hooks/useStockInChallansApi";
+import { useStockInOverviewApi } from "../hooks/useStockInOverviewApi";
+import { useDeleteStockInDraftApi } from "../hooks/useStockInDraftsApi";
+import { useLogStockInChallanEventApi } from "../hooks/useStockInChallansApi";
 import { getStockInChallanApi } from "../services/stockInChallan.api";
 import { buildChallanPdf, challanFileName, downloadBlob } from "../utils/challanPdf";
 import { formatDateOnly } from "../utils/stockHistoryLabels";
@@ -23,7 +23,7 @@ import EditChallanDialog from "../components/stock-in/dashboard/EditChallanDialo
 import DropChallanDialog from "../components/stock-in/dashboard/DropChallanDialog";
 
 const Sheet = ({ className, children }) => (
-  <section className={cn("rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-8", className)}>
+  <section className={cn("rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_4px_20px_rgba(0,0,0,0.03)] sm:p-6 md:p-8", className)}>
     {children}
   </section>
 );
@@ -47,9 +47,8 @@ function draftTitle(draft) {
 const StockInDashboard = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const dashboardQuery = useStockInDashboardApi();
-  const draftsQuery = useStockInDraftsApi();
-  const nextSerialQuery = useNextStockInSerialApi();
+  // One request covers the stats, drafts, next serial and first register page.
+  const overviewQuery = useStockInOverviewApi();
   const { mutateAsync: deleteDraft, isPending: isDeleting } = useDeleteStockInDraftApi();
   const { mutate: logEvent } = useLogStockInChallanEventApi();
 
@@ -61,9 +60,10 @@ const StockInDashboard = () => {
   const [previewing, setPreviewing] = useState(null);
   const [draftToDiscard, setDraftToDiscard] = useState(null);
 
-  const stats = dashboardQuery.data?.data?.stats;
-  const drafts = draftsQuery.data?.data ?? [];
-  const nextSerial = nextSerialQuery.data?.data?.serial;
+  const overview = overviewQuery.data;
+  const stats = overview?.dashboard?.stats;
+  const drafts = overview?.drafts ?? [];
+  const nextSerial = overview?.nextSerial?.serial;
 
   const closeDrawer = useCallback(() => setDrawerId(null), []);
 
@@ -127,7 +127,7 @@ const StockInDashboard = () => {
           <Stat value={stats?.draftsInProgress} label="Drafts in progress" highlight={stats?.draftsInProgress > 0} />
           <Stat value={stats?.batchesPendingPrint} label="Batches with tags pending print" highlight={stats?.batchesPendingPrint > 0} />
         </div>
-        {dashboardQuery.isError && <div className="pt-3 text-center text-sm text-red-600">{dashboardQuery.error.message}</div>}
+        {overviewQuery.isError && <div className="pt-3 text-center text-sm text-red-600">{overviewQuery.error.message}</div>}
       </Sheet>
 
       {drafts.length > 0 && (
@@ -136,7 +136,8 @@ const StockInDashboard = () => {
           <p className="mb-3.5 mt-0.5 text-xs text-slate-500 md:text-[13px]">
             Not added to stock yet — continue where you left off. A serial no. is issued only when the stock-in is completed.
           </p>
-          <div className="max-h-72 space-y-2.5 overflow-y-auto pr-1">
+          {/* On phones the list simply continues down the page; on larger screens it scrolls inside a box. */}
+          <div className="space-y-2.5 md:max-h-72 md:overflow-y-auto md:pr-1">
             {drafts.map((draft) => {
               const step = Math.min(Math.max(draft.currentStep, 0), STOCK_IN_STEPS.length - 1);
               return (
@@ -180,13 +181,21 @@ const StockInDashboard = () => {
           ))}
         </div>
         {tab === "register" ? (
-          <ChallanRegister
-            filters={filters}
-            onFiltersChange={setFilters}
-            onView={(challan) => setDrawerId(challan.id)}
-            onPrint={handlePreview}
-            onPdf={handleDownload}
-          />
+          // Wait for the overview so the register's first page comes from it, not a second request.
+          // If the overview fails, the register loads on its own.
+          overviewQuery.isPending ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-500">
+              <Loader2 className="size-4 animate-spin" /> Loading challans…
+            </div>
+          ) : (
+            <ChallanRegister
+              filters={filters}
+              onFiltersChange={setFilters}
+              onView={(challan) => setDrawerId(challan.id)}
+              onPrint={handlePreview}
+              onPdf={handleDownload}
+            />
+          )
         ) : (
           <JobberSummary onOpenJobber={openJobber} />
         )}
