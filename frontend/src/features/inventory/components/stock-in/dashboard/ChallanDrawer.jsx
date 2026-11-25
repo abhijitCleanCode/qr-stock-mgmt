@@ -31,7 +31,7 @@ const StockCountTable = ({ challan }) => {
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-      <table className="w-full min-w-[420px] text-xs">
+      <table className="w-full min-w-[300px] text-xs sm:min-w-[420px]">
         <thead className="border-b border-slate-200 bg-slate-50 text-[9.5px] uppercase tracking-wider text-slate-400">
           <tr>
             <th className="p-2.5 text-left">Design · variant</th>

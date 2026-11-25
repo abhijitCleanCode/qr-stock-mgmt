@@ -19,7 +19,7 @@ const JobberSummary = ({ onOpenJobber }) => {
       </div>
       {rows.map((row) => (
         <div key={row.jobberName} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 border-b border-slate-100 px-4 py-3 text-[13px] last:border-b-0 sm:grid-cols-[2fr_1fr_1.2fr_140px]">
-          <b className="text-slate-900">{row.jobberName}</b>
+          <b className="min-w-0 truncate text-slate-900">{row.jobberName}</b>
           <span className="font-mono text-slate-600">{row.challanCount} <span className="text-xs text-slate-400 sm:hidden">challans</span></span>
           <span className="font-mono font-bold text-slate-900">{row.pieces?.toLocaleString("en-IN")} <span className="text-xs font-normal text-slate-400 sm:hidden">pcs</span></span>
           <div className="text-right">

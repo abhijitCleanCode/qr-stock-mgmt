@@ -1,5 +1,6 @@
 import Sidebar from "@/components/shared/sidebar/Sidebar";
 import Navbar from "@/components/shared/navbar/Navbar";
+import MobilePageBar from "@/components/shared/MobilePageBar";
 import { Outlet } from "react-router";
 import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/app/hooks";
@@ -17,6 +18,8 @@ const MainLayout = () => {
         <Navbar />
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-6 pb-6 sm:px-2 lg:px-10">
+          {/* Phone only: names the current page and stays in view while scrolling. */}
+          <MobilePageBar />
           <Outlet />
         </div>
       </main>

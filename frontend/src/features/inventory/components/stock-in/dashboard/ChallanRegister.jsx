@@ -39,8 +39,9 @@ const SORT_OPTIONS = [
 ];
 
 
+// Full width on phones (two per row), natural width from `sm` up.
 const selectClass =
-  "h-[38px] rounded-lg border border-slate-300 bg-white px-3 text-[13px] text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-[3px] focus:ring-emerald-500/10";
+  "h-[38px] w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-[13px] text-slate-700 focus:border-emerald-500 focus:outline-none focus:ring-[3px] focus:ring-emerald-500/10 sm:w-auto";
 
 const todayIso = () => {
   const now = new Date();
@@ -158,12 +159,12 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
         <Input
           value={filters.search}
           onChange={(e) => set({ search: e.target.value })}
-          placeholder="Search by serial no., jobber challan no., issued challan no., jobber, design or variant"
+          placeholder="Search serial, challan no., jobber, design…"
           className="h-12 rounded-xl border-2 border-emerald-200 bg-emerald-50 pl-11 font-mono text-sm focus-visible:border-emerald-500"
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2.5">
+      <div className="mt-3 grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:gap-2.5">
         <select className={selectClass} value={filters.jobber} onChange={(e) => set({ jobber: e.target.value })} aria-label="Jobber">
           <option value="">All jobbers</option>
           {jobbers.map((name) => <option key={name} value={name}>{name}</option>)}
@@ -172,7 +173,7 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
           {DATE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
         {filters.dateRange === "custom" && (
-          <span className="inline-flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <span className="col-span-2 inline-flex flex-wrap items-center gap-2 text-xs text-slate-500 sm:col-auto">
             From <input type="date" max={filters.to || todayIso()} value={filters.from} onChange={(e) => set({ from: e.target.value, to: filters.to && e.target.value > filters.to ? e.target.value : filters.to })} className={selectClass} />
             – To <input type="date" min={filters.from} max={todayIso()} value={filters.to} onChange={(e) => set({ to: e.target.value, from: filters.from && e.target.value < filters.from ? e.target.value : filters.from })} className={selectClass} />
           </span>
@@ -181,11 +182,11 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
           {SORT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
         {isFiltered && (
-          <button type="button" onClick={() => { setFilters(DEFAULT_FILTERS); setShown(PAGE_SIZE); }} className="text-[13px] text-slate-500 hover:text-slate-900">
+          <button type="button" onClick={() => { setFilters(DEFAULT_FILTERS); setShown(PAGE_SIZE); }} className="col-span-2 justify-self-start text-[13px] text-slate-500 hover:text-slate-900 sm:col-auto">
             Clear filters
           </button>
         )}
-        <span className="ml-auto flex items-center gap-3">
+        <span className="col-span-2 flex items-center justify-between gap-3 sm:col-auto sm:ml-auto sm:justify-end">
           <span className="text-xs text-slate-400">{isFetching && <Loader2 className="mr-1 inline size-3 animate-spin" />}{total} challan{total === 1 ? "" : "s"}</span>
           <Button type="button" variant="outline" size="sm" onClick={handleExport} disabled={isExporting || total === 0} className="gap-1.5">
             {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} Export (Excel)
@@ -193,13 +194,14 @@ const ChallanRegister = ({ filters, onFiltersChange: setFilters, onView, onPrint
         </span>
       </div>
 
-      <div className="mt-3 flex max-w-full gap-0.5 overflow-x-auto rounded-[10px] border border-slate-200 bg-slate-100 p-[3px] sm:inline-flex">
+      {/* Phones: the tabs wrap into a grid, so every status is visible without sideways scrolling. */}
+      <div className="mt-3 grid grid-cols-3 gap-0.5 rounded-[10px] border border-slate-200 bg-slate-100 p-[3px] sm:inline-flex sm:max-w-full sm:overflow-x-auto">
         {STATUS_TABS.map(([value, label]) => (
           <button
             key={value}
             type="button"
             onClick={() => set({ status: value })}
-            className={cn("whitespace-nowrap rounded-[7px] px-3.5 py-1.5 text-[12.6px] font-semibold text-slate-500", filters.status === value && "bg-white text-slate-900 shadow-sm")}
+            className={cn("whitespace-nowrap rounded-[7px] px-2 py-1.5 text-[12px] font-semibold text-slate-500 sm:px-3.5 sm:text-[12.6px]", filters.status === value && "bg-white text-slate-900 shadow-sm")}
           >
             {label}<span className="ml-1 font-mono text-[11px] text-slate-400">{counts?.[value] ?? 0}</span>
           </button>

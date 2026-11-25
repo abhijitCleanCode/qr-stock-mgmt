@@ -6,7 +6,7 @@ import { flagsForTag } from "./qrTagStudio";
 // the numbers on screen are the numbers that print.
 
 // Same firm header the Stock In wizard prints (QrTagStudioStep).
-export const FIRM_LABEL = "SHAKSHAM'S FASHIONS";
+export const FIRM_LABEL = "SAKSHAM'S FASHIONS";
 
 export const formatDdMmYy = (isoDate) => {
   if (!isoDate) return "—";

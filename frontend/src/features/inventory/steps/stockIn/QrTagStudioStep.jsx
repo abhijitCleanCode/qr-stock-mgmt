@@ -24,7 +24,7 @@ import {
   labelDims,
 } from "../../utils/qrTagStudio";
 
-const FIRM_LABEL = "SHAKSHAM'S FASHIONS";
+const FIRM_LABEL = "SAKSHAM'S FASHIONS";
 
 const formatDdMmYy = (isoDate) => {
   if (!isoDate) return "—";

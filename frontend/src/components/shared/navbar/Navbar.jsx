@@ -14,7 +14,7 @@ const Navbar = () => {
                     <SheetMenu />
                     <Link to="/" className="flex items-center gap-2 group">
                         {/* <img src={springfieldLogo} alt="logo" width={28} height={28} /> */}
-                        <span className="text-[15px] font-semibold text-[#1E1B4B] tracking-tight">SHAKSHAM'S FASHIONS</span>
+                        <span className="text-[15px] font-semibold text-[#1E1B4B] tracking-tight">SAKSHAM'S FASHIONS</span>
                     </Link>
                 </div>
             </div>
