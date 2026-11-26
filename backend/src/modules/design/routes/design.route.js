@@ -1,4 +1,4 @@
-import upload from "../../../app/middlewares/multer.middleware.js";
+import upload, { imageUpload } from "../../../app/middlewares/multer.middleware.js";
 import designController from "../controllers/design.controller.js";
 import designDraftController from "../controllers/designDraft.controller.js";
 import { validateRequest } from "../../../core/validateRequest.js";
@@ -106,6 +106,18 @@ export const designRoutes = [
         },
     },
     // Must stay last: "/:id" would otherwise swallow the fixed paths above.
+    {
+        // Bulk photo upload: one photo per colour, matched by the client. See designPhoto.service.js.
+        path: "/photos",
+        controller: {
+            post: designController.replacePhotos
+        },
+        middlewares: {
+            post: [
+                imageUpload.array("images", 20)
+            ]
+        }
+    },
     {
         path: "/:id",
         controller: {
