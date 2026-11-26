@@ -423,7 +423,7 @@ const OrderFormEditor = () => {
             </div>
 
             <div className="glass-card flex flex-wrap justify-end gap-2 rounded-[24px] p-4">
-                <Button variant="ghost" onClick={() => navigate("/stock-out/orders")}>Cancel</Button>
+                <Button variant="ghost" onClick={() => navigate("/stock-out/orders")}>Back</Button>
                 <Button
                     className="rounded-full bg-[#00694C] px-6 text-white hover:bg-[#00563e]"
                     onClick={submit}
