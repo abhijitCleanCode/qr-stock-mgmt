@@ -305,12 +305,14 @@ const StockIn = () => {
           navigate(`/stock-in/drafts/${savedId}`, { replace: true });
         }
         if (!silent) toast.success("Draft saved — resume it any time from the Stock In dashboard.");
+        return true;
       } catch (error) {
         toast.error(
           silent
             ? `Couldn't autosave this draft: ${error?.message ?? "unknown error"}`
             : (error?.message ?? "Couldn't save draft. Please try again."),
         );
+        return false;
       }
     });
     saveChainRef.current = run;
@@ -463,7 +465,11 @@ const StockIn = () => {
     if (nextStep !== null) persistDraft(nextStep, { silent: true });
   };
 
-  const handleSaveDraft = () => persistDraft(wizard.activeStep, { silent: false });
+  // Draft saves the wizard and returns to the Stock In dashboard; on failure, stay here to retry.
+  const handleSaveDraft = async () => {
+    const saved = await persistDraft(wizard.activeStep, { silent: false });
+    if (saved) navigate("/stock-in");
+  };
 
   // Enter / arrow-key entry on the three data-entry steps.
   const stepsRef = useRef(null);

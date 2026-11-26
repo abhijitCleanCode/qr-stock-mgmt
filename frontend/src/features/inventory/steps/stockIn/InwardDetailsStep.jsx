@@ -126,7 +126,9 @@ const InwardDetailsStep = ({
             <DesignSearchInput
               id="design-search"
               placeholder="Search by design code or name... (add as many as the challan has)"
+              selectedVariants={selectedVariants}
               onSelect={onAddVariant}
+              onRemove={onRemoveVariant}
               inputClassName={JWO_INPUT_CLASSNAME}
             />
           </div>
