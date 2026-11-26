@@ -4,13 +4,15 @@
 
 export const STATUS_FILTERS = [
   { id: "all", label: "All" },
-  { id: "in", label: "In stock" },
-  { id: "low", label: "Low" },
+  { id: "att", label: "Needs attention" },
   { id: "out", label: "Out of stock" },
+  { id: "low", label: "Low" },
   { id: "ageing", label: "Ageing 60+ days" },
+  { id: "in", label: "In stock" },
 ];
 
 export const SORTS = [
+  { id: "attention", label: "Needs attention first" },
   { id: "code", label: "Design code A–Z" },
   { id: "most", label: "Most pieces" },
   { id: "least", label: "Fewest pieces" },
@@ -45,6 +47,7 @@ export function filterVariants(variants, { query, status, designId, sort }) {
 
   const rows = variants.filter((variant) => {
     if (designId && String(variant.design.id) !== String(designId)) return false;
+    if (status === "att" && variant.status === "IN_STOCK" && !variant.isAgeing) return false;
     if (status === "in" && variant.totalPieces === 0) return false;
     if (status === "low" && variant.status !== "LOW") return false;
     if (status === "out" && variant.status !== "OUT_OF_STOCK") return false;
@@ -58,7 +61,11 @@ export function filterVariants(variants, { query, status, designId, sort }) {
 
   const byCode = (a, b) =>
     (a.design.code ?? "").localeCompare(b.design.code ?? "") || a.colorName.localeCompare(b.colorName);
+  // Out of stock first, then low, then ageing, then everything else.
+  const attentionRank = (variant) =>
+    variant.status === "OUT_OF_STOCK" ? 0 : variant.status === "LOW" ? 1 : variant.isAgeing ? 2 : 3;
   const comparators = {
+    attention: (a, b) => attentionRank(a) - attentionRank(b) || byCode(a, b),
     code: byCode,
     most: (a, b) => b.totalPieces - a.totalPieces || byCode(a, b),
     least: (a, b) => a.totalPieces - b.totalPieces || byCode(a, b),

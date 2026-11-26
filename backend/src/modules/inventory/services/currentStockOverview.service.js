@@ -4,6 +4,7 @@ import ApiError from "../../../core/apiError.js";
 import currentStockOverviewRepository from "../repositories/currentStockOverview.repository.js";
 import stockGroupRepository from "../../stock/repositories/stockGroup.repository.js";
 import { parseBundleCompositionSignature } from "../../stock/services/stockInPersistence.service.js";
+import { buildDisplayCode } from "../../stock/utils/qrDisplayCode.util.js";
 
 // A variant is "ageing" once its oldest piece still in stock arrived this many days ago.
 export const AGEING_DAYS = 60;
@@ -57,6 +58,8 @@ class CurrentStockOverviewService {
         const today = todayIsoDate();
         const sizeLabelById = new Map(summary.sizes.map((size) => [size.designSizeId, size.size]));
         const setSizeLabels = summary.sizes.filter((size) => size.includedInSet).map((size) => size.size);
+        // The readable id printed on each tag (e.g. SET-T243-BLU-005), built the same way QR Center builds it.
+        const readableCode = (fields) => buildDisplayCode({ ...fields, designCode: summary.design.code, colorName: summary.colorName });
 
         const [unitRows, historyRows, adjustmentRows] = await Promise.all([
             this._repository.findUnitsForVariant(db, colorVariantId),
@@ -84,9 +87,11 @@ class CurrentStockOverviewService {
                     : (compositionByGroupId.get(row.stockGroupId) ?? []).flatMap((piece) =>
                         Array(piece.quantity).fill(sizeLabelById.get(piece.designSizeId) ?? String(piece.designSizeId)));
 
+                const isSemi = row.type === "BUNDLE" && sizes.length < setSizeLabels.length;
                 units.push({
                     stockItemId: row.stockItemId,
                     kind: row.type === "SET" ? "SET" : "SEMI",
+                    displayCode: readableCode({ type: row.type, serialNo: row.serialNo, isSemi, isChildPiece: false }),
                     shortCode: row.shortCode,
                     sizes,
                     pieceCount: sizes.length,
@@ -95,6 +100,7 @@ class CurrentStockOverviewService {
                     challanNo: row.challanNo,
                     children: (childrenByParentId.get(row.stockItemId) ?? []).map((child) => ({
                         stockItemId: child.stockItemId,
+                        displayCode: readableCode({ type: "PIECE", serialNo: child.serialNo, isChildPiece: true }),
                         shortCode: child.shortCode,
                         size: sizeLabelById.get(child.designSizeId) ?? null,
                     })),
@@ -103,6 +109,7 @@ class CurrentStockOverviewService {
                 units.push({
                     stockItemId: row.stockItemId,
                     kind: "TAGGED_PIECE",
+                    displayCode: readableCode({ type: "PIECE", serialNo: row.serialNo, isChildPiece: false }),
                     shortCode: row.shortCode,
                     sizes: [row.designSizeId ? (sizeLabelById.get(row.designSizeId) ?? String(row.designSizeId)) : "—"],
                     pieceCount: 1,
