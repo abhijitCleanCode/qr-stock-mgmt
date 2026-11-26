@@ -38,6 +38,13 @@ const OrderForms = () => {
                 <Button
                     variant="link"
                     className="neu-button rounded-full p-4 text-[#1E1B4B] transition-colors"
+                    onClick={() => navigate("/stock-out/orders/show")}
+                >
+                    <span className="flex items-center gap-1.5">Start a show</span>
+                </Button>
+                <Button
+                    variant="link"
+                    className="neu-button rounded-full p-4 text-[#1E1B4B] transition-colors"
                     onClick={() => navigate("/stock-out/orders/new")}
                 >
                     <span className="flex items-center gap-1.5"><Plus className="h-5 w-5" /> New Order Form</span>

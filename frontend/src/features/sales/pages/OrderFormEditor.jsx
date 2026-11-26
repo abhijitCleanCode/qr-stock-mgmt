@@ -15,6 +15,18 @@ import { existingFor } from "../utils/orderLines.js";
 import { useDesignFinder, useQuantityDrafts } from "../hooks/useDesignFinder.jsx";
 import { todayIso } from "../utils/format.js";
 
+// Customers order in whole sets. Names the colours whose quantity isn't a whole number of sets, or null.
+const partialSetsMessage = (design, quantities) => {
+    const partial = design.variants.filter((variant) => {
+        const unit = variant.setPieces || 0;
+        const quantity = quantities[variant.colorVariantId] ?? 0;
+        return unit > 1 && quantity > 0 && quantity % unit !== 0;
+    });
+    return partial.length
+        ? `Whole sets only — ${partial.map((variant) => `${variant.colorName} needs multiples of ${variant.setPieces}`).join(", ")}.`
+        : null;
+};
+
 const OrderFormEditor = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -307,6 +319,8 @@ const OrderFormEditor = () => {
                             existing={existingFor(items, scanned.design.designId)}
                             focusVariantId={scanned.focusVariantId}
                             onCommit={(quantities) => {
+                                const problem = partialSetsMessage(scanned.design, quantities);
+                                if (problem) return toast.error(problem);
                                 applyQuantities(scanned.design, quantities);
                                 scanDrafts.clearDesign(scanned.design.designId);
                                 closeScanned();

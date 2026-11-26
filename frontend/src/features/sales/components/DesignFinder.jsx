@@ -120,6 +120,9 @@ export const VariantPane = forwardRef(function VariantPane(
                 const available = variant.availablePcs;
                 const inOrder = existing.get(variant.colorVariantId) ?? 0;
                 const step = variant.setPieces || setPieces;
+                // Customers order in whole sets, so the − and + buttons move a full set at a time.
+                const unit = step > 0 ? step : 1;
+                const notWholeSets = unit > 1 && quantity % unit !== 0;
 
                 // Stepping with the mouse keeps the cursor in this colour's box, so Enter / Esc keep working.
                 const write = (next) => {
@@ -161,7 +164,7 @@ export const VariantPane = forwardRef(function VariantPane(
                                 tabIndex={-1}
                                 aria-label="One less"
                                 onMouseDown={keepFocus}
-                                onClick={() => write(quantity - 1)}
+                                onClick={() => write(Math.max(0, quantity - unit))}
                                 className="w-8 shrink-0 bg-slate-100 text-lg font-semibold leading-none text-slate-700 hover:bg-slate-200"
                             >
                                 −
@@ -184,12 +187,16 @@ export const VariantPane = forwardRef(function VariantPane(
                                 tabIndex={-1}
                                 aria-label="One more"
                                 onMouseDown={keepFocus}
-                                onClick={() => write(quantity + 1)}
+                                onClick={() => write(quantity + unit)}
                                 className="w-8 shrink-0 bg-slate-100 text-lg font-semibold leading-none text-slate-700 hover:bg-slate-200"
                             >
                                 +
                             </button>
                         </div>
+
+                        {notWholeSets && (
+                            <span className="w-full text-[11.5px] font-semibold text-red-600 sm:w-auto">Whole sets of {unit} pcs only</span>
+                        )}
 
                         {step > 0 && (
                             <button

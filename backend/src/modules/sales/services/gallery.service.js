@@ -4,6 +4,7 @@ import orderFormService from "./orderForm.service.js";
 import invoiceService from "./invoice.service.js";
 import colorVariantRepository from "../../design/repositories/colorVariant.repository.js";
 import variantInventoryRepository from "../../inventory/repositories/variantInventory.repository.js";
+import orderFormRepository from "../repositories/orderForm.repository.js";
 
 // The photos a salesperson sends to a customer. Every photo is the colour variant's own image
 // from Design Master — there is no per-document upload, so a design photographed once is correct
@@ -14,7 +15,7 @@ class GalleryService {
     _colorVariantRepository = colorVariantRepository;
     _variantInventoryRepository = variantInventoryRepository;
 
-    _item({ colorVariantId, designId, designCode, designName, itemName, quality, colorName, colorHex, imageUrl, unitPrice, label, availablePcs, isExtra }) {
+    _item({ colorVariantId, designId, designCode, designName, itemName, quality, colorName, colorHex, imageUrl, unitPrice, label, availablePcs, setPieces, isExtra }) {
         return {
             colorVariantId,
             designId,
@@ -28,6 +29,8 @@ class GalleryService {
             colorName,
             colorHex,
             imageUrl: imageUrl ?? null,
+            // Pieces in one full set of this colour. Orders are placed in whole sets.
+            setPieces: setPieces ?? 0,
             // A variant registered without a photo can't be shared, and the screen says so rather
             // than showing a broken image.
             hasPhoto: Boolean(imageUrl),
@@ -63,6 +66,7 @@ class GalleryService {
 
         const totals = await this._variantInventoryRepository.sumQuantityByColorVariantIds(variants.map((variant) => variant.colorVariantId));
         const availableByVariantId = new Map(totals.map((row) => [row.colorVariantId, row.totalPieces]));
+        const setPiecesByVariantId = await orderFormRepository.setPiecesByVariantIds(db, variants.map((variant) => variant.colorVariantId));
 
         const items = variants.map((variant) => {
             const availablePcs = availableByVariantId.get(variant.colorVariantId) ?? 0;
@@ -70,6 +74,7 @@ class GalleryService {
             return this._item({
                 ...variant,
                 availablePcs,
+                setPieces: setPiecesByVariantId.get(variant.colorVariantId) ?? 0,
                 label: availablePcs ? `${availablePcs} pcs in stock` : "Out of stock",
             });
         });

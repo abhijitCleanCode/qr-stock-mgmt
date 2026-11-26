@@ -4,6 +4,7 @@ import { orderForm } from "../schemas/orderForm.schema.js";
 import { orderFormItem } from "../schemas/orderFormItem.schema.js";
 import { colorVariant } from "../../design/schemas/colorVariant.schema.js";
 import { design } from "../../design/schemas/design.schema.js";
+import { designSize } from "../../design/schemas/designSize.schema.js";
 import { db } from "../../../database/index.js";
 
 // Document numbers are compared case- and space-insensitively, so "of-1024" and "OF-1024" are the
@@ -134,6 +135,23 @@ class OrderFormRepository {
             .limit(1);
 
         return result?.formNumber ?? null;
+    }
+
+    // Pieces in one full set of each colour (its sizes marked "included in set"), by colour id.
+    // A colour with no set sizes has no set rule and is absent from the map.
+    async setPiecesByVariantIds(runner, variantIds) {
+        if (variantIds.length === 0) return new Map();
+        const rows = await runner.select({
+            variantId: designSize.variantId,
+            pieces: sql`count(*)`.mapWith(Number),
+        }).from(designSize)
+            .where(and(
+                inArray(designSize.variantId, variantIds),
+                eq(designSize.isActive, true),
+                eq(designSize.includedInSet, true),
+            ))
+            .groupBy(designSize.variantId);
+        return new Map(rows.map((row) => [row.variantId, row.pieces]));
     }
 
     async replaceItems(runner, orderFormId, items) {

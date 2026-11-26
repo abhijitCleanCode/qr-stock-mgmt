@@ -21,6 +21,7 @@ import Overview from "./features/sales/pages/Overview";
 import Parties from "./features/sales/pages/Parties";
 import OrderForms from "./features/sales/pages/OrderForms";
 import OrderFormEditor from "./features/sales/pages/OrderFormEditor";
+import OrderShow from "./features/sales/pages/OrderShow.jsx";
 import OrderFormDetail from "./features/sales/pages/OrderFormDetail";
 import Invoices from "./features/sales/pages/Invoices";
 import InvoiceEditor from "./features/sales/pages/InvoiceEditor";
@@ -46,6 +47,8 @@ const App = () => {
             <Route index element={<Overview />} />
             <Route path="orders" element={<OrderForms />} />
             <Route path="orders/new" element={<OrderFormEditor />} />
+            <Route path="orders/show" element={<OrderShow />} />
+            <Route path="orders/show/:id" element={<OrderShow />} />
             <Route path="orders/:id" element={<OrderFormDetail />} />
             <Route path="orders/:id/edit" element={<OrderFormEditor />} />
             <Route path="invoices" element={<Invoices />} />

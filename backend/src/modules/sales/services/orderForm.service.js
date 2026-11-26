@@ -54,6 +54,20 @@ class OrderFormService {
         );
     }
 
+    // Customers order in whole sets: each colour's quantity must be a multiple of the pieces in one
+    // full set of that colour. Colours with no set sizes have no such rule.
+    async _assertSetMultiples(runner, items) {
+        const setPieces = await this._orderFormRepository.setPiecesByVariantIds(runner, items.map((item) => item.colorVariantId));
+        const wrong = items.filter((item) => {
+            const pieces = setPieces.get(item.colorVariantId) ?? 0;
+            return pieces > 0 && item.quantityPcs % pieces !== 0;
+        });
+        if (wrong.length > 0) {
+            const detail = wrong.map((item) => `${item.quantityPcs} pcs for a colour whose set is ${setPieces.get(item.colorVariantId)} pcs`).join("; ");
+            throw new ApiError(`Quantities must be whole sets: ${detail}.`, 400, "NOT_WHOLE_SETS");
+        }
+    }
+
     async createOrderForm(payload) {
         const number = String(payload.formNumber).trim();
 
@@ -75,6 +89,7 @@ class OrderFormService {
                 preparedBy: null,
             });
 
+            await this._assertSetMultiples(tx, payload.items);
             await this._orderFormRepository.replaceItems(tx, row.id, payload.items);
 
             return row;
@@ -115,6 +130,7 @@ class OrderFormService {
                 notes: payload.notes?.trim() || null,
             });
 
+            await this._assertSetMultiples(tx, payload.items);
             await this._orderFormRepository.replaceItems(tx, formId, payload.items);
 
             return row;
