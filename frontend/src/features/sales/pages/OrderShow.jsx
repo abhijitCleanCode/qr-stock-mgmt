@@ -35,6 +35,10 @@ const todayIso = () => {
 
 const clock = (date) => date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
+// The server takes optional party fields as text or not at all, so empty ones are left out.
+const cleanParty = (party) =>
+  Object.fromEntries(Object.entries(party ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== ""));
+
 // Order lines the server stores: only colours with pieces.
 const linesFrom = (quantities) =>
   Object.entries(quantities)
@@ -163,7 +167,7 @@ export default function OrderShow() {
         formNumber: first.formNumber,
         formDate: todayIso(),
         partyId: null,
-        party: first.party,
+        party: cleanParty(first.party),
         partySync: "document",
         salesman: first.salesman,
         notes: "",
@@ -176,7 +180,7 @@ export default function OrderShow() {
       formNumber: current.formNumber,
       formDate: current.formDate,
       partyId: current.partyId ?? null,
-      party: current.party,
+      party: cleanParty(current.party),
       partySync: "document",
       salesman: current.salesman ?? "",
       notes: current.notes ?? "",
@@ -197,6 +201,25 @@ export default function OrderShow() {
           toast.error(error.message);
         });
     }, 500);
+  };
+
+  // Saves now instead of waiting for the pause after the last change.
+  const saveNow = () => {
+    if (!order && !started) return;
+    if (!order && linesFrom(quantities ?? {}).length === 0) return toast.error("Add a design first.");
+    clearTimeout(timer.current);
+    setSave({ status: "saving", at: null });
+    const base = { order, started };
+    queue.current = queue.current
+      .then(() => persist(quantities ?? {}, base))
+      .then(() => {
+        setSave({ status: "saved", at: new Date() });
+        toast.success("Order form saved.");
+      })
+      .catch((error) => {
+        setSave({ status: "error", at: null });
+        toast.error(error.message);
+      });
   };
 
   // Only an open order can change. A cancelled or invoiced one is shown, but its quantities are locked.
@@ -447,8 +470,13 @@ export default function OrderShow() {
           {(order || started) && <span className="ml-2 text-slate-500">{order?.party?.name ?? started?.party?.name}</span>}
         </div>
         <span className="text-xs text-slate-500">{savedAgo}</span>
+        {!lockedReason && (
+          <button type="button" onClick={saveNow} className="ml-auto h-11 rounded-xl border border-[#00694C] px-5 font-semibold text-[#00694C]">
+            Save order form
+          </button>
+        )}
         {order && (
-          <button type="button" onClick={() => navigate(`/stock-out/orders/${order.id}`)} className="ml-auto h-11 rounded-xl bg-[#00694C] px-5 font-semibold text-white">
+          <button type="button" onClick={() => navigate(`/stock-out/orders/${order.id}`)} className="h-11 rounded-xl bg-[#00694C] px-5 font-semibold text-white">
             Open order form
           </button>
         )}
