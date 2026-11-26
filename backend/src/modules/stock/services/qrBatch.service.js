@@ -6,6 +6,7 @@ import stockItemQrRepository from "../repositories/stockItemQr.repository.js";
 import stockGroupRepository from "../repositories/stockGroup.repository.js";
 import printJobRepository from "../repositories/printJob.repository.js";
 import printJobItemRepository from "../repositories/printJobItem.repository.js";
+import reprintRequestRepository from "../repositories/reprintRequest.repository.js";
 import variantSerialCounterRepository from "../repositories/variantSerialCounter.repository.js";
 import stockQrService from "./stockQr.service.js";
 import stockPieceExpansionService from "./stockPieceExpansion.service.js";
@@ -81,6 +82,7 @@ class QrBatchService {
     _stockGroupRepository = stockGroupRepository;
     _printJobRepository = printJobRepository;
     _printJobItemRepository = printJobItemRepository;
+    _reprintRequestRepository = reprintRequestRepository;
     _variantSerialCounterRepository = variantSerialCounterRepository;
     _stockQrService = stockQrService;
     _stockPieceExpansionService = stockPieceExpansionService;
@@ -579,6 +581,9 @@ class QrBatchService {
                 sequence: index + 1,
                 printedAt,
             })));
+
+            // A reprint picked from QR Center is answered by this print: close its pending request.
+            await this._reprintRequestRepository.markPrintedForStockItemQrIds(tx, stockItemQrIds);
 
             return { printJob, printedCount: stockItemQrIds.length, ...(await this._loadBatch(tx, batchId)) };
         });
