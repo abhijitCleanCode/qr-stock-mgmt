@@ -189,6 +189,8 @@ export const bulkDesignPreviewSchema = z.object({
                 itemName: z.string().trim().min(1).max(NAME_MAX_LENGTH),
                 quality: z.string().trim().min(1).max(NAME_MAX_LENGTH),
                 jobberName: z.string().trim().max(NAME_MAX_LENGTH).optional(),
+                // Colour names in the file for this design. Used to report which ones already exist.
+                colors: z.array(z.string().trim().min(1).max(NAME_MAX_LENGTH)).max(200).optional(),
             })
         )
         .min(1, "The file has no designs.")

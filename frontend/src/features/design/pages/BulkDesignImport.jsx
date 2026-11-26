@@ -14,8 +14,12 @@ const Sheet = ({ children, className = "" }) => (
   <section className={`rounded-2xl border border-slate-100 bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] md:p-7 ${className}`}>{children}</section>
 );
 
+// Colour names compare the same way registration compares them: trimmed, case-insensitive.
+const colorKey = (name) => name.trim().toLowerCase();
+
 const STATUS = {
   new: { label: "Will import", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  extend: { label: "Existing design · adds new colours", className: "bg-sky-50 text-sky-700 border-sky-200" },
   exists: { label: "Already exists · skipped", className: "bg-slate-100 text-slate-600 border-slate-200" },
   error: { label: "Has errors · skipped", className: "bg-red-50 text-red-700 border-red-200" },
   imported: { label: "Imported", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -50,16 +54,33 @@ const BulkDesignImport = () => {
   const [progress, setProgress] = useState(null); // { done, total }
   const [results, setResults] = useState(null); // { code, status, message }[]
 
+  // A design that already exists is not re-imported as a whole. Only its colours that it doesn't have
+  // yet are added; colours it already has are skipped. A design with nothing new is skipped.
   const rows = useMemo(() => {
     if (!checked) return [];
     return checked.plan.designs.map((design) => {
       if (design.errors.length > 0) return { ...design, status: "error" };
-      if (checked.existing.has(design.code.toLowerCase())) return { ...design, status: "exists" };
-      return { ...design, status: "new" };
+      const key = design.code.toLowerCase();
+      if (!checked.existing.has(key)) return { ...design, status: "new", payload: design.payload };
+
+      const taken = new Set((checked.existingColors.get(key) ?? []).map(colorKey));
+      const variants = design.payload.colorVariants;
+      const keep = variants.map((_, index) => index).filter((index) => !taken.has(colorKey(variants[index].colorName)));
+      if (keep.length === 0) return { ...design, status: "exists", payload: design.payload, skippedColors: variants.length };
+      return {
+        ...design,
+        status: "extend",
+        skippedColors: variants.length - keep.length,
+        payload: {
+          ...design.payload,
+          colorVariants: keep.map((index) => variants[index]),
+          images: keep.map((index) => design.payload.images[index]),
+        },
+      };
     });
   }, [checked]);
 
-  const toImport = rows.filter((design) => design.status === "new");
+  const toImport = rows.filter((design) => design.status === "new" || design.status === "extend");
   const fileBlocked = checked ? checked.plan.fileErrors.length > 0 : false;
   const isImporting = progress !== null;
 
@@ -80,7 +101,7 @@ const BulkDesignImport = () => {
 
     const candidates = plan.designs.filter((design) => design.payload);
     if (plan.fileErrors.length > 0 || candidates.length === 0) {
-      setChecked({ plan, existing: new Set(), newLookups: {} });
+      setChecked({ plan, existing: new Set(), existingColors: new Map(), newLookups: {} });
       return;
     }
 
@@ -93,10 +114,13 @@ const BulkDesignImport = () => {
           itemName: payload.itemName,
           quality: payload.quality,
           jobberName: payload.jobberName,
+          colors: payload.colorVariants.map((variant) => variant.colorName),
         })),
       );
-      const existing = new Set(response.data.designs.filter((design) => design.exists).map((design) => design.code.toLowerCase()));
-      setChecked({ plan, existing, newLookups: response.data.newLookups });
+      const existingDesigns = response.data.designs.filter((design) => design.exists);
+      const existing = new Set(existingDesigns.map((design) => design.code.toLowerCase()));
+      const existingColors = new Map(existingDesigns.map((design) => [design.code.toLowerCase(), design.existingColors ?? []]));
+      setChecked({ plan, existing, existingColors, newLookups: response.data.newLookups });
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -137,6 +161,8 @@ const BulkDesignImport = () => {
 
   const counts = {
     new: rows.filter((design) => design.status === "new").length,
+    extend: rows.filter((design) => design.status === "extend").length,
+    extendColors: rows.reduce((sum, design) => sum + (design.status === "extend" ? design.skippedColors : 0), 0),
     exists: rows.filter((design) => design.status === "exists").length,
     error: rows.filter((design) => design.status === "error").length,
   };
@@ -198,7 +224,9 @@ const BulkDesignImport = () => {
 
           <div className="flex flex-wrap gap-3 text-sm">
             <span className="rounded-lg bg-emerald-50 px-3 py-1.5 font-semibold text-emerald-700">{counts.new} to import</span>
+            {counts.extend > 0 && <span className="rounded-lg bg-sky-50 px-3 py-1.5 font-semibold text-sky-700">{counts.extend} existing designs get new colours</span>}
             <span className="rounded-lg bg-slate-100 px-3 py-1.5 font-semibold text-slate-600">{counts.exists} already exist (skipped)</span>
+            {counts.extendColors > 0 && <span className="rounded-lg bg-slate-100 px-3 py-1.5 font-semibold text-slate-600">{counts.extendColors} colours already exist (skipped)</span>}
             <span className="rounded-lg bg-red-50 px-3 py-1.5 font-semibold text-red-700">{counts.error} with errors (skipped)</span>
           </div>
 
@@ -232,6 +260,9 @@ const BulkDesignImport = () => {
                     <td className="px-3 py-2.5 text-slate-700">{design.rowCount}</td>
                     <td className="px-3 py-2.5">
                       <Pill status={design.status} />
+                      {design.skippedColors > 0 && design.status !== "exists" && (
+                        <p className="mt-1.5 text-xs text-slate-500">{design.skippedColors} colour{design.skippedColors === 1 ? "" : "s"} already on this design, skipped.</p>
+                      )}
                       {design.errors.length > 0 && (
                         <ul className="mt-1.5 list-disc pl-4 text-xs text-red-600">{design.errors.map((message) => <li key={message}>{message}</li>)}</ul>
                       )}

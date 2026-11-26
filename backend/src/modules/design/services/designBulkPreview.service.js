@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../../database/index.js";
 import { design } from "../schemas/design.schema.js";
@@ -7,6 +7,8 @@ import { quality } from "../schemas/quality.schema.js";
 import { pattern } from "../schemas/pattern.schema.js";
 import { itemName } from "../schemas/itemName.schema.js";
 import { normalizeDesignCode } from "../repositories/design.repository.js";
+import { colorVariant } from "../schemas/colorVariant.schema.js";
+import { normalizeColorName } from "../repositories/colorVariant.repository.js";
 
 // Same normalisation the jobber/quality/pattern/item-name repositories use when they look a
 // name up, so the preview reports a name as "new" exactly when registering it would create one.
@@ -31,6 +33,26 @@ class DesignBulkPreviewService {
             .where(inArray(design.normalizedCode, codes));
         const existingCodes = new Set(existingRows.map((row) => row.normalizedCode));
 
+        // The active colours each existing design already has, so a file can add new colours to a
+        // design without repeating the ones it has. Matched the same way registration matches them.
+        const existingIds = await db
+            .select({ id: design.id, normalizedCode: design.normalizedCode })
+            .from(design)
+            .where(inArray(design.normalizedCode, [...existingCodes]));
+        const takenByCode = new Map();
+        if (existingIds.length > 0) {
+            const variants = await db
+                .select({ designId: colorVariant.designId, normalizedColorName: colorVariant.normalizedColorName })
+                .from(colorVariant)
+                .where(and(inArray(colorVariant.designId, existingIds.map((row) => row.id)), eq(colorVariant.isActive, true)));
+            const takenByDesignId = new Map();
+            for (const variant of variants) {
+                if (!takenByDesignId.has(variant.designId)) takenByDesignId.set(variant.designId, new Set());
+                takenByDesignId.get(variant.designId).add(variant.normalizedColorName);
+            }
+            for (const row of existingIds) takenByCode.set(row.normalizedCode, takenByDesignId.get(row.id) ?? new Set());
+        }
+
         const newLookups = {};
         for (const { key, table, field } of LOOKUPS) {
             const names = new Map();
@@ -51,10 +73,14 @@ class DesignBulkPreviewService {
         }
 
         return {
-            designs: designs.map((item) => ({
-                code: item.code,
-                exists: existingCodes.has(normalizeDesignCode(item.code)),
-            })),
+            designs: designs.map((item) => {
+                const code = normalizeDesignCode(item.code);
+                const exists = existingCodes.has(code);
+                const taken = takenByCode.get(code) ?? new Set();
+                // Colour names from the file that this design already has (the file's own spelling).
+                const existingColors = exists ? (item.colors ?? []).filter((name) => taken.has(normalizeColorName(name))) : [];
+                return { code: item.code, exists, existingColors };
+            }),
             newLookups,
         };
     }
