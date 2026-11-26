@@ -6,6 +6,7 @@ import stockItemQrRepository from "../repositories/stockItemQr.repository.js";
 import stockGroupRepository from "../repositories/stockGroup.repository.js";
 import printJobRepository from "../repositories/printJob.repository.js";
 import printJobItemRepository from "../repositories/printJobItem.repository.js";
+import reprintRequestRepository from "../repositories/reprintRequest.repository.js";
 import variantSerialCounterRepository from "../repositories/variantSerialCounter.repository.js";
 import stockQrService from "./stockQr.service.js";
 import stockPieceExpansionService from "./stockPieceExpansion.service.js";
@@ -81,6 +82,7 @@ class QrBatchService {
     _stockGroupRepository = stockGroupRepository;
     _printJobRepository = printJobRepository;
     _printJobItemRepository = printJobItemRepository;
+    _reprintRequestRepository = reprintRequestRepository;
     _variantSerialCounterRepository = variantSerialCounterRepository;
     _stockQrService = stockQrService;
     _stockPieceExpansionService = stockPieceExpansionService;
@@ -184,8 +186,16 @@ class QrBatchService {
     // Detail
     // ---------------------------------------------------------------------------------------
 
-    async getBatch(batchId) {
-        return this._loadBatch(db, batchId);
+    // The whole batch, or only the tags whose ids are given (a reprint selection). Variants left with
+    // no selected tags are dropped.
+    async getBatch(batchId, { qrIds } = {}) {
+        const batch = await this._loadBatch(db, batchId);
+        if (!qrIds) return batch;
+        const wanted = new Set(qrIds);
+        const variants = batch.variants
+            .map((variant) => ({ ...variant, tags: variant.tags.filter((tag) => wanted.has(tag.qrId)) }))
+            .filter((variant) => variant.tags.length > 0);
+        return { ...batch, variants };
     }
 
     async _loadBatch(runner, batchId, { transactionIds } = {}) {
@@ -571,6 +581,9 @@ class QrBatchService {
                 sequence: index + 1,
                 printedAt,
             })));
+
+            // A reprint picked from QR Center is answered by this print: close its pending request.
+            await this._reprintRequestRepository.markPrintedForStockItemQrIds(tx, stockItemQrIds);
 
             return { printJob, printedCount: stockItemQrIds.length, ...(await this._loadBatch(tx, batchId)) };
         });

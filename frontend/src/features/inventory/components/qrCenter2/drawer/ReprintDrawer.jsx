@@ -8,6 +8,9 @@ import { createQrCenterReprintApi, bulkPrintReprintsApi, getQrCenterReferenceApi
 
 const REASONS = ["LOST", "TORN", "FADED", "REBAG", "JAM", "PRICE_CHANGE"];
 
+// Who a reprint is logged against. Shared with the grouped reprint flow so both record the same identity.
+export const RAISED_BY = "zelero.tech@gmail.com";
+
 export default function ReprintDrawer({ open, onClose, targets, onDone }) {
     const [reason, setReason] = useState("REBAG");
     const [confirmed, setConfirmed] = useState(false);
@@ -46,7 +49,7 @@ export default function ReprintDrawer({ open, onClose, targets, onDone }) {
 
             const reprintRequestIds = [];
             for (const t of targets) {
-                const created = await createQrCenterReprintApi({ stockItemId: t.stockItemId, reasonCode: reason, raisedBy: "zelero.tech@gmail.com" });
+                const created = await createQrCenterReprintApi({ stockItemId: t.stockItemId, reasonCode: reason, raisedBy: RAISED_BY });
                 if (created?.data?.id) reprintRequestIds.push(created.data.id);
             }
             if (reprintRequestIds.length) {

@@ -79,7 +79,9 @@ export const generateQrApi = (stockItemIds) =>
 export const getQrBatchesApi = ({ page = 1, limit = 20, keyword, designId, colorVariantId, status, sort } = {}) =>
     qrCenterRequest("/batches", { params: { page, limit, keyword, designId, colorVariantId, status, sort } });
 
-export const getQrBatchApi = (batchId) => qrCenterRequest(`/batches/${batchId}`);
+// `qrIds` narrows the batch to the tags picked in the reprint list (all of them when omitted).
+export const getQrBatchApi = (batchId, qrIds) =>
+    qrCenterRequest(`/batches/${batchId}`, { params: qrIds?.length ? { qrIds: qrIds.join(",") } : undefined });
 
 // Makes sure every tag the chosen strategy covers has a code and returns the labels to print.
 // Nothing is marked printed yet — see confirmQrBatchPrintApi.

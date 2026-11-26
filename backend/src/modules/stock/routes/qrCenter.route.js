@@ -68,6 +68,16 @@ export const qrCenterRoutes = [
         validators: { post: [validateRequest(batchIdParamsSchema, "params"), validateRequest(confirmBatchPrintSchema)] },
     },
     {
+        path: "/challans",
+        controller: { get: qrCenterController.searchChallans },
+        validators: { get: validateRequest(searchTagsQuerySchema, "query") },
+    },
+    {
+        path: "/tree",
+        controller: { get: qrCenterController.searchTree },
+        validators: { get: validateRequest(searchTagsQuerySchema, "query") },
+    },
+    {
         path: "/tags",
         controller: { get: qrCenterController.searchTags },
         validators: { get: validateRequest(searchTagsQuerySchema, "query") },

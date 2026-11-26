@@ -105,6 +105,17 @@ class ReprintRequestRepository {
             .where(inArray(reprintRequest.id, ids))
             .returning();
     }
+
+    // Printing the tags with these QR ids answers any pending reprint raised on their stock items,
+    // so those requests leave the pending queue and can't be printed a second time.
+    async markPrintedForStockItemQrIds(tx, stockItemQrIds) {
+        if (stockItemQrIds.length === 0) return [];
+        const stockItemIds = tx.select({ id: stockItemQr.stockItemId }).from(stockItemQr).where(inArray(stockItemQr.id, stockItemQrIds));
+        return tx.update(reprintRequest)
+            .set({ status: "PRINTED", resolvedAt: new Date() })
+            .where(and(eq(reprintRequest.status, "PENDING"), inArray(reprintRequest.stockItemId, stockItemIds)))
+            .returning();
+    }
 }
 
 export default new ReprintRequestRepository();

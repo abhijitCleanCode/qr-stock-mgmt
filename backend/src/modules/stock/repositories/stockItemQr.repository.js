@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import { stockItemQr } from "../schemas/stockItemQr.schema.js";
 import { stockItem } from "../schemas/stockItems.schema.js";
@@ -8,6 +8,7 @@ import { designSize } from "../../design/schemas/designSize.schema.js";
 import { rack } from "../schemas/rack.schema.js";
 import { bin } from "../schemas/bin.schema.js";
 import { stockInTransaction } from "../schemas/stockInTransaction.schema.js";
+import { stockInChallan } from "../schemas/stockInChallan.schema.js";
 import { stockInBundlePiece } from "../schemas/stockInBundlePiece.schema.js";
 import { parseDisplayCode } from "../utils/qrDisplayCode.util.js";
 
@@ -284,6 +285,57 @@ class StockItemQrRepository {
             .orderBy(desc(stockItemQr.generatedAt))
             .limit(limit)
             .offset(offset);
+    }
+
+    // Every ACTIVE tag for the grouped picker, in colour then serial order, with its parent link. Match filters
+    // (keyword, design, variant, type, days) and/or explicit stock item ids can be combined. Unpaged:
+    // a challan's tags are listed together. Used twice by the tree search: once for the matches,
+    // then for the parents and children those matches belong to.
+    async findActiveTree(tx, { keyword, designId, colorVariantId, type, days, challanId, stockItemIds, parentStockItemIds }) {
+        const conditions = [eq(stockItemQr.status, "ACTIVE")];
+        if (challanId) conditions.push(eq(stockInTransaction.challanId, challanId));
+        if (keyword) conditions.push(keywordCondition(keyword));
+        if (designId) conditions.push(eq(design.id, designId));
+        if (colorVariantId) conditions.push(eq(colorVariant.id, colorVariantId));
+        if (type) conditions.push(eq(stockItem.type, type));
+        if (days) conditions.push(gte(stockItemQr.generatedAt, sql`now() - (${days} || ' days')::interval`));
+        if (stockItemIds) conditions.push(inArray(stockItem.id, stockItemIds.length ? stockItemIds : [-1]));
+        if (parentStockItemIds) conditions.push(inArray(stockItem.parentStockItemId, parentStockItemIds.length ? parentStockItemIds : [-1]));
+
+        return tx.select({
+            id: stockItemQr.id,
+            stockItemId: stockItemQr.stockItemId,
+            shortCode: stockItemQr.shortCode,
+            type: stockItem.type,
+            serialNo: stockItem.serialNo,
+            parentStockItemId: stockItem.parentStockItemId,
+            // Same rule as searchActive: a bundle with fewer pieces than a full set is a semi set.
+            isSemi: sql`(${stockItem.type} = 'BUNDLE'
+                and coalesce((select sum(${stockInBundlePiece.quantity}) from ${stockInBundlePiece} where ${stockInBundlePiece.bundleId} = ${stockItem.bundleId}), 0) > 0
+                and coalesce((select sum(${stockInBundlePiece.quantity}) from ${stockInBundlePiece} where ${stockInBundlePiece.bundleId} = ${stockItem.bundleId}), 0)
+                  < (select count(*) from ${designSize} ds where ds.variant_id = ${colorVariant.id} and ds.included_in_set))`.mapWith(Boolean),
+            designId: design.id,
+            designCode: design.code,
+            designName: design.name,
+            colorVariantId: colorVariant.id,
+            colorName: colorVariant.colorName,
+            colorHex: colorVariant.colorHex,
+            sizeLabel: designSize.sizeLabel,
+            challanId: stockInTransaction.challanId,
+            challanNo: stockInTransaction.challanNo,
+            jobberName: stockInChallan.jobberName,
+            stockDate: stockInChallan.stockDate,
+        }).from(stockItemQr)
+            .innerJoin(stockItem, eq(stockItem.id, stockItemQr.stockItemId))
+            .innerJoin(colorVariant, eq(colorVariant.id, stockItem.colorVariantId))
+            .innerJoin(design, eq(design.id, colorVariant.designId))
+            .leftJoin(designSize, eq(designSize.id, stockItem.designSizeId))
+            .leftJoin(stockInTransaction, eq(stockInTransaction.id, stockItem.stockInTransactionId))
+            .leftJoin(stockInChallan, eq(stockInChallan.id, stockInTransaction.challanId))
+            .where(and(...conditions))
+            // Serial numbers restart for every colour, so group by design and colour first, then count up.
+            .orderBy(asc(design.code), asc(colorVariant.colorName), asc(stockItem.serialNo), asc(stockItemQr.id))
+            .limit(1000);
     }
 
     async countActive(tx, { keyword, designId, colorVariantId, type, days }) {

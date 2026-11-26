@@ -16,3 +16,9 @@ async function request(path, params) {
 }
 
 export const searchQrCenterTagsApi = (params) => request("/tags", params);
+
+// Sets (with their pieces), semi sets and loose pieces, in serial order — the reprint picker.
+export const getQrCenterTreeApi = (params) => request("/tree", params);
+
+// The challans with tags matching the search, newest first — the reprint picker's first step.
+export const getQrCenterChallansApi = (params) => request("/challans", params);
