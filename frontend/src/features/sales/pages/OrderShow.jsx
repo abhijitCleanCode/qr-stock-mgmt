@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Loader2, Minus, Plus } from "lucide-react";
 import { useGalleryApi } from "../hooks/useSalesApi.js";
 import GalleryFilters from "../components/gallery/GalleryFilters.jsx";
 import { createMatcher, freshFilters } from "../utils/galleryFilters.js";
-import { createOrderFormApi, getOrderFormApi, suggestOrderFormNumberApi, updateOrderFormApi } from "../services/orderForm.api.js";
+import { createOrderFormApi, getOrderFormApi, reopenOrderFormApi, suggestOrderFormNumberApi, updateOrderFormApi } from "../services/orderForm.api.js";
 
 // The customer's show: pick designs on a tablet, add quantities in whole sets, and the order form is
 // kept up to date as you go. The order is created with its first quantity, because an order form
@@ -212,7 +212,23 @@ export default function OrderShow() {
     }, 500);
   };
 
+  // Only an open order can change. A cancelled or invoiced one is shown, but its quantities are locked.
+  const lockedReason = order && order.status !== "OPEN"
+    ? (order.status === "CANCELLED" ? "This order form is cancelled." : "This order form has been invoiced.")
+    : null;
+
+  const reopen = async () => {
+    try {
+      await reopenOrderFormApi(order.id);
+      toast.success(`${order.formNumber} reopened.`);
+      orderQuery.refetch();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const setQuantity = (variant, pieces) => {
+    if (lockedReason) return toast.error(`${lockedReason} Quantities can't change.`);
     const unit = variant.setPieces > 1 ? variant.setPieces : 1;
     const next = Math.max(0, pieces);
     if (next % unit !== 0) return toast.error(`Whole sets only — ${variant.colorName} is ${unit} pcs a set.`);
@@ -237,6 +253,17 @@ export default function OrderShow() {
 
   return (
     <div className="flex flex-col gap-4 pb-28">
+      {lockedReason && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span>{lockedReason} Quantities are locked.</span>
+          {order.status === "CANCELLED" && (
+            <button type="button" onClick={reopen} className="ml-auto h-9 rounded-xl bg-white px-4 font-semibold text-amber-900 ring-1 ring-amber-300">
+              Reopen to continue
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex w-full flex-col gap-3">
           <GalleryFilters
@@ -302,9 +329,9 @@ export default function OrderShow() {
                     </div>
                   </div>
                   <div className="flex items-stretch overflow-hidden rounded-xl border border-slate-300">
-                    <button type="button" aria-label="One set less" onClick={() => setQuantity(variant, pieces - unit)} className="grid size-14 place-items-center bg-slate-100 text-slate-700 active:bg-slate-200"><Minus /></button>
+                    <button type="button" aria-label="One set less" disabled={Boolean(lockedReason)} onClick={() => setQuantity(variant, pieces - unit)} className="grid size-14 place-items-center bg-slate-100 text-slate-700 active:bg-slate-200 disabled:opacity-40"><Minus /></button>
                     <div className="grid min-w-[64px] place-items-center font-mono text-xl font-bold">{pieces}</div>
-                    <button type="button" aria-label="One set more" onClick={() => setQuantity(variant, pieces + unit)} className="grid size-14 place-items-center bg-slate-100 text-slate-700 active:bg-slate-200"><Plus /></button>
+                    <button type="button" aria-label="One set more" disabled={Boolean(lockedReason)} onClick={() => setQuantity(variant, pieces + unit)} className="grid size-14 place-items-center bg-slate-100 text-slate-700 active:bg-slate-200 disabled:opacity-40"><Plus /></button>
                   </div>
                 </div>
               );
