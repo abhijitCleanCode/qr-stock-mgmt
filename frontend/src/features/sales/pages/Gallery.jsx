@@ -28,6 +28,7 @@ import { inr, longDate } from "../utils/format.js";
 import PhotoLightbox from "../components/PhotoLightbox.jsx";
 import GalleryFilters from "../components/gallery/GalleryFilters.jsx";
 import { createMatcher, freshFilters } from "../utils/galleryFilters.js";
+import { sizedImage } from "../../../lib/imageUrl.js";
 
 const MODES = [
   { key: "orderForm", label: "By order form", Icon: FileText },
@@ -500,9 +501,10 @@ const Gallery = () => {
       >
         <div className="relative aspect-[4/5] bg-slate-100">
           <img
-            src={item.imageUrl}
+            src={sizedImage(item.imageUrl, 480)}
             alt=""
             loading="lazy"
+            decoding="async"
             draggable={false}
             className="h-full w-full object-cover"
           />
