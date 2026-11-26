@@ -12,12 +12,12 @@ const MainLayout = () => {
     <>
       <Sidebar />
       <main className={cn(
-        "flex h-screen h-dvh flex-col transition-[margin-left] ease-in-out duration-300 premium-bg",
+        "flex h-screen h-dvh min-w-0 flex-col transition-[margin-left] ease-in-out duration-300 premium-bg",
         !isOpen ? "lg:ml-72" : "lg:ml-[90px]"
       )}>
         <Navbar />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-6 pb-6 sm:px-2 lg:px-10">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pt-6 pb-6 sm:px-2 lg:px-10">
           {/* Phone only: names the current page and stays in view while scrolling. */}
           <MobilePageBar />
           <Outlet />

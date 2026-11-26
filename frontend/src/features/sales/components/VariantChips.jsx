@@ -10,7 +10,7 @@ const VariantChips = ({ items, max = 4 }) => {
             {shown.map((item) => (
                 <span
                     key={item.colorVariantId}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[11px] font-semibold text-[#1E1B4B]/80"
+                    className="inline-flex max-w-full items-center gap-1.5 break-words rounded-full border border-white/60 bg-white/70 px-2 py-1 text-[11px] font-semibold text-[#1E1B4B]/80"
                 >
                     <span className="h-2 w-2 rounded-full" style={{ background: item.colorHex }} />
                     {item.designCode} · {item.colorName}

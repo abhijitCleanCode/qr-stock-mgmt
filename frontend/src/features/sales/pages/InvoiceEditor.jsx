@@ -440,7 +440,7 @@ const InvoiceEditor = () => {
                             </div>
 
                             <div className="overflow-hidden rounded-2xl border border-white/60">
-                                <div className="grid grid-cols-[28px_minmax(0,1.7fr)_44px_56px_44px_minmax(0,1.2fr)] items-center gap-2 border-b border-white/60 bg-white/40 px-3 py-2 text-[9.8px] font-bold uppercase tracking-wider text-[#1E1B4B]/45">
+                                <div className="grid grid-cols-[24px_minmax(0,1.6fr)_40px_48px_40px_minmax(0,1.1fr)] items-center gap-1.5 sm:grid-cols-[28px_minmax(0,1.7fr)_44px_56px_44px_minmax(0,1.2fr)] sm:gap-2 border-b border-white/60 bg-white/40 px-3 py-2 text-[9.8px] font-bold uppercase tracking-wider text-[#1E1B4B]/45">
                                     <span />
                                     <span>Design · variant</span>
                                     <span className="text-right">Demand</span>
@@ -467,7 +467,7 @@ const InvoiceEditor = () => {
                                     return (
                                         <div
                                             key={item.colorVariantId}
-                                            className={`grid grid-cols-[28px_minmax(0,1.7fr)_44px_56px_44px_minmax(0,1.2fr)] items-center gap-2 border-b border-white/60 px-3 py-2 text-sm last:border-b-0 ${ticked ? "bg-emerald-50/70" : "bg-white/40"}`}
+                                            className={`grid grid-cols-[24px_minmax(0,1.6fr)_40px_48px_40px_minmax(0,1.1fr)] items-center gap-1.5 sm:grid-cols-[28px_minmax(0,1.7fr)_44px_56px_44px_minmax(0,1.2fr)] sm:gap-2 border-b border-white/60 px-3 py-2 text-sm last:border-b-0 ${ticked ? "bg-emerald-50/70" : "bg-white/40"}`}
                                         >
                                             <button
                                                 type="button"

@@ -349,7 +349,7 @@ const OrderFormEditor = () => {
                 ) : (
                     <div className="overflow-hidden rounded-2xl border border-white/50">
                         <div className="hidden items-center gap-4 border-b border-white/50 bg-white/40 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-[#1E1B4B]/45 md:flex">
-                            <span className="min-w-[200px] flex-1">Design · variant</span>
+                            <span className="min-w-0 flex-1 sm:min-w-[200px]">Design · variant</span>
                             <span className="w-20 text-right">Required pcs</span>
                             <span className="w-24 text-right">In stock</span>
                             <span className="w-28">Availability</span>
@@ -360,7 +360,7 @@ const OrderFormEditor = () => {
 
                             return (
                                 <div key={item.colorVariantId} className="flex flex-wrap items-center gap-4 border-b border-white/50 bg-white/60 px-4 py-3 last:border-b-0">
-                                    <div className="flex min-w-[200px] flex-1 items-center gap-2.5">
+                                    <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:min-w-[200px]">
                                         <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: item.colorHex }} />
                                         <div>
                                             <div className="text-sm font-semibold text-[#1E1B4B]">
