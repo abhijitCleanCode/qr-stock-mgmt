@@ -27,7 +27,11 @@ class QrCenterController {
 
     getBatch = async (req, res, next) => {
         try {
-            const response = await this._qrBatchService.getBatch(req.params.batchId);
+            // Optional ?qrIds=1,2,3 narrows the batch to the tags picked in the reprint list.
+            const qrIds = typeof req.query.qrIds === "string" && req.query.qrIds
+                ? req.query.qrIds.split(",").map(Number).filter((id) => Number.isInteger(id) && id > 0)
+                : null;
+            const response = await this._qrBatchService.getBatch(req.params.batchId, { qrIds });
             return res.status(200).json(new ApiResponse(200, response, "Stock-in batch fetched."));
         } catch (error) {
             next(error);
@@ -86,6 +90,24 @@ class QrCenterController {
         try {
             const response = await this._qrCenterService.searchTags(req.validatedQuery);
             return res.status(200).json(new ApiResponse(200, response.data, "Tags fetched.", response.meta));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    searchTree = async (req, res, next) => {
+        try {
+            const tree = await this._qrCenterService.searchTree(req.validatedQuery);
+            return res.status(200).json(new ApiResponse(200, tree, "Tag tree fetched."));
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    searchChallans = async (req, res, next) => {
+        try {
+            const challans = await this._qrCenterService.searchChallans(req.validatedQuery);
+            return res.status(200).json(new ApiResponse(200, challans, "Challans matched."));
         } catch (error) {
             next(error);
         }

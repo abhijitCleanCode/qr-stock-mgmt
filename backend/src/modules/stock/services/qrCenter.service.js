@@ -747,6 +747,98 @@ class QrCenterService {
         };
     }
 
+    // === 1a. Grouped tag picker ==============================================================
+
+    // The reprint picker's list: every set (with its child pieces listed under it), then every
+    // semi set, then every loose piece, each group in serial order. A child matched by the search
+    // brings its set in, so a set's pieces are never listed without it.
+    async searchTree({ keyword, designId, colorVariantId, type, days, challanId }) {
+        // One challan's tags are listed whole: the keyword and filters do not narrow them.
+        const filters = challanId ? { challanId } : { keyword, designId, colorVariantId, type, days };
+        const matches = await this._stockItemQrRepository.findActiveTree(db, filters);
+
+        const parentIds = new Set(
+            matches.map((row) => (row.parentStockItemId ? row.parentStockItemId : row.type === "SET" || row.type === "BUNDLE" ? row.stockItemId : null)).filter(Boolean),
+        );
+        const parentRows = parentIds.size
+            ? await this._stockItemQrRepository.findActiveTree(db, { stockItemIds: [...parentIds] })
+            : [];
+        const sets = parentRows.filter((row) => row.type === "SET" || row.type === "BUNDLE");
+        const childRows = sets.length
+            ? await this._stockItemQrRepository.findActiveTree(db, { parentStockItemIds: sets.map((row) => row.stockItemId) })
+            : [];
+        const loose = matches.filter((row) => row.type === "PIECE" && !row.parentStockItemId);
+
+        const toItem = (row) => ({
+            stockItemQrId: row.id,
+            stockItemId: row.stockItemId,
+            shortCode: row.shortCode,
+            displayCode: buildDisplayCode({
+                type: row.type,
+                serialNo: row.serialNo,
+                isSemi: row.isSemi,
+                isChildPiece: row.parentStockItemId !== null,
+                designCode: row.designCode,
+                colorName: row.colorName,
+            }),
+            type: row.type,
+            isSemi: Boolean(row.isSemi),
+            serialNo: row.serialNo,
+            design: { id: row.designId, code: row.designCode, name: row.designName },
+            variant: { id: row.colorVariantId, colorName: row.colorName, colorHex: row.colorHex },
+            sizeLabel: row.sizeLabel,
+            challanId: row.challanId,
+            challanNo: row.challanNo,
+            jobberName: row.jobberName,
+            stockDate: row.stockDate,
+            // The batch the studio opens for these tags (one per challan).
+            batchId: row.challanId ? `c${row.challanId}` : null,
+        });
+
+        const childrenByParent = new Map();
+        for (const child of childRows) {
+            if (!childrenByParent.has(child.parentStockItemId)) childrenByParent.set(child.parentStockItemId, []);
+            childrenByParent.get(child.parentStockItemId).push(toItem(child));
+        }
+        const withChildren = (row) => ({ ...toItem(row), children: childrenByParent.get(row.stockItemId) ?? [] });
+
+        const parents = sets.map(withChildren);
+        return {
+            sets: parents.filter((item) => !item.isSemi),
+            semiSets: parents.filter((item) => item.isSemi),
+            loose: loose.map(toItem),
+        };
+    }
+
+    // The challans that have tags matching the search, newest first. Each shows the whole challan's
+    // sets, semi sets and loose pieces (not only the matching ones), since picking it lists all of them.
+    async searchChallans(query) {
+        const matched = await this.searchTree({ ...query, challanId: undefined });
+        const challanIds = new Set(
+            [...matched.sets, ...matched.semiSets, ...matched.loose].map((item) => item.challanId).filter(Boolean),
+        );
+
+        const challans = [];
+        for (const challanId of challanIds) {
+            const tree = await this.searchTree({ challanId });
+            const first = [...tree.sets, ...tree.semiSets, ...tree.loose][0];
+            if (!first) continue;
+            challans.push({
+                challanId,
+                challanNo: first.challanNo,
+                jobberName: first.jobberName ?? null,
+                stockDate: first.stockDate,
+                sets: tree.sets.length,
+                semiSets: tree.semiSets.length,
+                loose: tree.loose.length,
+                pieces: tree.sets.reduce((sum, set) => sum + set.children.length, 0)
+                    + tree.semiSets.reduce((sum, semi) => sum + semi.children.length, 0)
+                    + tree.loose.length,
+            });
+        }
+        return challans.sort((a, b) => String(b.stockDate).localeCompare(String(a.stockDate)) || b.challanId - a.challanId);
+    }
+
     // === 1b. Tag search ======================================================================
 
     // QR Center's main search box + filters: every ACTIVE tag matching a free-text keyword

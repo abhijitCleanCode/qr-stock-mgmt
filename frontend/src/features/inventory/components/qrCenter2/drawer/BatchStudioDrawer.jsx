@@ -46,14 +46,15 @@ const NOTE_TONES = {
 // The Configure & print studio for one stock-in batch — the same QR Tag Studio Stock Inwarding
 // ends with, run against what that batch already holds. State lives in StudioSession so every
 // open starts clean (the parent bumps `sessionKey`).
-export default function BatchStudioDrawer({ open, batchId, sessionKey, onClose }) {
+// With `qrIds`, the studio prints only those tags (a reprint selection) as duplicates of their existing IDs.
+export default function BatchStudioDrawer({ open, batchId, qrIds, sessionKey, onClose }) {
     if (!batchId) return null;
-    return <StudioSession key={sessionKey} open={open} batchId={batchId} onClose={onClose} />;
+    return <StudioSession key={sessionKey} open={open} batchId={batchId} qrIds={qrIds} onClose={onClose} />;
 }
 
-function StudioSession({ open, batchId, onClose }) {
+function StudioSession({ open, batchId, qrIds, onClose }) {
     const queryClient = useQueryClient();
-    const { data: response, isLoading, isError, error, refetch } = useQrBatchApi(batchId, { enabled: open });
+    const { data: response, isLoading, isError, error, refetch } = useQrBatchApi(batchId, { enabled: open, qrIds });
     const batch = response?.data?.batch;
     const variants = useMemo(() => response?.data?.variants ?? [], [response]);
 
@@ -71,7 +72,8 @@ function StudioSession({ open, batchId, onClose }) {
     const [tagLoose, setTagLoose] = useState(true);
     const [included, setIncluded] = useState({});
     const [reprintChoice, setReprintChoice] = useState(null);
-    const reprint = reprintChoice ?? batch?.printStatus === "done";
+    // A picked selection is always a reprint: its tags already exist and already have their IDs.
+    const reprint = reprintChoice ?? (qrIds ? true : batch?.printStatus === "done");
     const strategy = { tagParentChild, tagLoose, included, reprint };
 
     // How it prints.

@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useQrBatchListApi } from "../../../hooks/useQrBatchListApi.js";
 import HistoryFilterBar from "./HistoryFilterBar.jsx";
 import HistoryRow from "./HistoryRow.jsx";
-import { cn } from "@/lib/utils";
-import { EmptyState, LIST_SCROLL, ListBox, Sheet } from "../shared/primitives.jsx";
+import { EmptyState, ListBox, Sheet } from "../shared/primitives.jsx";
 
 const EMPTY_FILTERS = { designId: "", colorVariantId: "", sort: "new" };
 
-const COLUMNS = ["Challan / Date", "Design · Variant", "Sets", "Tags", "Print status", "Action"];
+const COLUMNS = ["Serial", "Challan · date", "Goods received", "Sets", "Tags", "Action"];
 
 export default function HistorySection({ designs, onOpen, challanNo = "", onClearChallan }) {
     const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -51,7 +50,7 @@ export default function HistorySection({ designs, onOpen, challanNo = "", onClea
             />
 
             <ListBox className="mt-4">
-                <div role="row" className="hidden grid-cols-[1.1fr_1.5fr_.65fr_.85fr_1fr_168px] items-center gap-x-3.5 border-b border-slate-200 bg-slate-50 px-[18px] py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 xl:grid">
+                <div role="row" className="hidden grid-cols-[.7fr_1.1fr_1.4fr_.6fr_1.1fr_168px] items-center gap-x-3.5 border-b border-slate-200 bg-slate-50 px-[18px] py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 xl:grid">
                     {COLUMNS.map((name, index) => <span key={name} role="columnheader" className={index === COLUMNS.length - 1 ? "text-right" : undefined}>{name}</span>)}
                 </div>
 

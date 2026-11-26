@@ -55,6 +55,8 @@ export const confirmBatchPrintSchema = z.object({
 
 export const searchTagsQuerySchema = z.object({
     keyword: z.string().trim().min(1).optional(),
+    // Narrows the grouped picker to one challan's tags (ignores the keyword).
+    challanId: z.coerce.number().int().positive().optional(),
     designId: z.coerce.number().int().positive().optional(),
     colorVariantId: z.coerce.number().int().positive().optional(),
     type: z.enum(["SET", "BUNDLE", "PIECE", "LOOSE_PIECE"]).optional(),
