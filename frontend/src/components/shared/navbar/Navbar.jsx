@@ -13,7 +13,7 @@ const Navbar = () => {
                 <div className="flex items-center gap-2">
                     <SheetMenu />
                     <Link to="/" className="flex items-center gap-2 group">
-                        {/* <img src={springfieldLogo} alt="logo" width={28} height={28} /> */}
+                        <img src="/android-chrome-192x192.png" alt="Saksham's Fashions logo" width={32} height={32} className="size-8 shrink-0 object-contain" />
                         <span className="text-[15px] font-semibold text-[#1E1B4B] tracking-tight">SAKSHAM'S FASHIONS</span>
                     </Link>
                 </div>
