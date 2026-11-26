@@ -211,3 +211,23 @@ export const deleteDesignApi = async (id) => {
 
     return data;
 };
+
+// Puts one photo on each named colour: files[i] goes to colorVariantIds[i]. Send at most 20 per call.
+export const replaceVariantPhotosApi = async (files, colorVariantIds) => {
+    const formData = new FormData();
+    files.forEach((file) => formData.append("images", file));
+    formData.append("colorVariantIds", JSON.stringify(colorVariantIds));
+
+    const response = await fetch(`${baseURL}/designs/photos`, {
+        method: "POST",
+        body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data?.error?.message ?? "Couldn't upload the photos.");
+    }
+
+    return data;
+};

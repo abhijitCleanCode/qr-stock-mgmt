@@ -141,6 +141,14 @@ class DesignMasterRepository {
         await tx.update(colorVariant).set({ ...patch, updatedAt: new Date() }).where(eq(colorVariant.id, id));
     }
 
+    // The given colour variants with the fields a photo change needs to check (existence and active state).
+    async findVariantsForPhotos(runner, ids) {
+        if (ids.length === 0) return [];
+        return runner.select({ id: colorVariant.id, isActive: colorVariant.isActive })
+            .from(colorVariant)
+            .where(inArray(colorVariant.id, ids));
+    }
+
     // Every size row of the given variants, active or not (an edit may reactivate an old one).
     async findSizes(runner, variantIds) {
         if (variantIds.length === 0) return [];

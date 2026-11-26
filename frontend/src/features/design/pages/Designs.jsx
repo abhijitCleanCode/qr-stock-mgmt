@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { ChevronDown, Loader2, Plus, Search, Upload } from "lucide-react";
+import { ChevronDown, ImagePlus, Loader2, Plus, Search, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import ActionModal from "@/components/shared/ActionModal";
@@ -74,6 +74,9 @@ const Designs = () => {
           <div className="flex flex-wrap gap-2.5">
             <Button type="button" variant="outline" onClick={() => navigate("/designs/bulk-import")} className="gap-2 rounded-full px-5 text-[13.5px] font-semibold transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
               <Upload className="size-4" /> Bulk import
+            </Button>
+            <Button type="button" variant="outline" onClick={() => navigate("/designs/bulk-photos")} className="gap-2 rounded-full px-5 text-[13.5px] font-semibold transition-colors hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700">
+              <ImagePlus className="size-4" /> Bulk photos
             </Button>
             <Button type="button" onClick={() => navigate("/add-designs")} className="gap-2 rounded-full bg-emerald-600 px-5 text-[13.5px] font-semibold text-white hover:bg-emerald-700">
               <Plus className="size-4" /> Register New Design

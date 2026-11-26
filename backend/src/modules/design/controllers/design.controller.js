@@ -2,13 +2,36 @@ import designService from "../services/design.service.js";
 import designMasterService from "../services/designMaster.service.js";
 import designBulkPreviewService from "../services/designBulkPreview.service.js";
 import designDeleteService from "../services/designDelete.service.js";
+import designPhotoService from "../services/designPhoto.service.js";
 import { ApiResponse } from "../../../core/apiResponse.js";
+import ApiError from "../../../core/apiError.js";
 
 class DesignController {
     _designService = designService;
     _designMasterService = designMasterService;
     _designBulkPreviewService = designBulkPreviewService;
     _designDeleteService = designDeleteService;
+    _designPhotoService = designPhotoService;
+
+    // Puts photos on existing colours in one go. `images[i]` goes to `colorVariantIds[i]`.
+    replacePhotos = async (req, res, next) => {
+        try {
+            let colorVariantIds;
+            try {
+                colorVariantIds = JSON.parse(req.body.colorVariantIds ?? "[]");
+            } catch {
+                colorVariantIds = null;
+            }
+            if (!Array.isArray(colorVariantIds) || colorVariantIds.some((id) => !Number.isInteger(id) || id <= 0)) {
+                return next(new ApiError("colorVariantIds must be a list of colour ids.", 400, "INVALID_VARIANT_IDS"));
+            }
+
+            const response = await this._designPhotoService.replaceVariantPhotos(req.files ?? [], colorVariantIds);
+            return res.status(200).json(new ApiResponse(200, response, "Photos updated."));
+        } catch (error) {
+            next(error);
+        }
+    };
 
     // Deletes a design entered by mistake. Refused (409) once stock or sales exist for it.
     deleteDesign = async (req, res, next) => {
